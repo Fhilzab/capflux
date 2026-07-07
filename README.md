@@ -1,5 +1,22 @@
-# Vue 3 + Vite
+# Capstone
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Offline-first School Management Platform for African schools.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## Technology Stack
+
+- Vue 3
+- Vite
+- Tailwind CSS
+- Pinia
+- Vue Router
+- Dexie.js
+- Supabase
+- PostgreSQL
+
+## Architecture
+
+Frontend: Vue 3
+Backend: Supabase
+Offline Database: IndexedDB (Dexie)
+Payments: Monnify / Paystack
+Notifications: Termii
