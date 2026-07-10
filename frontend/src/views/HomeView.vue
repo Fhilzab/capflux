@@ -1,5 +1,5 @@
 <script setup>
-import LogoutButton from '../components/LogoutButton.vue';
+import NavigationBar from '../components/NavigationBar.vue';
 import SyncStatus from '../components/SyncStatus.vue';
 
 const title = 'Capstone Dashboard';
@@ -8,11 +8,10 @@ const title = 'Capstone Dashboard';
 <template>
   <main class="min-h-screen bg-slate-950 text-white p-8">
     <div class="max-w-5xl mx-auto space-y-6">
+      <NavigationBar />
+
       <div class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <div class="flex items-center justify-between mb-6">
-          <h1 class="text-4xl font-semibold">{{ title }}</h1>
-          <LogoutButton />
-        </div>
+        <h1 class="text-4xl font-semibold mb-4">{{ title }}</h1>
         <p class="text-slate-400">This is the authenticated home screen for Capstone.</p>
       </div>
 

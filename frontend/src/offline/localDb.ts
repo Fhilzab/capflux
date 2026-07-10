@@ -26,6 +26,10 @@ export const LocalRepository = {
     return db.ledger_entries.put(entry);
   },
 
+  getLedgerEntriesByStudent(student_id: string) {
+    return db.ledger_entries.where('student_id').equals(student_id).toArray();
+  },
+
   saveNotification(notification: Record<string, any>) {
     return db.notifications.put(notification);
   },
