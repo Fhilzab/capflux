@@ -26,6 +26,8 @@ const logout = async () => {
       <button class="rounded-xl px-4 py-2 transition hover:bg-slate-800" :class="activeClass('Home')" @click="router.push({ name: 'Home' })">Dashboard</button>
       <button class="rounded-xl px-4 py-2 transition hover:bg-slate-800" :class="activeClass('Students')" @click="router.push({ name: 'Students' })">Students</button>
       <button class="rounded-xl px-4 py-2 transition hover:bg-slate-800" :class="activeClass('Billing')" @click="router.push({ name: 'Billing' })">Billing</button>
+      <button class="rounded-xl px-4 py-2 transition hover:bg-slate-800" :class="activeClass('Payments')" @click="router.push({ name: 'Payments' })">Payments</button>
+      <button class="rounded-xl px-4 py-2 transition hover:bg-slate-800" :class="activeClass('Notifications')" @click="router.push({ name: 'Notifications' })">Notifications</button>
       <button class="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-400" @click="logout">Logout</button>
     </div>
   </header>

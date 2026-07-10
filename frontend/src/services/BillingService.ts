@@ -16,14 +16,24 @@ export const BillingService = {
 
       items.push(...studentEntries.map((entry) => ({
         id: entry.id,
+        student_id: student.id,
         student_name: `${student.first_name} ${student.last_name}`,
         amount: entry.amount,
         entry_type: entry.entry_type,
+        entry_description: entry.entry_description,
       })));
 
       balance += studentBalance;
     }
 
     return { items, balance };
+  },
+
+  async getStudentLedgerEntries(student_id: string) {
+    return LedgerRepository.getEntriesByStudent(student_id);
+  },
+
+  async createCharge(payload: Record<string, any>) {
+    return LedgerRepository.createLedgerEntry(payload);
   },
 };

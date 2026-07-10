@@ -8,4 +8,12 @@ export const StudentService = {
   async getStudentsBySchool(school_id: string) {
     return StudentRepository.getStudentsBySchool(school_id);
   },
+
+  async getStudentById(student_id: string) {
+    return StudentRepository.getStudentById(student_id);
+  },
+
+  async searchStudents(school_id: string, query: string) {
+    return StudentRepository.searchStudents(school_id, query);
+  },
 };

@@ -4,6 +4,8 @@ import LoginView from '../views/LoginView.vue';
 import HomeView from '../views/HomeView.vue';
 import StudentListView from '../views/StudentListView.vue';
 import BillingView from '../views/BillingView.vue';
+import PaymentsView from '../views/PaymentsView.vue';
+import NotificationsView from '../views/NotificationsView.vue';
 
 const routes = [
   {
@@ -19,9 +21,27 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/students/:id',
+    name: 'StudentDetail',
+    component: () => import('../views/StudentDetailView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/billing',
     name: 'Billing',
     component: BillingView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/payments',
+    name: 'Payments',
+    component: PaymentsView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/notifications',
+    name: 'Notifications',
+    component: NotificationsView,
     meta: { requiresAuth: true },
   },
   {

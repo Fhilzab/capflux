@@ -1,9 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { StudentService } from '../services/StudentService';
 
+const router = useRouter();
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const students = ref([]);
+const search = ref('');
 const form = ref({
   first_name: '',
   last_name: '',
@@ -13,8 +16,8 @@ const form = ref({
 const saving = ref(false);
 const message = ref('');
 
-const loadStudents = async () => {
-  students.value = await StudentService.getStudentsBySchool(DEFAULT_SCHOOL_ID);
+const loadStudents = async (query = '') => {
+  students.value = await StudentService.searchStudents(DEFAULT_SCHOOL_ID, query);
 };
 
 const saveStudent = async () => {
@@ -41,6 +44,10 @@ const saveStudent = async () => {
   };
 };
 
+const goToStudent = (id) => {
+  router.push({ name: 'StudentDetail', params: { id } });
+};
+
 onMounted(loadStudents);
 </script>
 
@@ -57,38 +64,50 @@ onMounted(loadStudents);
         </div>
       </section>
 
-      <section class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-          <h2 class="text-2xl font-semibold mb-4">Student register</h2>
-          <div class="space-y-4">
-            <label class="block">
-              <span class="text-sm text-slate-400">First name</span>
-              <input v-model="form.first_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
-            </label>
-            <label class="block">
-              <span class="text-sm text-slate-400">Last name</span>
-              <input v-model="form.last_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
-            </label>
-            <label class="block">
-              <span class="text-sm text-slate-400">Class</span>
-              <input v-model="form.class_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
-            </label>
-            <label class="block">
-              <span class="text-sm text-slate-400">Guardian phone</span>
-              <input v-model="form.guardian_phone" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
-            </label>
-            <button @click="saveStudent" :disabled="saving" class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
-              {{ saving ? 'Saving...' : 'Register student' }}
-            </button>
-            <p v-if="message" class="text-sm text-emerald-400">{{ message }}</p>
+      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="text-2xl font-semibold">Student register</h2>
+            <p class="text-slate-400">Search by name or class to filter the local student list.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <input
+              v-model="search"
+              @input="() => loadStudents(search)"
+              placeholder="Search students"
+              class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-cyan-400"
+            />
+            <button @click="() => loadStudents(search)" class="rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-400">Search</button>
           </div>
         </div>
-
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-          <h2 class="text-2xl font-semibold mb-4">Student count</h2>
-          <p class="text-5xl font-bold">{{ students.length }}</p>
-          <p class="mt-2 text-slate-400">Stored locally in Dexie.</p>
+        <div class="mt-6 space-y-4">
+          <label class="block">
+            <span class="text-sm text-slate-400">First name</span>
+            <input v-model="form.first_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-slate-400">Last name</span>
+            <input v-model="form.last_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-slate-400">Class</span>
+            <input v-model="form.class_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-slate-400">Guardian phone</span>
+            <input v-model="form.guardian_phone" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+          </label>
+          <button @click="saveStudent" :disabled="saving" class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
+            {{ saving ? 'Saving...' : 'Register student' }}
+          </button>
+          <p v-if="message" class="text-sm text-emerald-400">{{ message }}</p>
         </div>
+      </section>
+
+      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+        <h2 class="text-2xl font-semibold mb-4">Student count</h2>
+        <p class="text-5xl font-bold">{{ students.length }}</p>
+        <p class="mt-2 text-slate-400">Stored locally in Dexie.</p>
       </section>
 
       <section class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
@@ -103,7 +122,7 @@ onMounted(loadStudents);
             </tr>
           </thead>
           <tbody>
-            <tr v-for="student in students" :key="student.id" class="border-b border-slate-800 hover:bg-slate-950/50">
+            <tr v-for="student in students" :key="student.id" class="cursor-pointer border-b border-slate-800 hover:bg-slate-950/50" @click="goToStudent(student.id)">
               <td class="py-3">{{ student.first_name }}</td>
               <td class="py-3">{{ student.last_name }}</td>
               <td class="py-3">{{ student.class_name }}</td>
