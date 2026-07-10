@@ -1,4 +1,4 @@
-import { supabase } from '../services/api/supabase';
+import { supabase, hasSupabaseConfig } from '../services/api/supabase';
 import { SyncQueue } from './syncQueue';
 
 const MAX_RETRIES = 3;
@@ -19,6 +19,11 @@ async function executeSyncItem(item: Record<string, any>) {
 
 export async function processSyncQueue() {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return;
+  }
+
+  if (!hasSupabaseConfig) {
+    console.warn('Skipping sync queue: Supabase is not configured.');
     return;
   }
 
