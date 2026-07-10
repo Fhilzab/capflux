@@ -3,6 +3,20 @@ import { SyncQueue } from './syncQueue';
 
 const MAX_RETRIES = 3;
 
+async function executeSyncItem(item: Record<string, any>) {
+  switch (item.operation) {
+    case 'DELETE':
+      return supabase.from(item.entity_type).delete().eq('id', item.entity_id);
+    case 'INSERT':
+      return supabase.from(item.entity_type).insert(item.payload);
+    case 'UPDATE':
+      return supabase.from(item.entity_type).update(item.payload).eq('id', item.entity_id);
+    case 'UPSERT':
+    default:
+      return supabase.from(item.entity_type).upsert(item.payload, { onConflict: 'id' });
+  }
+}
+
 export async function processSyncQueue() {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return;
@@ -17,12 +31,9 @@ export async function processSyncQueue() {
     }
 
     try {
-      const { error } = await supabase
-        .from(item.entity_type)
-        .upsert(item.payload, { onConflict: 'id' });
-
-      if (error) {
-        await SyncQueue.markItemFailed(item.id, error.message || 'Sync failed');
+      const response = await executeSyncItem(item);
+      if ('error' in response && response.error) {
+        await SyncQueue.markItemFailed(item.id, response.error.message || 'Sync failed');
         continue;
       }
 

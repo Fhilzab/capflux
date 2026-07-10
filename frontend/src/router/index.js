@@ -6,6 +6,8 @@ import StudentListView from '../views/StudentListView.vue';
 import BillingView from '../views/BillingView.vue';
 import PaymentsView from '../views/PaymentsView.vue';
 import NotificationsView from '../views/NotificationsView.vue';
+import ReportsView from '../views/ReportsView.vue';
+import SyncView from '../views/SyncView.vue';
 
 const routes = [
   {
@@ -42,6 +44,18 @@ const routes = [
     path: '/notifications',
     name: 'Notifications',
     component: NotificationsView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/reports',
+    name: 'Reports',
+    component: ReportsView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/sync',
+    name: 'Sync',
+    component: SyncView,
     meta: { requiresAuth: true },
   },
   {

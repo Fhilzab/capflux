@@ -2,8 +2,10 @@ import { LedgerRepository } from '../repositories/LedgerRepository';
 import { StudentRepository } from '../repositories/StudentRepository';
 
 export const BillingService = {
-  async getBillingSummary(school_id: string) {
-    const students = await StudentRepository.getStudentsBySchool(school_id);
+  async getBillingSummary(school_id: string, studentIds: string[] = []) {
+    const students = studentIds.length
+      ? await StudentRepository.getStudentsByIds(studentIds)
+      : await StudentRepository.getStudentsBySchool(school_id);
     const items = [];
     let balance = 0;
 

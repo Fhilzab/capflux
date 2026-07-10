@@ -37,6 +37,22 @@ export const SyncQueue = {
     });
   },
 
+  async retryFailedItem(id: string) {
+    const item = await this.getItemById(id);
+    if (!item) return null;
+    return LocalRepository.updateSyncItem(id, {
+      status: 'PENDING',
+      error_message: null,
+      processed_at: null,
+      retry_count: 0,
+    });
+  },
+
+  async retryAllFailed() {
+    const failedItems = await this.getFailedItems();
+    return Promise.all(failedItems.map((item) => this.retryFailedItem(item.id)));
+  },
+
   async incrementRetry(id: string) {
     const item = await this.getItemById(id);
     if (!item) return null;

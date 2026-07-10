@@ -26,6 +26,10 @@ export const StudentRepository = {
     return LocalRepository.getStudentsBySchool(school_id);
   },
 
+  async getStudentsByIds(studentIds: string[]) {
+    return db.students.where('id').anyOf(studentIds).toArray();
+  },
+
   async getStudentById(student_id: string) {
     return db.students.get(student_id);
   },

@@ -8,6 +8,7 @@ const items = ref([]);
 const balance = ref(0);
 const students = ref([]);
 const reconciliation = ref({ totalCharges: 0, totalCredits: 0, netBalance: 0 });
+const searchQuery = ref('');
 const form = ref({
   student_id: '',
   amount: '',
@@ -17,8 +18,8 @@ const form = ref({
 const saving = ref(false);
 const message = ref('');
 
-const loadBilling = async () => {
-  const result = await BillingService.getBillingSummary(DEFAULT_SCHOOL_ID);
+const loadBilling = async (studentIds = []) => {
+  const result = await BillingService.getBillingSummary(DEFAULT_SCHOOL_ID, studentIds);
   items.value = result.items;
   balance.value = result.balance;
   reconciliation.value = {
@@ -30,6 +31,18 @@ const loadBilling = async () => {
 
 const loadStudents = async () => {
   students.value = await StudentService.getStudentsBySchool(DEFAULT_SCHOOL_ID);
+};
+
+const searchBilling = async () => {
+  const query = searchQuery.value.trim();
+  if (!query) {
+    await loadBilling();
+    return;
+  }
+
+  const matchingStudents = await StudentService.searchStudents(DEFAULT_SCHOOL_ID, query);
+  const ids = matchingStudents.map((student) => student.id);
+  await loadBilling(ids);
 };
 
 const submitCharge = async () => {
@@ -79,7 +92,25 @@ onMounted(async () => {
         <p class="text-slate-400">Local billing summary, payment history, and ledger reconciliation.</p>
       </section>
 
-      <section class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl space-y-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 class="text-2xl font-semibold mb-2">Billing</h2>
+            <p class="text-slate-400">Filter charges by student and review local reconciliation.</p>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <input
+              v-model="searchQuery"
+              @keyup.enter="searchBilling"
+              placeholder="Search students"
+              class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
+            />
+            <button @click="searchBilling" class="rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-400">
+              Filter
+            </button>
+          </div>
+        </div>
+
         <div class="rounded-3xl bg-slate-900 p-8 shadow-xl space-y-6">
           <div>
             <h2 class="text-2xl font-semibold mb-4">New charge</h2>

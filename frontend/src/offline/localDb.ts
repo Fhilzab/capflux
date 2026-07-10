@@ -65,6 +65,7 @@ export const LocalRepository = {
   enqueueSyncItem(item: Record<string, any>) {
     return db.sync_queue.add({
       ...item,
+      operation: item.operation ?? 'UPSERT',
       status: item.status ?? 'PENDING',
       retry_count: item.retry_count ?? 0,
       processed_at: item.processed_at ?? null,

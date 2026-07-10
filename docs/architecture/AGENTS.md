@@ -200,7 +200,7 @@ Phase 0 — Foundation
 
 Current engineering stage:
 
-Database Implementation
+Frontend implementation with backend schema hardening in parallel
 
 Completed:
 
@@ -209,6 +209,12 @@ Completed:
 - Technical stack
 - System architecture
 - Database design
+- Core frontend architecture
+- Student registration and search flows
+- Offline billing and payment entry
+- Notification logging
+- Background sync queue
+- Report summary page with CSV export
 
 Next tasks:
 
@@ -218,10 +224,11 @@ Next tasks:
 4. Indexes
 5. Helper functions
 6. Row-Level Security policies
-7. Views
-8. Seed data
+7. Views and seed data
+8. Payment provider integration and reconciliation
+9. Production readiness for multi-tenant operation
 
-Do not skip ahead to frontend implementation unless instructed.
+Frontend work should remain focused on core fee workflows and reporting while backend schema and security are finalized.
 
 ---
 
@@ -491,7 +498,7 @@ Phase 0 — Foundation
 
 Current engineering stage:
 
-Database Implementation
+Frontend implementation with backend schema hardening in parallel
 
 Completed:
 
@@ -500,6 +507,12 @@ Completed:
 - Technical stack
 - System architecture
 - Database design
+- Core frontend architecture
+- Student registration and search flows
+- Offline billing and payment entry
+- Notification logging
+- Background sync queue
+- Report summary page with CSV export
 
 Next tasks:
 
@@ -509,10 +522,11 @@ Next tasks:
 4. Indexes
 5. Helper functions
 6. Row-Level Security policies
-7. Views
-8. Seed data
+7. Views and seed data
+8. Payment provider integration and reconciliation
+9. Production readiness for multi-tenant operation
 
-Do not skip ahead to frontend implementation unless instructed.
+Frontend work should remain focused on core fee workflows and reporting while backend schema and security are finalized.
 
 ---
 
