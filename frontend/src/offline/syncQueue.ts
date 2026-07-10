@@ -1,14 +1,9 @@
 import db from './localDb';
 
 export const SyncQueue = {
-  async add(item) {
+  add(item: Record<string, any>) {
     return db.sync_queue.add({
-      id: item.id,
-      school_id: item.school_id,
-      entity_type: item.entity_type,
-      entity_id: item.entity_id,
-      operation: item.operation,
-      payload: item.payload,
+      ...item,
       retry_count: item.retry_count ?? 0,
       status: item.status ?? 'PENDING',
       created_at: item.created_at ?? new Date().toISOString(),
@@ -16,7 +11,7 @@ export const SyncQueue = {
     });
   },
 
-  async pending() {
+  pending() {
     return db.sync_queue.where('status').equals('PENDING').toArray();
   },
 };

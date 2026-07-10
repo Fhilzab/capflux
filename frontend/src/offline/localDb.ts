@@ -13,4 +13,30 @@ db.version(1).stores({
   app_settings: 'school_id',
 });
 
+export const LocalRepository = {
+  saveStudent(student: Record<string, any>) {
+    return db.students.put(student);
+  },
+
+  getStudentsBySchool(school_id: string) {
+    return db.students.where('school_id').equals(school_id).toArray();
+  },
+
+  saveLedgerEntry(entry: Record<string, any>) {
+    return db.ledger_entries.put(entry);
+  },
+
+  saveNotification(notification: Record<string, any>) {
+    return db.notifications.put(notification);
+  },
+
+  saveProfile(profile: Record<string, any>) {
+    return db.profiles.put(profile);
+  },
+
+  enqueueSyncItem(item: Record<string, any>) {
+    return db.sync_queue.add(item);
+  },
+};
+
 export default db;
