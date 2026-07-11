@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import LoginView from '../views/LoginView.vue';
+import LandingView from '../views/LandingView.vue';
 import HomeView from '../views/HomeView.vue';
 import StudentListView from '../views/StudentListView.vue';
 import BillingView from '../views/BillingView.vue';
@@ -12,6 +13,11 @@ import SyncView from '../views/SyncView.vue';
 const routes = [
   {
     path: '/',
+    name: 'Landing',
+    component: LandingView,
+  },
+  {
+    path: '/dashboard',
     name: 'Home',
     component: HomeView,
     meta: { requiresAuth: true },
@@ -53,9 +59,33 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/reports/daily-collections',
+    name: 'DailyCollections',
+    component: () => import('../views/DailyCollectionsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/reports/outstanding-fees',
+    name: 'OutstandingFees',
+    component: () => import('../views/OutstandingFeesView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/reports/revenue-dashboard',
+    name: 'RevenueDashboard',
+    component: () => import('../views/RevenueDashboardView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/sync',
     name: 'Sync',
     component: SyncView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/school',
+    name: 'SchoolProfile',
+    component: () => import('../views/SchoolProfileView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -82,6 +112,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.name === 'Login' && authStore.isAuthenticated) {
+    return { name: 'Home' };
+  }
+
+  if (to.name === 'Landing' && authStore.isAuthenticated) {
     return { name: 'Home' };
   }
 });

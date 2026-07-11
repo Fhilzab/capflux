@@ -8,10 +8,84 @@ const port = Number(process.env.PORT || 4000);
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', hasSupabaseConfig });
+// Rate limiting (basic in-memory)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 100; // Max requests per window
+
+function rateLimit(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  const now = Date.now();
+
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return next();
+  }
+
+  const entry = rateLimitMap.get(ip);
+  if (now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return next();
+  }
+
+  entry.count += 1;
+  if (entry.count > RATE_LIMIT_MAX) {
+    return res.status(429).json({
+      error: 'Too many requests. Please try again later.',
+      retryAfter: Math.ceil((entry.resetAt - now) / 1000),
+    });
+  }
+
+  return next();
+}
+
+app.use(rateLimit);
+
+// Health check endpoint with detailed status
+app.get('/health', async (req, res) => {
+  const healthStatus = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: process.env.npm_package_version || '0.0.0',
+    supabase: {
+      configured: hasSupabaseConfig,
+    },
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+      unit: 'MB',
+    },
+  };
+
+  // Test database connectivity if configured
+  if (hasSupabaseConfig) {
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('id', { count: 'exact', head: true });
+
+      healthStatus.supabase.connected = !error;
+      healthStatus.supabase.error = error?.message || null;
+      healthStatus.database = {
+        status: error ? 'error' : 'connected',
+        schoolsCount: data?.length || 0,
+      };
+    } catch (err) {
+      healthStatus.supabase.connected = false;
+      healthStatus.supabase.error = err.message;
+      healthStatus.database = { status: 'error' };
+    }
+  } else {
+    healthStatus.supabase.connected = false;
+    healthStatus.database = { status: 'not_configured' };
+  }
+
+  const statusCode = healthStatus.database?.status === 'error' ? 503 : 200;
+  return res.status(statusCode).json(healthStatus);
 });
 
+// RPC proxy endpoint
 app.post('/rpc', async (req, res) => {
   if (!hasSupabaseConfig) {
     return res.status(500).json({ error: 'Supabase backend is not configured.' });
@@ -28,6 +102,22 @@ app.post('/rpc', async (req, res) => {
   }
 
   return res.json({ data });
+});
+
+// Error tracking endpoint - receives client-side errors
+app.post('/api/log-error', express.json({ limit: '100kb' }), (req, res) => {
+  const { message, stack, url, userAgent, timestamp } = req.body;
+
+  console.error(JSON.stringify({
+    type: 'CLIENT_ERROR',
+    message,
+    stack: stack?.substring(0, 500),
+    url,
+    userAgent,
+    timestamp: timestamp || new Date().toISOString(),
+  }));
+
+  return res.json({ received: true });
 });
 
 app.listen(port, () => {

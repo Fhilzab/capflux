@@ -58,4 +58,36 @@ export const ReportService = {
 
     return report;
   },
+
+  async getDailyCollections(school_id: string, startDate: string | null, endDate: string | null) {
+    const entries = await LedgerRepository.getEntriesBySchool(school_id);
+    const payments = entries.filter((entry) => entry.entry_type === 'CREDIT');
+
+    // Group by date
+    const grouped: Record<string, { count: number; total: number }> = {};
+
+    for (const payment of payments) {
+      const date = payment.created_at
+        ? new Date(payment.created_at).toISOString().split('T')[0]
+        : 'unknown';
+
+      // Apply date filter
+      if (startDate && date < startDate) continue;
+      if (endDate && date > endDate) continue;
+
+      if (!grouped[date]) {
+        grouped[date] = { count: 0, total: 0 };
+      }
+      grouped[date].count += 1;
+      grouped[date].total += Number(payment.amount || 0);
+    }
+
+    return Object.entries(grouped)
+      .map(([date, data]) => ({
+        date,
+        count: data.count,
+        total: data.total,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  },
 };

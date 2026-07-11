@@ -12,6 +12,8 @@ const createFallbackClient = () => ({
         data: {
           session: {
             access_token: 'local-dev-token',
+            refresh_token: 'local-dev-refresh',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
             user: {
               id: 'local-user',
               email: 'demo@capstone.local',
@@ -25,11 +27,38 @@ const createFallbackClient = () => ({
         error: null,
       };
     },
+    async signUp() {
+      return {
+        data: {
+          user: {
+            id: 'local-user',
+            email: 'demo@capstone.local',
+          },
+        },
+        error: null,
+      };
+    },
     async signOut() {
       return { data: null, error: null };
     },
     async getSession() {
       return { data: { session: null }, error: null };
+    },
+    async refreshSession() {
+      return {
+        data: {
+          session: {
+            access_token: 'local-dev-token-refreshed',
+            refresh_token: 'local-dev-refresh',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            user: {
+              id: 'local-user',
+              email: 'demo@capstone.local',
+            },
+          },
+        },
+        error: null,
+      };
     },
     async getUser() {
       return { data: { user: null }, error: null };
@@ -52,6 +81,11 @@ const createFallbackClient = () => ({
       single: errorResponse,
     };
     return builder;
+  },
+  functions: {
+    async invoke() {
+      return { data: null, error: new Error('Supabase is not configured in local dev') };
+    },
   },
 });
 

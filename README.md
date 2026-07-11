@@ -79,6 +79,24 @@ npm run dev
 
 Open the URL shown by Vite in your browser.
 
+The public landing page is available at `/` and links into the authenticated dashboard.
+
+## Demo Data
+
+A seeded demo tenant called `Capstone Demo School` is included in `supabase/migrations/202607100007_seed_data.sql`.
+The seed file creates sample students and fee ledger entries for testing:
+
+- Amina Okafor — JSS 1
+- Chinedu Ibe — JSS 2
+- Halima Abdullahi — SSS 1
+- Tunde Adejumo — SSS 2
+- Ngozi Nwosu — JSS 3
+- Fatima Suleiman — SSS 3
+
+When the frontend is running without a configured Supabase instance, login works in local dev mode using any email and password.
+
+If you connect to Supabase, create an auth user for demo access and use the same login screen.
+
 ## Environment Configuration
 
 Create a `.env` file in `frontend/` with the following values:
@@ -114,6 +132,7 @@ npm run preview
 
 ## Pages and Flows
 
+- `LandingView` - public marketing and access page for Capstone
 - `HomeView` - authenticated dashboard with sync status
 - `StudentListView` - register and search students locally
 - `StudentDetailView` - view student details and ledger entries

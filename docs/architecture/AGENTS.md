@@ -188,6 +188,8 @@ The repository already contains the following documents:
 
 These documents are the source of truth.
 
+Public-facing product messaging can be found in `frontend/src/views/LandingView.vue`. The landing page captures the offline-first school finance value proposition and guides users toward login or the authenticated dashboard.
+
 Do not redesign the architecture unless a clear technical issue is identified.
 
 ---
@@ -485,6 +487,8 @@ The repository already contains the following documents:
 - "roadmap.md"
 
 These documents are the source of truth.
+
+Public-facing product messaging can be found in `frontend/src/views/LandingView.vue`. The landing page captures the offline-first school finance value proposition and guides users toward login or the authenticated dashboard.
 
 Do not redesign the architecture unless a clear technical issue is identified.
 

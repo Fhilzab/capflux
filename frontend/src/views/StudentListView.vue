@@ -7,6 +7,7 @@ const router = useRouter();
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const students = ref([]);
 const search = ref('');
+const showArchived = ref(false);
 const form = ref({
   first_name: '',
   last_name: '',
@@ -17,7 +18,12 @@ const saving = ref(false);
 const message = ref('');
 
 const loadStudents = async (query = '') => {
-  students.value = await StudentService.searchStudents(DEFAULT_SCHOOL_ID, query);
+  students.value = await StudentService.searchStudents(DEFAULT_SCHOOL_ID, query, showArchived.value);
+};
+
+const toggleArchived = () => {
+  showArchived.value = !showArchived.value;
+  loadStudents(search.value);
 };
 
 const saveStudent = async () => {
@@ -111,7 +117,22 @@ onMounted(loadStudents);
       </section>
 
       <section class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
-        <h2 class="text-2xl font-semibold mb-4">Student list</h2>
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <h2 class="text-2xl font-semibold">Student list</h2>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <span class="text-sm text-slate-400">Show archived</span>
+            <button
+              @click="toggleArchived"
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              :class="showArchived ? 'bg-cyan-500' : 'bg-slate-700'"
+            >
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                :class="showArchived ? 'translate-x-6' : 'translate-x-1'"
+              ></span>
+            </button>
+          </label>
+        </div>
         <table class="w-full border-collapse text-left text-sm text-slate-200">
           <thead>
             <tr class="border-b border-slate-700 text-slate-400">
