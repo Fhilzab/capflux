@@ -1,12 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import { supabase, hasSupabaseConfig } from './supabaseClient.js';
+import webhookRoutes from './routes/webhook.js';
+import dvaRoutes from './routes/dva.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
-
-app.use(cors());
-app.use(express.json());
 
 // Rate limiting (basic in-memory)
 const rateLimitMap = new Map();
@@ -39,7 +38,13 @@ function rateLimit(req, res, next) {
   return next();
 }
 
+app.use(cors());
+app.use(express.json());
 app.use(rateLimit);
+
+// Payment gateway routes
+app.use('/api/webhook', webhookRoutes);
+app.use('/api/dva', dvaRoutes);
 
 // Health check endpoint with detailed status
 app.get('/health', async (req, res) => {
