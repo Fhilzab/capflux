@@ -78,10 +78,10 @@ WITH inserted_students AS (
     SELECT id, first_name
     FROM inserted_students
     UNION ALL
-    SELECT id, first_name
-    FROM students
-    WHERE school_id = (SELECT school_id FROM school)
-      AND device_id IN ('demo-device-1', 'demo-device-2', 'demo-device-3', 'demo-device-4', 'demo-device-5', 'demo-device-6')
+    SELECT s.id, s.first_name
+    FROM students s
+    WHERE s.school_id = (SELECT school_id FROM school)
+      AND s.first_name IN ('Amina', 'Chinedu', 'Halima', 'Tunde', 'Ngozi', 'Fatima')
 )
 INSERT INTO ledger_entries (
     school_id,

@@ -12,7 +12,7 @@ export const StudentRepository = {
 
     await LocalRepository.saveStudent(record);
     await LocalRepository.enqueueSyncItem({
-      id: `student-sync-${record.id}`,
+      id: `student-sync-${record.id}-${Date.now()}`,
       school_id: record.school_id,
       entity_type: 'students',
       entity_id: record.id,
@@ -34,7 +34,7 @@ export const StudentRepository = {
 
     await db.students.put(updated);
     await LocalRepository.enqueueSyncItem({
-      id: `student-sync-${student_id}`,
+      id: `student-sync-${student_id}-${Date.now()}`,
       school_id: updated.school_id,
       entity_type: 'students',
       entity_id: student_id,
@@ -57,7 +57,7 @@ export const StudentRepository = {
 
     await db.students.put(updated);
     await LocalRepository.enqueueSyncItem({
-      id: `student-sync-${student_id}`,
+      id: `student-sync-${student_id}-${Date.now()}`,
       school_id: updated.school_id,
       entity_type: 'students',
       entity_id: student_id,

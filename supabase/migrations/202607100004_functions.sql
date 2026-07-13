@@ -143,4 +143,62 @@ RETURNS UUID LANGUAGE SQL VOLATILE AS $$
     ) RETURNING id;
 $$;
 
+-- ============================================================
+-- AUTOMATIC BILLING: Apply student base fees
+-- Creates DEBIT ledger entries for all ACTIVE students when called
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION trigger_apply_student_base_fees(
+    tuition_amount NUMERIC(12,2) DEFAULT 25000.00,
+    tech_levy_amount NUMERIC(12,2) DEFAULT 1000.00
+)
+RETURNS TABLE (
+    student_id UUID,
+    student_name TEXT,
+    tuition_id UUID,
+    tech_levy_id UUID
+) LANGUAGE plpgsql AS $$
+DECLARE
+    v_school_id UUID := current_school_id();
+    v_student RECORD;
+    v_tuition_id UUID;
+    v_tech_levy_id UUID;
+    v_device_id TEXT := 'system-billing';
+    v_client_seq INTEGER;
+BEGIN
+    -- Get next client sequence for this device
+    SELECT COALESCE(MAX(client_sequence), 0) + 1 INTO v_client_seq
+    FROM ledger_entries
+    WHERE school_id = v_school_id AND device_id = v_device_id;
+
+    -- Process all active students
+    FOR v_student IN
+        SELECT id, first_name, last_name FROM students
+        WHERE school_id = v_school_id AND status = 'ACTIVE'
+    LOOP
+        -- Insert tuition fee
+        INSERT INTO ledger_entries (
+            id, school_id, student_id, amount, entry_type,
+            entry_category, metadata, client_sequence, device_id, created_at
+        ) VALUES (
+            gen_random_uuid(), v_school_id, v_student.id, tuition_amount, 'DEBIT',
+            'TUITION', jsonb_build_object('term', '2026_1'), v_client_seq, v_device_id, now()
+        ) RETURNING id INTO v_tuition_id;
+        v_client_seq := v_client_seq + 1;
+
+        -- Insert tech levy
+        INSERT INTO ledger_entries (
+            id, school_id, student_id, amount, entry_type,
+            entry_category, metadata, client_sequence, device_id, created_at
+        ) VALUES (
+            gen_random_uuid(), v_school_id, v_student.id, tech_levy_amount, 'DEBIT',
+            'TECH_LEVY', jsonb_build_object('term', '2026_1'), v_client_seq, v_device_id, now()
+        ) RETURNING id INTO v_tech_levy_id;
+        v_client_seq := v_client_seq + 1;
+
+        RETURN QUERY SELECT v_student.id, (v_student.first_name || ' ' || v_student.last_name)::TEXT, v_tuition_id, v_tech_levy_id;
+    END LOOP;
+END;
+$$;
+
 COMMIT;

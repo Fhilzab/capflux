@@ -84,9 +84,10 @@ CREATE TRIGGER audit_students
     AFTER INSERT OR UPDATE OR DELETE ON students
     FOR EACH ROW EXECUTE FUNCTION trigger_audit_log();
 
+-- Enforce ledger immutability: Only log INSERTs (no UPDATE/DELETE allowed)
 DROP TRIGGER IF EXISTS audit_ledger_entries ON ledger_entries;
 CREATE TRIGGER audit_ledger_entries
-    AFTER INSERT OR UPDATE OR DELETE ON ledger_entries
+    AFTER INSERT ON ledger_entries
     FOR EACH ROW EXECUTE FUNCTION trigger_audit_log();
 
 DROP TRIGGER IF EXISTS audit_notifications ON notifications;

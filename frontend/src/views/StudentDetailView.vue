@@ -351,7 +351,7 @@ onMounted(loadStudent);
                   <p class="font-semibold">{{ entry.entry_category }}</p>
                 </div>
                 <p class="font-semibold" :class="entry.entry_type === 'DEBIT' ? 'text-cyan-400' : 'text-emerald-400'">
-                  {{ entry.entry_type === 'DEBIT' ? '' : '-' }}₦{{ Number(entry.amount).toLocaleString() }}
+                  ₦{{ Number(entry.amount).toLocaleString() }}
                 </p>
               </div>
               <p class="mt-2 text-slate-400">{{ entry.entry_description || 'No description' }}</p>
