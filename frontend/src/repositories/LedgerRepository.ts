@@ -2,15 +2,21 @@ import { LocalRepository } from '../offline/localDb';
 
 export const LedgerRepository = {
   async createLedgerEntry(entry: Record<string, any>) {
-    await LocalRepository.saveLedgerEntry(entry);
+    const { v4: uuidv4 } = await import('uuid');
+    const record = {
+      id: entry.id ?? uuidv4(),
+      ...entry,
+    } as Record<string, any>;
+
+    await LocalRepository.saveLedgerEntry(record);
     await LocalRepository.enqueueSyncItem({
-      id: `ledger-sync-${entry.id}`,
-      school_id: entry.school_id,
+      id: `ledger-sync-${record.id}-${Date.now()}`,
+      school_id: record.school_id,
       entity_type: 'ledger_entries',
-      entity_id: entry.id,
-      payload: entry,
+      entity_id: record.id,
+      payload: record,
     });
-    return entry;
+    return record;
   },
 
   async getEntriesByStudent(student_id: string) {

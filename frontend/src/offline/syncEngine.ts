@@ -27,6 +27,13 @@ export async function processSyncQueue() {
     return;
   }
 
+  // Verify we have a valid session before syncing
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    console.warn('Skipping sync queue: No valid Supabase session.');
+    return;
+  }
+
   const pendingItems = await SyncQueue.getPendingItems();
 
   for (const item of pendingItems) {

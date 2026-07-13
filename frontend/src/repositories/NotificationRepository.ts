@@ -6,7 +6,7 @@ export const NotificationRepository = {
     const saved = await LocalRepository.saveNotification(notification);
 
     await LocalRepository.enqueueSyncItem({
-      id: `notification-sync-${saved.id}`,
+      id: `notification-sync-${saved.id}-${Date.now()}`,
       school_id: saved.school_id,
       entity_type: 'notifications',
       entity_id: saved.id,

@@ -85,6 +85,14 @@ app.get('/health', async (req, res) => {
   return res.status(statusCode).json(healthStatus);
 });
 
+// Allowlist of permitted RPC functions (security hardening)
+// Only these functions can be called through the RPC proxy
+const PERMITTED_RPC_FUNCTIONS = [
+  'student_balance',
+  'school_balance',
+  'trigger_apply_student_base_fees',
+];
+
 // RPC proxy endpoint
 app.post('/rpc', async (req, res) => {
   if (!hasSupabaseConfig) {
@@ -96,12 +104,24 @@ app.post('/rpc', async (req, res) => {
     return res.status(400).json({ error: 'functionName is required.' });
   }
 
-  const { data, error } = await supabase.rpc(functionName, params || {});
-  if (error) {
-    return res.status(500).json({ error: error.message, details: error.details });
+  // Security: Only allow calls to whitelisted functions
+  if (!PERMITTED_RPC_FUNCTIONS.includes(functionName)) {
+    return res.status(403).json({
+      error: 'RPC function not permitted',
+      message: `The function '${functionName}' is not in the allowed list.`,
+    });
   }
 
-  return res.json({ data });
+  try {
+    const { data, error } = await supabase.rpc(functionName, params || {});
+    if (error) {
+      return res.status(500).json({ error: error.message, details: error.details });
+    }
+    return res.json({ data });
+  } catch (err) {
+    console.error('RPC proxy error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Error tracking endpoint - receives client-side errors

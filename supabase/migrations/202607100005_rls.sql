@@ -32,12 +32,12 @@ CREATE POLICY allow_authenticated_profiles ON profiles
     USING (current_school_id() = profiles.school_id);
 
 CREATE POLICY allow_authenticated_students ON students
-    FOR SELECT, INSERT, UPDATE, DELETE
+    FOR SELECT, INSERT, UPDATE
     USING (current_school_id() = students.school_id)
     WITH CHECK (current_school_id() = students.school_id);
 
 CREATE POLICY allow_authenticated_ledger_entries ON ledger_entries
-    FOR SELECT, INSERT, UPDATE
+    FOR SELECT, INSERT
     USING (current_school_id() = ledger_entries.school_id)
     WITH CHECK (current_school_id() = ledger_entries.school_id);
 

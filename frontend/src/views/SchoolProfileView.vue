@@ -56,7 +56,6 @@ const saveSettings = async () => {
       timezone: settings.value.timezone,
       settings: {
         invoice_prefix: settings.value.invoice_prefix,
-        term_technology_levy: Number(settings.value.term_technology_levy),
       },
     });
     message.value = 'Settings saved locally.';
@@ -151,16 +150,12 @@ onMounted(loadSchoolData);
               />
             </label>
 
-            <label class="block">
+            <div class="block">
               <span class="text-sm text-slate-400">Tech levy per term (₦)</span>
-              <input
-                v-model="settings.term_technology_levy"
-                type="number"
-                min="0"
-                step="100"
-                class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-              />
-            </label>
+              <p class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-slate-300">
+                {{ settings.term_technology_levy.toLocaleString() }}
+              </p>
+            </div>
           </div>
 
           <div class="mt-6 flex items-center gap-4">
