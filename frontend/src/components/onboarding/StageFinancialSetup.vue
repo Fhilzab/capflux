@@ -43,15 +43,29 @@ const verifyAccount = async () => {
   verifyLoading.value = true;
   verifyError.value = '';
   
-  // Mock verification - in production this would call backend
-  if (settlementForm.value.accountNumber.length >= 10) {
-    settlementForm.value.accountName = 'Verified Account Name';
-    showSettlementForm.value = true;
-  } else {
-    verifyError.value = 'Invalid account number';
+  try {
+    const response = await fetch('/api/onboarding/verify-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bank: settlementForm.value.bank,
+        accountNumber: settlementForm.value.accountNumber,
+      }),
+    });
+    
+    const result = await response.json();
+    
+    if (result.verified) {
+      settlementForm.value.accountName = result.accountName;
+      showSettlementForm.value = true;
+    } else {
+      verifyError.value = result.error || 'Verification failed';
+    }
+  } catch (e: any) {
+    verifyError.value = 'Network error. Please try again.';
+  } finally {
+    verifyLoading.value = false;
   }
-  
-  verifyLoading.value = false;
 };
 
 const handleSubmit = async () => {
