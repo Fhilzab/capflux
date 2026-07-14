@@ -1,197 +1,130 @@
-# Fee-First Billing Architecture Migration Report
+# Migration Report: Synchronization Architecture Refactor
 
-## Executive Summary
+## Date: 2026-07-14
 
-This architectural refactor transforms Capstone School ERP to reflect how Nigerian private schools operate while preserving the offline-first and append-only ledger architecture.
+## Objective
+Refactor Capstone's synchronization architecture to distinguish between operational (school-generated) data and financial (bank-generated) data.
 
----
+## Changes Summary
 
-## Changes Made
+### 1. Entity Ownership Classification
 
-### 1. Database Schema Changes
+All entities are now classified into three ownership models:
 
-#### New Tables Created
+| Entity Type | Ownership Model | Direction | Examples |
+|-------------|-----------------|-----------|----------|
+| students | LOCAL OWNED | ↑ Upload | Student records, class enrollment |
+| guardians | LOCAL OWNED | ↑ Upload | Parent/guardian contact info |
+| tuition_configurations | LOCAL OWNED | ↑ Upload | Fee configuration per session/term |
+| fee_rules | LOCAL OWNED | ↑ Upload | Platform fee policy |
+| notifications | HYBRID | ↑ Upload / ↓ Download | Notification drafts vs delivery status |
+| ledger_entries | HYBRID | ↑ Upload (DEBIT) / ↓ Download (CREDIT) | Tuition charges vs payments |
+| payment_accounts | HYBRID | ↑ Upload (request) / ↓ Download (response) | DVA creation requests vs responses |
+| payment_transactions | CLOUD OWNED | ↓ Download | Bank transaction records |
+| settlement_records | CLOUD OWNED | ↓ Download | Split settlement details |
 
-| Table | Purpose |
-|-------|---------|
-| `tuition_configuration` | Tuition configured per (school, session, term, category) |
-| `fee_rules` | Configurable platform & banking service fee policy |
-| `payment_accounts` | Dedicated Virtual Accounts (DVA) decoupled from students |
+### 2. Database Schema Changes
 
-#### New Enum Types
+#### Dexie Schema (v3)
+- Added `source` field to all tables: `'LOCAL'` | `'SERVER'` | `'WEBHOOK'`
+- Added `version` field for optimistic locking
+- Added `updated_at` field for conflict resolution
 
-| Type | Values |
-|------|--------|
-| `student_category` | NURSERY, PRIMARY, SECONDARY |
-| `academic_term` | FIRST, SECOND, THIRD |
+```typescript
+// Example: payment_transactions now includes source tracking
+payment_transactions: 'id, school_id, student_id, ..., source, version, updated_at'
+```
 
-#### Modified Tables
+### 3. New Sync Engines
 
-| Table | Changes |
-|-------|---------|
-| `students` | Added `category` column (backfilled from class_name) |
+#### UploadSyncEngine (`frontend/src/offline/UploadSyncEngine.ts`)
+- Responsible for syncing LOCAL OWNED entities to Supabase
+- Validates entity ownership before upload
+- Used by: StudentService, GuardianService, TuitionConfigurationService
 
-#### Preserved (for backward compatibility)
+#### DownloadSyncEngine (`frontend/src/offline/DownloadSyncEngine.ts`)
+- Responsible for downloading CLOUD OWNED entities from Supabase
+- Never creates/modifies financial data locally
+- Used by: SyncService, RealtimeSyncService
 
-| Table | Notes |
-|-------|-------|
-| `dva_assignments` | Kept for backward compatibility during transition |
-| `guardian_phone` on students | Kept as nullable field |
+#### RealtimeSyncService (`frontend/src/offline/RealtimeSyncService.ts`)
+- Subscribes to Supabase realtime events
+- Automatically updates local Dexie on CLOUD OWNED changes
+- Channels: `payment_transactions`, `payment_accounts`, `settlement_records`, `ledger_entries`
 
----
+### 4. API Changes
 
-### 2. Dexie Schema Updates
+#### New Routes
+- `POST /api/payment-accounts/provision` - Provider-agnostic payment account creation
+- `GET /api/payment-accounts/:student_id` - Get payment account details
+- `POST /api/payment-accounts/deactivate` - Deactivate payment account
+- `POST /api/payment-accounts/bulk-provision` - Bulk provisioning
 
-**Version bumped from 1 to 2**
+#### Deprecated Routes
+- `POST /api/dva/provision` - Use `/api/payment-accounts/provision` instead
+- `GET /api/dva/:student_id` - Use `/api/payment-accounts/:student_id` instead
 
-New stores:
-- `payment_accounts` - UUID-first offline storage
-- `tuition_configurations` - Offline tuition config
-- `fee_rules` - Offline fee rules
+### 5. Payment Flow (Updated)
 
-Removed stores:
-- `dva_assignments` - Replaced by `payment_accounts`
+```
+Parent Payment
+        ↓
+     Bank
+        ↓
+   Monnify
+        ↓
+   Webhook (backend)
+        ↓
+   Supabase (payment_transactions)
+        ↓
+   Realtime Sync
+        ↓
+   Dexie (CLOUD OWNED - read-only)
+        ↓
+   Vue UI
+```
 
----
+### 6. Key Rules Enforced
 
-### 3. TypeScript Interface Changes
+1. **CREDIT ledger entries cannot be created locally** - Only DEBIT entries (tuition charges) can be created in the browser
+2. **Payment transactions are read-only** - Browser treats `payment_transactions` as immutable
+3. **Source tracking required** - Every entity has `source`, `version`, `updated_at` fields
+4. **Provider agnostic** - All payment operations use `GatewayFactory.get(provider)`
 
-New interfaces in `src/types/billing.ts`:
-- `TuitionConfiguration`
-- `FeeRule`
-- `PaymentAccount`
-- `PlatformFeeCalculation`
-- `TransactionVerification`
-- `DVARequest`, `DVAResponse`
+### 7. Files Modified
 
-All `Record<string, any>` replaced with strict types.
+| File | Change Type |
+|------|-------------|
+| `frontend/src/offline/localDb.ts` | Schema updated to v3 with source tracking |
+| `frontend/src/offline/UploadSyncEngine.ts` | New file |
+| `frontend/src/offline/DownloadSyncEngine.ts` | New file |
+| `frontend/src/offline/RealtimeSyncService.ts` | New file |
+| `frontend/src/services/SyncService.ts` | Updated to use new sync engines |
+| `backend/routes/payment-accounts.js` | New file (provider-agnostic) |
+| `backend/index.js` | Route registration updated |
+| `docs/database/ER_DIAGRAM.md` | Updated with payment_accounts relationship |
 
----
+### 8. Migration Steps for Existing Deployments
 
-### 4. Repositories Updated
-
-| Repository | Changes |
-|------------|---------|
-| `TuitionConfigurationRepository.ts` | New - offline-first tuition config |
-| `FeeRuleRepository.ts` | New - offline-first fee rules |
-| `PaymentAccountRepository.ts` | New - offline-first DVA management |
-| `StudentRepository.ts` | Updated with category, strict types |
-| `GuardianRepository.ts` | Updated with strict types |
-| `LedgerRepository.ts` | Updated with strict types |
-
----
-
-### 5. Services Updated
-
-| Service | Changes |
-|---------|---------|
-| `TuitionConfigurationService.ts` | New - tuition lookup and configuration |
-| `FeeRuleService.ts` | Via FeeRuleRepository - platform fee calculation |
-| `BillingService.ts` | Updated - no TECH_LEVY on registration, balance computed |
-| `StudentService.ts` | Updated - full registration flow with tuition |
-| `PaymentService.ts` | Updated - platform fee from fee_rules |
-| `PaymentGateway.ts` | Updated - removed hardcoded fee logic |
-
----
-
-### 6. Backend Changes
-
-| File | Changes |
-|------|--------|
-| `PaymentGateway.js` | Updated docs - platform fee now from fee_rules |
-| `LedgerService.js` | Creates PLATFORM_BANKING_FEE entry on payment |
-| `routes/webhook.js` | Uses payment_accounts table, guardian lookup |
-
----
-
-## Key Architectural Changes
-
-### Before → After
-
-| Aspect | Before | After |
-|--------|--------|-----|
-| Tuition | Hardcoded in function | Configured in `tuition_configuration` table |
-| Student Category | Implicit from class_name | Explicit `category` field |
-| DVAs | On student row | Dedicated `payment_accounts` table |
-| Platform Fee | Hardcoded (1000 + 200) | Configurable via `fee_rules` table |
-| Platform Fee Timing | On registration (TECH_LEVY) | On payment (PLATFORM_BANKING_FEE) |
-| Guardian Storage | Duplicated per student | Normalized with one-to-many |
-| Fee Rule Policy | Hardcoded in services | Database-driven configuration |
-
----
-
-## Migration Sequence
-
-1. Run `202607100012_tuition_and_fees.sql` - Creates tables + adds category column
-2. Run `202607100013_rls.sql` - RLS policies + helper functions
-3. Run `202607100014_registration_flow.sql` - Registration function
-4. Run `202607100015_data_migration.sql` - Migrates existing data
-
----
+1. Run SQL migration `202607100016_payment_accounts.sql` to create `payment_accounts` table
+2. Run SQL migration `202607100017_dva_deprecation.sql` to add deprecation notices
+3. Deploy backend changes (include both old and new routes)
+4. Deploy frontend changes (Dexie auto-upgrades schema)
+5. Update client code to use `/api/payment-accounts` endpoints
+6. Future: Remove `/api/dva` routes and `dva_assignments` table
 
 ## Backward Compatibility
 
-- Existing `TECH_LEVY` ledger entries remain (append-only)
-- `dva_assignments` table still exists for transition period
-- `guardian_phone` on students preserved (nullable)
-- All existing API routes remain functional
-
----
+- The old `/api/dva` routes remain functional
+- A view is created for backward compatibility in SQL
+- SyncService maintains legacy methods
+- LocalRepository methods preserved for existing code
 
 ## Testing Checklist
 
-- [ ] TypeScript compilation passes with zero errors
-- [ ] Existing students can be retrieved with category
-- [ ] Tuition configuration can be saved/retrieved
-- [ ] Fee rules can be saved/retrieved
-- [ ] Platform fee calculation uses fee_rules
-- [ ] Student registration follows new flow
-- [ ] DVA provisioning uses payment_accounts
-- [ ] Payment webhook records PLATFORM_BANKING_FEE
-- [ ] Offline sync works for new entities
-- [ ] Guardian deduplication works in registration
-
----
-
-## Files Created/Modified
-
-### SQL Migrations
-- `supabase/migrations/202607100012_tuition_and_fees.sql` (new)
-- `supabase/migrations/202607100013_rls.sql` (new)
-- `supabase/migrations/202607100014_registration_flow.sql` (new)
-- `supabase/migrations/202607100015_data_migration.sql` (new)
-
-### TypeScript Types
-- `frontend/src/types/billing.ts` (new)
-
-### Repositories
-- `frontend/src/repositories/TuitionConfigurationRepository.ts` (new)
-- `frontend/src/repositories/FeeRuleRepository.ts` (new)
-- `frontend/src/repositories/PaymentAccountRepository.ts` (new)
-- `frontend/src/repositories/StudentRepository.ts` (updated)
-- `frontend/src/repositories/GuardianRepository.ts` (updated)
-- `frontend/src/repositories/LedgerRepository.ts` (updated)
-
-### Services
-- `frontend/src/services/TuitionConfigurationService.ts` (new)
-- `frontend/src/services/BillingService.ts` (updated)
-- `frontend/src/services/StudentService.ts` (updated)
-- `frontend/src/services/PaymentService.ts` (updated)
-- `backend/services/PaymentGateway.js` (updated)
-- `backend/services/LedgerService.js` (updated)
-- `backend/routes/webhook.js` (updated)
-
-### Documentation
-- `docs/database/ER_DIAGRAM.md` (updated)
-- `docs/database/MIGRATION_REPORT.md` (this file)
-
----
-
-## Next Steps
-
-1. Apply migrations during maintenance window
-2. Deploy frontend changes
-3. Test registration flow end-to-end
-4. Test payment flow with platform fee
-5. Remove deprecated fields after migration period
-6. Consider adding Flutterwave/Remita gateway implementations
+- [ ] Frontend build succeeds (✓)
+- [ ] Entity ownership validation works correctly
+- [ ] Cannot create CREDIT ledger entries locally
+- [ ] Realtime subscriptions update Dexie correctly
+- [ ] Download sync populates CLOUD OWNED entities
+- [ ] Upload sync rejects CLOUD OWNED entities

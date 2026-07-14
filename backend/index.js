@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { supabase, hasSupabaseConfig } from './supabaseClient.js';
 import webhookRoutes from './routes/webhook.js';
-import dvaRoutes from './routes/dva.js';
+import paymentAccountRoutes from './routes/payment-accounts.js';
+import dvaRoutes from './routes/dva.js'; // DEPRECATED: For backward compatibility only
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -44,7 +45,11 @@ app.use(rateLimit);
 
 // Payment gateway routes
 app.use('/api/webhook', webhookRoutes);
+// DEPRECATED: Use /api/payment-accounts instead of /api/dva
+// The /api/dva routes are maintained for backward compatibility
 app.use('/api/dva', dvaRoutes);
+// Provider-agnostic payment accounts routes (NEW)
+app.use('/api/payment-accounts', paymentAccountRoutes);
 
 // Health check endpoint with detailed status
 app.get('/health', async (req, res) => {

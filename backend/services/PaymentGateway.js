@@ -18,38 +18,67 @@ export class PaymentGateway {
   }
 
   /**
-   * Create a Dedicated Virtual Account (DVA) for a student
+   * Create a sub-merchant account for a school
+   * Used for split settlement configuration in some providers
+   * @param {Object} params
+   * @returns {Promise<Object>} Sub-merchant details
+   */
+  async createSchoolSubAccount(params) {
+    throw new Error('createSchoolSubAccount() must be implemented by subclass');
+  }
+
+  /**
+   * Create a payment account (DVA) for a student
    * @param {Object} params
    * @param {string} params.school_id - School UUID
    * @param {string} params.student_id - Student UUID
    * @param {string} params.student_name - Full student name
    * @param {string} params.guardian_phone - Parent/guardian phone number
    * @param {Object} params.gateway_config - School's gateway configuration
-   * @returns {Promise<Object>} DVA details with account number, bank, account name
+   * @returns {Promise<Object>} Payment account details
    */
-  async createDVA(params) {
-    throw new Error('createDVA() must be implemented by subclass');
+  async createStudentPaymentAccount(params) {
+    throw new Error('createStudentPaymentAccount() must be implemented by subclass');
   }
 
   /**
-   * Verify a transaction reference with the gateway API
+   * Deactivate a payment account
+   * @param {Object} params
+   * @returns {Promise<Object>} Deactivation result
+   */
+  async deactivatePaymentAccount(params) {
+    throw new Error('deactivatePaymentAccount() must be implemented by subclass');
+  }
+
+  /**
+   * Verify a payment with the gateway API
    * NEVER trust webhook data directly - always verify via API
    * @param {string} reference - Transaction reference to verify
    * @param {Object} gateway_config - School's gateway configuration
    * @returns {Promise<Object>} Verified transaction details
    */
-  async verifyTransaction(reference, gateway_config) {
-    throw new Error('verifyTransaction() must be implemented by subclass');
+  async verifyPayment(reference, gateway_config) {
+    throw new Error('verifyPayment() must be implemented by subclass');
   }
 
   /**
-   * Get transaction details from the gateway
-   * @param {string} reference - Transaction reference
+   * Process a webhook payload
+   * @param {Object} payload - Raw webhook payload
    * @param {Object} gateway_config - School's gateway configuration
-   * @returns {Promise<Object>} Full transaction details
+   * @returns {Promise<Object>} Processing result
    */
-  async getTransaction(reference, gateway_config) {
-    throw new Error('getTransaction() must be implemented by subclass');
+  async processWebhook(payload, gateway_config) {
+    throw new Error('processWebhook() must be implemented by subclass');
+  }
+
+  /**
+   * Reconcile pending payments
+   * Query the gateway for unprocessed transactions
+   * @param {Object} params
+   * @returns {Promise<Array>} List of reconciled payments
+   */
+  async reconcilePayments(params) {
+    throw new Error('reconcilePayments() must be implemented by subclass');
   }
 
   /**
@@ -90,7 +119,7 @@ export class PaymentGateway {
   }
 
   /**
-   * Parse settlement information from webhook
+   * Parse webhook payload to extract settlement information
    * NOTE: This now returns raw settlement data from the gateway.
    * Platform fee calculation is done separately via fee_rules table.
    * @param {Object} payload - Raw webhook payload

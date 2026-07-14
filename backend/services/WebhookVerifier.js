@@ -94,25 +94,28 @@ export class WebhookVerifier {
   }
 
   /**
-   * Verify student owns the DVA that received the payment
-   * @param {string} dva_account_number - DVA account number
+   * Verify student owns the payment account that received the payment
+   * @param {string} virtual_account_number - Payment account virtual account number
    * @param {string} school_id - School UUID
-   * @returns {Promise<Object>} Student info
+   * @returns {Promise<Object>} Payment account info with student
    */
-  async verifyStudent(dva_account_number, school_id) {
-    const { data: dvaAssignment, error } = await supabase
-      .from('dva_assignments')
-      .select('*, students!inner(*)')
-      .eq('dva_account_number', dva_account_number)
+  async verifyPaymentAccount(virtual_account_number, school_id) {
+    const { data: paymentAccount, error } = await supabase
+      .from('payment_accounts')
+      .select('*, students!inner(id, school_id, first_name, last_name)')
+      .eq('virtual_account_number', virtual_account_number)
       .eq('school_id', school_id)
-      .eq('is_active', true)
+      .eq('account_status', 'ACTIVE')
       .single();
 
-    if (error || !dvaAssignment) {
-      throw new Error(`No active student found for DVA ${dva_account_number}`);
+    if (error || !paymentAccount) {
+      throw new Error(`No active payment account found for ${virtual_account_number}`);
     }
 
-    return dvaAssignment.students;
+    return {
+      student: paymentAccount.students,
+      payment_account: paymentAccount,
+    };
   }
 
   /**
@@ -165,14 +168,14 @@ export class WebhookVerifier {
     // Step 3: Verify with gateway API
     const { transaction, gatewayConfig } = await this.verifyWithAPI(reference, provider, school_id);
 
-    // Step 4: Extract and validate DVA
-    const dva_account_number = gateway.parseWebhookDVA(payload);
-    if (!dva_account_number) {
-      throw new Error('No DVA account number found in webhook payload');
+    // Step 4: Extract and validate virtual account number
+    const virtual_account_number = gateway.parseWebhookDVA(payload);
+    if (!virtual_account_number) {
+      throw new Error('No virtual account number found in webhook payload');
     }
 
-    // Step 5: Verify student owns the DVA
-    const student = await this.verifyStudent(dva_account_number, school_id);
+    // Step 5: Verify student owns the payment account
+    const { student, payment_account } = await this.verifyPaymentAccount(virtual_account_number, school_id);
 
     // Step 6: Verify amount
     const amountPaid = gateway.parseWebhookAmount(payload);
@@ -193,6 +196,7 @@ export class WebhookVerifier {
       raw_payload: payload,
       gatewayConfig,
       student,
+      payment_account,
       transaction,
     };
   }

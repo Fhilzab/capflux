@@ -88,6 +88,13 @@ const createFallbackClient = () => ({
       return { data: null, error: new Error('Supabase is not configured in local dev') };
     },
   },
+  channel(_name: string) {
+    return {
+      on: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }),
+      subscribe: () => ({ unsubscribe: () => {} }),
+      unsubscribe: () => {},
+    };
+  },
 });
 
 export const supabase = hasSupabaseConfig

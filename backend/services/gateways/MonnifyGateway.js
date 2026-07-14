@@ -45,31 +45,66 @@ export class MonnifyGateway {
   }
 
   /**
+   * Create a sub-merchant account for a school
+   * Used for split settlement configuration
+   */
+  async createSchoolSubAccount(params) {
+    const { school_id, school_name, gateway_config } = params;
+    
+    const accessToken = await this.getAccessToken(gateway_config);
+
+    const requestBody = {
+      businessName: school_name || `School ${school_id}`,
+      businessShortName: school_name?.substring(0, 10) || school_id.substring(0, 10),
+      accountReference: `sub-${school_id}`,
+    };
+
+    const response = await axios.post(
+      `${MONNIFY_BASE_URL}/v1/merchant/api/v2/sub-accounts`,
+      requestBody,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data && response.data.requestSuccessful) {
+      const subAccount = response.data.responseBody;
+      return {
+        subaccount_id: subAccount.subAccountCode,
+        account_reference: subAccount.accountReference,
+        status: 'ACTIVE',
+      };
+    }
+    throw new Error('Failed to create Monnify sub-account');
+  }
+
+  /**
    * Create a Dedicated Virtual Account for a student
    * Uses sub-merchant account for split settlement configuration
    */
-  async createDVA(params) {
+  async createStudentPaymentAccount(params) {
     const { student_id, student_name, guardian_phone, gateway_config, school_id } = params;
     
     const accessToken = await this.getAccessToken(gateway_config);
 
     // Build split settlement configuration
     // Tuition goes to school, Tech Levy + Platform Fee goes to Capstone
-    const splitConfig = {
+    const splitConfig = gateway_config.submerchant_code ? {
       splitAmount: [
         {
           subAccountCode: gateway_config.submerchant_code,
           splitPercentage: '100.00', // Student's school gets 100% of their DVA
         },
       ],
-    };
+    } : {};
 
     const requestBody = {
-      accountReference: student_id,
+      accountReference: `${school_id}-${student_id}`.substring(0, 50),
       accountName: `${student_name} - Capstone School`,
       currencyCode: 'NGN',
-      // Monnify uses sub-account for settlement routing
-      // The actual split happens at transaction level in webhook
       ...splitConfig,
     };
 
@@ -87,36 +122,55 @@ export class MonnifyGateway {
     if (response.data && response.data.requestSuccessful && response.data.responseBody) {
       const account = response.data.responseBody;
       return {
-        dva_account_number: account.accountNumber,
-        dva_bank_name: account.bankName,
-        dva_account_name: account.accountName,
         provider: this.providerName,
-        provider_ref: account.accountReference,
+        provider_account_id: account.accountNumber,
+        provider_reference: account.accountReference,
+        virtual_account_number: account.accountNumber,
+        account_name: account.accountName,
+        bank_name: account.bankName,
+        account_status: 'ACTIVE',
       };
     }
-    throw new Error('Failed to create Monnify DVA');
+    throw new Error('Failed to create Monnify payment account');
+  }
+
+  /**
+   * Deactivate a payment account
+   */
+  async deactivatePaymentAccount(params) {
+    const { virtual_account_number, gateway_config } = params;
+    
+    const accessToken = await this.getAccessToken(gateway_config);
+
+    const response = await axios.post(
+      `${MONNIFY_BASE_URL}/v1/merchant/api/v2/accounts/deallocate`,
+      { accountReference: virtual_account_number },
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data && response.data.requestSuccessful) {
+      return {
+        provider: this.providerName,
+        virtual_account_number,
+        account_status: 'INACTIVE',
+        deactivated: true,
+      };
+    }
+    throw new Error('Failed to deactivate Monnify payment account');
   }
 
   /**
    * Verify a transaction with Monnify API
    * NEVER trust webhook data directly
    */
-  async verifyTransaction(reference, gateway_config) {
-    const accessToken = await this.getAccessToken(gateway_config);
-
-    const response = await axios.get(
-      `${MONNIFY_BASE_URL}/v1/merchant/api/v2/transactions/${reference}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (response.data && response.data.requestSuccessful) {
-      return response.data.responseBody;
-    }
-    return null;
+  async verifyPayment(reference, gateway_config) {
+    const transaction = await this.getTransaction(reference, gateway_config);
+    return transaction;
   }
 
   /**
@@ -151,9 +205,61 @@ export class MonnifyGateway {
       settlement_status: transaction.settlementStatus,
       paid_amount: transaction.paidAmount,
       transaction_amount: transaction.amount,
-      dva_account_number: transaction.destinationAccountDetails?.accountNumber,
+      virtual_account_number: transaction.destinationAccountDetails?.accountNumber,
       split_settlement_details: transaction.splitSettlementDetails || [],
     };
+  }
+
+  /**
+   * Process webhook payload
+   */
+  async processWebhook(payload, gateway_config) {
+    const reference = this.parseWebhookReference(payload);
+    if (!reference) {
+      throw new Error('No transaction reference found in webhook payload');
+    }
+
+    // Verify the transaction with the API
+    const transaction = await this.getTransaction(reference, gateway_config);
+    
+    if (!transaction) {
+      throw new Error(`Transaction ${reference} not found`);
+    }
+
+    return {
+      reference,
+      amount: this.parseWebhookAmount(payload),
+      transaction,
+      success: true,
+    };
+  }
+
+  /**
+   * Reconcile pending payments - find transactions not yet recorded
+   */
+  async reconcilePayments(params) {
+    const { gateway_config, start_date, end_date } = params;
+    const accessToken = await this.getAccessToken(gateway_config);
+
+    const response = await axios.get(
+      `${MONNIFY_BASE_URL}/v1/merchant/api/v2/transactions`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        params: {
+          startDate: start_date,
+          endDate: end_date,
+        },
+      }
+    );
+
+    if (response.data && response.data.requestSuccessful) {
+      const transactions = response.data.responseBody || [];
+      // Filter for successful but not yet reconciled transactions
+      return transactions.filter(txn => txn.status === 'SUCCESS');
+    }
+    return [];
   }
 
   /**
@@ -199,7 +305,7 @@ export class MonnifyGateway {
     // These are computed differently based on your business logic
     const techLevy = payload.techLevyAmount || 0;
     const platformFee = payload.platformFeeAmount || 0;
-    
+
     if (techLevy > 0) {
       settlements.push({
         destination: 'capstone',

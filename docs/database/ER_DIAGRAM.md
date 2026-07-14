@@ -6,6 +6,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                            CAPSTONE SCHOOL ERP                              │
 │                       Fee-First Billing Architecture                        │
+│                       Payment Accounts Domain v2                           │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────┐
@@ -46,7 +47,6 @@
          │         │                 │       │                      │           │
          │         │                 │       │                      │           │
          │         │                 │       │                      │           │
-         │         │                 │       │                      │           │
          │         └───────────────────┘       └──────────────────────┘           │
          │                                                                       │
          │                                                                       │
@@ -63,10 +63,9 @@
          │                                    │ created_at        │               │
          │                                    │ updated_at        │               │
          │                                    └────────▲──────────┘               │
-         │                                             │                           │
-         │                                             │                           │
-         │                                    ┌────────┴──────────┐               │
-         │                                    │                   │               │
+         │                                               │                           │
+         │                                               │                           │
+         │                                    ┌───────────┴──────────┐               │
          │                                    │                   │               │
          │                                    │                   │               │
          │                                    │                   │               │
@@ -79,195 +78,77 @@
          │                                    └───────────────────┘               │
          │                                               │                          │
          │                                               │                          │
-         │                           ┌─────────────────────┴──────────────────────────┐
-         │                           │                                                │
-         │                 ┌─────────┴──────────┐                         ┌───────────┴──────────┐
-         │                 │                    │                         │                    │
-         │                 │                    │                         │                    │
-         │                 │                    │                         │                    │
-         │    ┌────────────────────────┐              ┌────────────────────────┐       │
-         │    │    students            │              │    payment_accounts    │       │
-         │    │────────────────────────│              │────────────────────────│       │
-         │    │ id (PK) UUID         │              │ id (PK) UUID           │       │
-         │    │ school_id (FK)       │              │ school_id (FK)         │       │
-         │    │ first_name TEXT      │              │ student_id (FK)        │       │
-         │    │ last_name TEXT       │              │ provider_name TEXT     │       │
-         │    │ class_name TEXT      │              │ account_number TEXT    │       │
-         │    │ category TEXT        │              │ bank_name TEXT         │       │
-         │    │ guardian_id (FK)     │─────────────▶│ account_reference TEXT │       │
-         │    │ status student_*     │              │ provider_student_*    │       │
-         │    │ created_at           │              │ status TEXT            │       │
-         │    └──────────────────────┘              │ created_at             │       │
-         │                                            └────────────────────────┘       │
-         │                                    ┌───────────────────────────────────────┐
-         │                                    │                                       │
-         │                                    │      ledger_entries                   │
-         │                                    │───────────────────────────────────────│
-         │                                    │ id (PK) UUID                          │
-         │                                    │ school_id (FK)                        │
-         │                                    │ student_id (FK)                       │
-         │                                    │ amount NUMERIC(12,2)                  │
-         │                                    │ entry_type (DEBIT/CREDIT)             │
-         │                                    │ entry_category                        │
-         │                                    │ reference_id                          │
-         │                                    │ metadata JSONB                        │
-         │                                    │ client_sequence                       │
-         │                                    │ created_at                            │
-         │                                    └───────────────────────────────────────┘
-         │                                               │
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
-         │                                    ┌───────────┴──────────┐
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    │                      │
-         │                                    └──────────────────────┘
-         │                                               │
+         │                                   ┌─────────────┴────────────┐           │
+         │                                   │                          │           │
+         │                  ┌─────────────────┴──────────┐    ┌───────────┴──────────┐
+         │                  │                            │    │    payment_accounts  │
+         │                  │                            │    │──────────────────────│
+         │                  │                            │    │ id (PK) UUID         │
+         │    ┌────────────────────────┐              │    │ school_id (FK)       │
+         │    │    students            │              │    │ student_id (FK)      │
+         │    │────────────────────────│              │    │ provider TEXT        │
+         │    │ id (PK) UUID         │              │    │ virtual_account_number│
+         │    │ school_id (FK)       │              │    │ account_name TEXT    │
+         │    │ first_name TEXT      │              │    │ bank_name TEXT       │
+         │    │ last_name TEXT       │              │    │ account_status TEXT  │
+         │    │ class_name TEXT      │              │    │ is_primary BOOLEAN   │
+         │    │ category TEXT        │              │    │ provider_account_id  │
+         │    │ guardian_id (FK)     │─────────────▶│    │ provider_reference   │
+         │    │ status student_*     │              │    │ created_at           │
+         │    │ created_at           │              │    │ updated_at           │
+         │    │ updated_at           │              │    │ deactivated_at       │
+         │    └──────────────────────┘              │    └──────────────────────┘
+         │                                          │               │
+         │                                          │               │
+         │                                          │    ┌───────────┴──────────┐
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    │                      │
+         │                                          │    └──────────────────────┘
+         │                                                                  │
+         │                                                                  │
+         │                                          ┌──────────────────────┴──────────────┐
+         │                                          │                                       │
+         │                                          │      ledger_entries                 │
+         │                                          │─────────────────────────────────────│
+         │                                          │ id (PK) UUID                          │
+         │                                          │ school_id (FK)                        │
+         │                                          │ student_id (FK)                       │
+         │                                          │ amount NUMERIC(12,2)                  │
+         │                                          │ entry_type (DEBIT/CREDIT)             │
+         │                                          │ entry_category                        │
+         │                                          │ reference_id                          │
+         │                                          │ metadata JSONB                        │
+         │                                          │ client_sequence                       │
+         │                                          │ created_at                            │
+         │                                          └───────────────────────────────────────┘
+         │                                                                  │
+         │                                                                  │
+         │                                          ┌──────────────────────┴──────────────┐
+         │                                          │                                       │
+         │                                          │    payment_gateway_config              │
+         │                                          │─────────────────────────────────────│
+         │                                          │ id (PK) UUID                           │
+         │                                          │ school_id (FK)                         │
+         │                                          │ provider TEXT                          │
+         │                                          │ api_key TEXT                           │
+         │                                          │ secret_key TEXT                        │
+         │                                          │ submerchant_code TEXT                  │
+         │                                          │ is_active BOOLEAN                      │
+         │                                          └───────────────────────────────────────┘
+         │
          └─────────────────────────────────────────────────┘
 ```
 
@@ -306,13 +187,15 @@ Legend:
 ### Students
 - Many-to-one with schools
 - Many-to-one with guardians
-- One-to-one with payment_accounts (DVA)
+- One-to-many with payment_accounts (One student can have multiple payment accounts)
 - One-to-many with ledger_entries
 
-### Payment Accounts (Dedicated Virtual Accounts)
+### Payment Accounts (Dedicated Virtual Accounts - Domain v2)
 - Many-to-one with schools
 - Many-to-one with students
 - Provider agnostic (monnify/flutterwave/remita)
+- One account can be marked as primary per student
+- Supports multiple accounts per student for provider migration scenarios
 
 ### Ledger Entries
 - Many-to-one with schools
@@ -342,7 +225,7 @@ All entities are stored in IndexedDB via Dexie.js for offline operation:
 ```
 Student Registration
         ↓
-  Determine Category
+Determine Category
         ↓
 Retrieve Tuition Config
         ↓
@@ -350,11 +233,11 @@ Retrieve Tuition Config
         ↓
 Create/Reuse Guardian
         ↓
-   Create DVA (via gateway)
+Create Payment Account (via gateway)
         ↓
 Generate TUITION DEBIT
         ↓
-     (No Platform Fee - only on payment)
+   (No Platform Fee - only on payment)
 ```
 
 ---
@@ -362,16 +245,35 @@ Generate TUITION DEBIT
 ## Payment Flow
 
 ```
-Payment Received (DVA)
+Payment Received (Virtual Account)
         ↓
-Verify with Gateway API
+Lookup Payment Account
         ↓
-Create CREDIT TUITION Entry
+   Resolve Student
+        ↓
+ Verify Transaction with Provider
+        ↓
+  Create CREDIT TUITION Entry
         ↓
 Calculate Platform Fee (from fee_rules)
         ↓
 Create CREDIT PLATFORM_BANKING_FEE Entry
         ↓
-Notify Guardian
+   Notify Guardian
         ↓
-Sync Offline Queue
+   Sync Offline Queue
+```
+
+---
+
+## Migration Notes
+
+### From dva_assignments to payment_accounts
+
+The `dva_assignments` table has been superseded by `payment_accounts`. Key changes:
+
+- **Old**: DVA fields stored on `students` table (dva_account_number, dva_bank_name)
+- **New**: All payment account data stored in `payment_accounts` table
+- **Multiple Accounts**: One student can have multiple payment accounts
+- **Primary Account**: Only one payment account marked as `is_primary` per student
+- **Provider Agnostic**: Supports monnify, flutterwave, and remita providers

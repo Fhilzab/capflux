@@ -14,52 +14,108 @@ import type {
   FeeRule,
 } from '../types/billing';
 
+// Source tracking types for data ownership
+export type DataSource = 'LOCAL' | 'SERVER' | 'WEBHOOK';
+export type EntitySource = {
+  source: DataSource;
+  version: number;
+  updated_at: string;
+};
+
 // Extend Dexie to include our tables
 class CapstoneDB extends Dexie {
-  schools!: Table<School, string>;
-  profiles!: Table<Profile, string>;
-  students!: Table<Student, string>;
-  guardians!: Table<Guardian, string>;
-  ledger_entries!: Table<LedgerEntry, string>;
-  notifications!: Table<Notification, string>;
+  schools!: Table<School & EntitySource, string>;
+  profiles!: Table<Profile & EntitySource, string>;
+  students!: Table<Student & EntitySource, string>;
+  guardians!: Table<Guardian & EntitySource, string>;
+  ledger_entries!: Table<LedgerEntry & EntitySource, string>;
+  notifications!: Table<Notification & EntitySource, string>;
   sync_queue!: Table<SyncQueueItem, string>;
-  payment_gateway_config!: Table<PaymentGatewayConfig, string>;
-  payment_accounts!: Table<PaymentAccount, string>;
-  payment_transactions!: Table<PaymentTransaction, string>;
-  tuition_configurations!: Table<TuitionConfiguration, string>;
-  fee_rules!: Table<FeeRule, string>;
+  payment_gateway_config!: Table<PaymentGatewayConfig & EntitySource, string>;
+  payment_accounts!: Table<PaymentAccount & EntitySource, string>;
+  payment_transactions!: Table<PaymentTransaction & EntitySource, string>;
+  tuition_configurations!: Table<TuitionConfiguration & EntitySource, string>;
+  fee_rules!: Table<FeeRule & EntitySource, string>;
+  settlement_records!: Table<{
+    id: string;
+    payment_transaction_id: string;
+    destination: string;
+    account_number: string;
+    bank_name: string;
+    amount: number;
+    settled_at: string;
+    source: DataSource;
+    version: number;
+    updated_at: string;
+    raw_response: Record<string, unknown>;
+  }, string>;
 
   constructor() {
     super('capstone_local_db');
-    this.version(2).stores({
-      schools: 'id, school_id, subscription_status, created_at',
-      profiles: 'id, school_id, full_name, role, created_at',
-      students: 'id, school_id, first_name, last_name, class_name, category, guardian_id, status, client_sequence, device_id, created_at, updated_at',
-      guardians: 'id, school_id, full_name, primary_phone, secondary_phone, email, relationship, created_at, updated_at',
-      ledger_entries: 'id, school_id, student_id, amount, entry_type, entry_category, reference_id, metadata, client_sequence, device_id, created_at',
-      notifications: 'id, school_id, student_id, guardian_id, recipient_phone, message_body, delivery_status, client_sequence, device_id, created_at',
+    this.version(3).stores({
+      schools: 'id, school_id, subscription_status, created_at, source, version, updated_at',
+      profiles: 'id, school_id, full_name, role, created_at, source, version, updated_at',
+      students: 'id, school_id, first_name, last_name, class_name, category, guardian_id, status, client_sequence, device_id, created_at, updated_at, source, version',
+      guardians: 'id, school_id, full_name, primary_phone, secondary_phone, email, relationship, created_at, updated_at, source, version',
+      ledger_entries: 'id, school_id, student_id, amount, entry_type, entry_category, reference_id, metadata, client_sequence, device_id, created_at, source, version',
+      notifications: 'id, school_id, student_id, guardian_id, recipient_phone, message_body, delivery_status, client_sequence, device_id, created_at, source, version',
       audit_logs: 'id, school_id, actor_id, entity, entity_id, created_at',
       sync_queue: 'id, school_id, entity_type, entity_id, status, retry_count, created_at, processed_at, error_message, payload',
-      app_settings: 'school_id',
+      app_settings: 'school_id, source, version, updated_at',
       // Payment gateway tables for offline-first sync
-      payment_gateway_config: 'id, school_id, provider, api_key, secret_key, submerchant_code, settlement_account_number, settlement_account_bank, is_active, created_at',
-      payment_accounts: 'id, school_id, student_id, provider, provider_account_id, provider_reference, virtual_account_number, account_name, bank_name, account_status, is_primary, created_at',
-      payment_transactions: 'id, school_id, student_id, gateway_txn_ref, reference, amount, settlement_status, verified_at',
-      settlement_records: 'id, payment_transaction_id, destination, account_number, bank_name, amount, settled_at',
+      payment_gateway_config: 'id, school_id, provider, api_key, secret_key, submerchant_code, settlement_account_number, settlement_account_bank, is_active, created_at, source, version, updated_at',
+      payment_accounts: 'id, school_id, student_id, provider, provider_account_id, provider_reference, virtual_account_number, account_name, bank_name, account_status, is_primary, created_at, source, version, updated_at',
+      payment_transactions: 'id, school_id, student_id, gateway_txn_ref, reference, amount, settlement_status, verified_at, source, version, updated_at',
+      settlement_records: 'id, payment_transaction_id, destination, account_number, bank_name, amount, settled_at, source, version, updated_at',
       // Tuition and fee configuration tables
-      tuition_configurations: 'id, school_id, academic_session, academic_term, category, tuition_amount, created_at',
-      fee_rules: 'id, school_id, is_active, effective_date, created_at',
+      tuition_configurations: 'id, school_id, academic_session, academic_term, category, tuition_amount, created_at, source, version, updated_at',
+      fee_rules: 'id, school_id, is_active, effective_date, created_at, source, version, updated_at',
     });
   }
 }
 
 const db = new CapstoneDB();
 
+// ============================================================================
+// ENTITY OWNERSHIP CLASSIFICATION
+// ============================================================================
+
+// LOCAL OWNED entities - created locally, synced upward
+const LOCAL_OWNED_ENTITIES = ['students', 'guardians', 'tuition_configurations', 'fee_rules', 'notifications'] as const;
+
+// CLOUD OWNED entities - created by backend, read-only in browser
+const CLOUD_OWNED_ENTITIES = ['payment_transactions', 'settlement_records'] as const;
+
+// HYBRID entities - created locally, confirmed by server
+const HYBRID_ENTITIES = ['ledger_entries', 'payment_accounts'] as const;
+
+export const EntityOwnership = {
+  isLocalOwned(entityType: string): boolean {
+    return LOCAL_OWNED_ENTITIES.includes(entityType as typeof LOCAL_OWNED_ENTITIES[number]);
+  },
+  isCloudOwned(entityType: string): boolean {
+    return CLOUD_OWNED_ENTITIES.includes(entityType as typeof CLOUD_OWNED_ENTITIES[number]);
+  },
+  isHybrid(entityType: string): boolean {
+    return HYBRID_ENTITIES.includes(entityType as typeof HYBRID_ENTITIES[number]);
+  },
+};
+
+// ============================================================================
+// LOCAL REPOSITORY METHODS
+// ============================================================================
+
 export const LocalRepository = {
-  // Guardian methods
+  // Guardian methods (LOCAL OWNED)
   async saveGuardian(guardian: Guardian) {
-    await db.guardians.put(guardian);
-    return guardian;
+    const entity: Guardian & EntitySource = {
+      ...guardian,
+      source: 'LOCAL',
+      version: 1,
+      updated_at: new Date().toISOString(),
+    };
+    await db.guardians.put(entity);
+    return entity;
   },
 
   getGuardiansBySchool(school_id: string) {
@@ -74,10 +130,16 @@ export const LocalRepository = {
       .first();
   },
 
-  // Student methods
+  // Student methods (LOCAL OWNED)
   async saveStudent(student: Student) {
-    await db.students.put(student);
-    return student;
+    const entity: Student & EntitySource = {
+      ...student,
+      source: 'LOCAL',
+      version: 1,
+      updated_at: new Date().toISOString(),
+    };
+    await db.students.put(entity);
+    return entity;
   },
 
   getStudentsBySchool(school_id: string) {
@@ -104,9 +166,23 @@ export const LocalRepository = {
       .toArray();
   },
 
-  // Ledger methods
-  saveLedgerEntry(entry: LedgerEntry) {
-    return db.ledger_entries.put(entry);
+  // Ledger methods (HYBRID - but CREDIT entries are read-only)
+  saveLedgerEntry(entry: LedgerEntry & Partial<EntitySource>) {
+    const entity = {
+      ...entry,
+      source: entry.source || 'LOCAL',
+      version: entry.version || 1,
+      updated_at: entry.updated_at || new Date().toISOString(),
+    };
+    return db.ledger_entries.put(entity);
+  },
+
+  // Only DEBIT entries can be created locally
+  createDebitLedgerEntry(entry: LedgerEntry) {
+    if (entry.entry_type !== 'DEBIT') {
+      throw new Error('Only DEBIT entries can be created locally');
+    }
+    return this.saveLedgerEntry(entry);
   },
 
   getLedgerEntriesByStudent(student_id: string) {
@@ -117,10 +193,16 @@ export const LocalRepository = {
     return db.ledger_entries.where('school_id').equals(school_id).toArray();
   },
 
-  // Notification methods
+  // Notification methods (HYBRID)
   async saveNotification(notification: Notification) {
-    await db.notifications.put(notification);
-    return notification;
+    const entity: Notification & EntitySource = {
+      ...notification,
+      source: notification.delivery_status === 'PENDING' ? 'LOCAL' : 'SERVER',
+      version: 1,
+      updated_at: new Date().toISOString(),
+    };
+    await db.notifications.put(entity);
+    return entity;
   },
 
   getNotificationsByStudent(student_id: string) {
@@ -131,17 +213,30 @@ export const LocalRepository = {
     return db.notifications.where('guardian_id').equals(guardian_id).toArray();
   },
 
-  // Profile methods
+  // Profile methods (LOCAL OWNED)
   saveProfile(profile: Profile) {
-    return db.profiles.put(profile);
+    const entity: Profile & EntitySource = {
+      ...profile,
+      source: 'LOCAL',
+      version: 1,
+      updated_at: new Date().toISOString(),
+    };
+    return db.profiles.put(entity);
   },
 
-  // Payment account (DVA) methods
-  async savePaymentAccount(account: PaymentAccount) {
-    await db.payment_accounts.put(account);
-    return account;
+  // Payment account methods (HYBRID)
+  async savePaymentAccount(account: PaymentAccount & Partial<EntitySource>) {
+    const entity = {
+      ...account,
+      source: account.source || 'LOCAL',
+      version: account.version || 1,
+      updated_at: account.updated_at || new Date().toISOString(),
+    };
+    await db.payment_accounts.put(entity);
+    return entity;
   },
 
+  // Payment accounts are created via gateway API, so this is for updates only
   getPaymentAccountByStudent(student_id: string) {
     return db.payment_accounts.where('student_id').equals(student_id).first();
   },
@@ -150,10 +245,16 @@ export const LocalRepository = {
     return db.payment_accounts.where('school_id').equals(school_id).toArray();
   },
 
-  // Tuition configuration methods
+  // Tuition configuration methods (LOCAL OWNED)
   async saveTuitionConfiguration(config: TuitionConfiguration) {
-    await db.tuition_configurations.put(config);
-    return config;
+    const entity: TuitionConfiguration & EntitySource = {
+      ...config,
+      source: 'LOCAL',
+      version: 1,
+      updated_at: new Date().toISOString(),
+    };
+    await db.tuition_configurations.put(entity);
+    return entity;
   },
 
   getTuitionConfiguration(school_id: string, academic_session: string, academic_term: string, category: string) {
@@ -172,10 +273,16 @@ export const LocalRepository = {
     return db.tuition_configurations.where('school_id').equals(school_id).toArray();
   },
 
-  // Fee rules methods
+  // Fee rules methods (LOCAL OWNED)
   async saveFeeRule(rule: FeeRule) {
-    await db.fee_rules.put(rule);
-    return rule;
+    const entity: FeeRule & EntitySource = {
+      ...rule,
+      source: 'LOCAL',
+      version: 1,
+      updated_at: new Date().toISOString(),
+    };
+    await db.fee_rules.put(entity);
+    return entity;
   },
 
   getActiveFeeRule(school_id: string) {
@@ -235,6 +342,50 @@ export const LocalRepository = {
 
   deleteSyncItem(id: string) {
     return db.sync_queue.delete(id);
+  },
+
+  // Download methods for CLOUD OWNED entities
+  savePaymentTransaction(transaction: PaymentTransaction & EntitySource) {
+    return db.payment_transactions.put(transaction);
+  },
+
+  getPaymentTransactionByReference(reference: string) {
+    return db.payment_transactions.where('reference').equals(reference).first();
+  },
+
+  getPaymentTransactionsByStudent(student_id: string) {
+    return db.payment_transactions.where('student_id').equals(student_id).toArray();
+  },
+
+  saveSettlementRecord(record: {
+    id: string;
+    payment_transaction_id: string;
+    destination: string;
+    account_number: string;
+    bank_name: string;
+    amount: number;
+    settled_at: string;
+    source: DataSource;
+    version: number;
+    updated_at: string;
+    raw_response: Record<string, unknown>;
+  }) {
+    return db.settlement_records.put(record);
+  },
+
+  // Clear read-only entities for refresh
+  async clearFinancialData(school_id?: string) {
+    await db.payment_transactions.clear();
+    await db.settlement_records.clear();
+  },
+
+  // Sync queue helper methods needed by syncQueue.ts
+  markItemCompleted(id: string) {
+    return this.updateSyncItem(id, { status: 'SYNCED', processed_at: new Date().toISOString() });
+  },
+
+  markItemFailed(id: string, message: string) {
+    return this.updateSyncItem(id, { status: 'FAILED', error_message: message, processed_at: new Date().toISOString() });
   },
 };
 

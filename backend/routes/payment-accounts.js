@@ -1,23 +1,22 @@
 /**
- * DVA Route - Dedicated Virtual Account provisioning
+ * Payment Accounts Route - Provider-agnostic payment account management
  * 
+ * This route abstracts payment account operations across all providers.
  * Endpoints:
- * - POST /api/dva/provision - Create payment account for a student
- * - GET /api/dva/:student_id - Get payment account details for a student
- * - POST /api/dva/deactivate - Deactivate a payment account
+ * - POST /api/payment-accounts/provision - Create payment account for a student
+ * - GET /api/payment-accounts/:student_id - Get payment account details for a student
+ * - POST /api/payment-accounts/deactivate - Deactivate a payment account
+ * - POST /api/payment-accounts/bulk-provision - Provision accounts for multiple students
  */
 
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
-import { MonnifyGateway } from '../services/gateways/MonnifyGateway.js';
+import { GatewayFactory } from '../services/gateways/GatewayFactory.js';
 
 const router = express.Router();
 
-// Get gateway instance
-const monnifyGateway = new MonnifyGateway();
-
-// POST /api/dva/provision
-// Creates a Dedicated Virtual Account for a student
+// POST /api/payment-accounts/provision
+// Creates a payment account for a student (provider-agnostic)
 router.post('/provision', async (req, res) => {
   const { student_id, school_id } = req.body;
 
@@ -39,7 +38,7 @@ router.post('/provision', async (req, res) => {
       return res.status(404).json({ error: 'Student not found or not active' });
     }
 
-    // Get gateway config for school
+    // Get gateway config for school (provider-agnostic)
     const { data: gatewayConfig, error: configError } = await supabase
       .from('payment_gateway_config')
       .select('*')
@@ -49,6 +48,12 @@ router.post('/provision', async (req, res) => {
 
     if (configError || !gatewayConfig) {
       return res.status(404).json({ error: 'No active payment gateway configured for school' });
+    }
+
+    // Get gateway instance from factory
+    const gateway = GatewayFactory.get(gatewayConfig.provider);
+    if (!gateway) {
+      return res.status(400).json({ error: `Unsupported provider: ${gatewayConfig.provider}` });
     }
 
     // Check if payment account already exists
@@ -67,12 +72,12 @@ router.post('/provision', async (req, res) => {
       });
     }
 
-    // Create DVA via gateway
+    // Create payment account via gateway
     const studentName = `${student.first_name} ${student.last_name}`;
-    const accountDetails = await monnifyGateway.createStudentPaymentAccount({
+    const accountDetails = await gateway.createStudentPaymentAccount({
       student_id,
       student_name: studentName,
-      guardian_phone: student.guardian_id, // Will be resolved via guardian lookup
+      guardian_phone: student.guardian_id,
       gateway_config: gatewayConfig,
       school_id,
     });
@@ -110,7 +115,7 @@ router.post('/provision', async (req, res) => {
   }
 });
 
-// GET /api/dva/:student_id
+// GET /api/payment-accounts/:student_id
 // Get payment account details for a student
 router.get('/:student_id', async (req, res) => {
   const { student_id } = req.params;
@@ -140,7 +145,7 @@ router.get('/:student_id', async (req, res) => {
   }
 });
 
-// POST /api/dva/deactivate
+// POST /api/payment-accounts/deactivate
 // Deactivate a payment account
 router.post('/deactivate', async (req, res) => {
   const { account_id, school_id } = req.body;
@@ -150,22 +155,10 @@ router.post('/deactivate', async (req, res) => {
   }
 
   try {
-    // Get gateway config for school
-    const { data: gatewayConfig, error: configError } = await supabase
-      .from('payment_gateway_config')
-      .select('*')
-      .eq('school_id', school_id)
-      .eq('is_active', true)
-      .single();
-
-    if (configError || !gatewayConfig) {
-      return res.status(404).json({ error: 'No active payment gateway configured' });
-    }
-
-    // Get the payment account
+    // Get payment account
     const { data: account, error: accountError } = await supabase
       .from('payment_accounts')
-      .select('*')
+      .select('*, payment_gateway_config!inner(provider, api_key, secret_key, submerchant_code)')
       .eq('id', account_id)
       .single();
 
@@ -173,11 +166,18 @@ router.post('/deactivate', async (req, res) => {
       return res.status(404).json({ error: 'Payment account not found' });
     }
 
-    // Deactivate via gateway
-    await monnifyGateway.deactivatePaymentAccount({
-      virtual_account_number: account.virtual_account_number,
-      gateway_config: gatewayConfig,
-    });
+    // Get gateway instance from factory
+    const gateway = GatewayFactory.get(account.provider);
+    if (gateway && gateway.deactivatePaymentAccount) {
+      await gateway.deactivatePaymentAccount({
+        virtual_account_number: account.virtual_account_number,
+        gateway_config: {
+          api_key: account.payment_gateway_config.api_key,
+          secret_key: account.payment_gateway_config.secret_key,
+          provider: account.provider,
+        },
+      });
+    }
 
     // Update the payment account status
     const { data: updatedAccount, error: updateError } = await supabase
@@ -206,7 +206,7 @@ router.post('/deactivate', async (req, res) => {
   }
 });
 
-// POST /api/dva/bulk-provision
+// POST /api/payment-accounts/bulk-provision
 // Provision payment accounts for multiple students
 router.post('/bulk-provision', async (req, res) => {
   const { school_id } = req.body;
@@ -216,7 +216,7 @@ router.post('/bulk-provision', async (req, res) => {
   }
 
   try {
-    // Get all active students without payment account
+    // Get all active students
     const { data: students, error: studentsError } = await supabase
       .from('students')
       .select('*')
@@ -241,7 +241,7 @@ router.post('/bulk-provision', async (req, res) => {
       }
     }
 
-    // Get gateway config
+    // Get gateway config for school
     const { data: gatewayConfig, error: configError } = await supabase
       .from('payment_gateway_config')
       .select('*')
@@ -253,12 +253,18 @@ router.post('/bulk-provision', async (req, res) => {
       return res.status(404).json({ error: 'No active payment gateway configured' });
     }
 
+    // Get gateway instance from factory
+    const gateway = GatewayFactory.get(gatewayConfig.provider);
+    if (!gateway) {
+      return res.status(400).json({ error: `Unsupported provider: ${gatewayConfig.provider}` });
+    }
+
     const results = [];
 
     for (const student of studentsWithoutAccount) {
       try {
         const studentName = `${student.first_name} ${student.last_name}`;
-        const accountDetails = await monnifyGateway.createStudentPaymentAccount({
+        const accountDetails = await gateway.createStudentPaymentAccount({
           student_id: student.id,
           student_name: studentName,
           guardian_phone: student.guardian_id,
