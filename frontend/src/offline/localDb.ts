@@ -1,128 +1,18 @@
 import Dexie, { Table } from 'dexie';
-
-// Define interfaces for TypeScript
-interface School {
-  id: string;
-  school_id?: string;
-  subscription_status: string;
-  created_at: string;
-}
-
-interface Profile {
-  id: string;
-  school_id: string;
-  full_name: string;
-  role: string;
-  created_at: string;
-}
-
-interface Guardian {
-  id: string;
-  school_id: string;
-  full_name: string;
-  primary_phone: string;
-  secondary_phone?: string;
-  email?: string;
-  relationship: 'FATHER' | 'MOTHER' | 'GUARDIAN' | 'OTHER';
-  created_at: string;
-  updated_at: string;
-}
-
-interface Student {
-  id: string;
-  school_id: string;
-  first_name: string;
-  last_name: string;
-  class_name: string;
-  guardian_id?: string;
-  status: string;
-  client_sequence: number;
-  device_id: string;
-  created_at: string;
-  updated_at: string;
-  dva_account_number?: string;
-  dva_bank_name?: string;
-}
-
-interface LedgerEntry {
-  id: string;
-  school_id: string;
-  student_id: string;
-  amount: number;
-  entry_type: string;
-  entry_category: string;
-  entry_description?: string;
-  reference_id?: string;
-  metadata: Record<string, any>;
-  client_sequence: number;
-  device_id: string;
-  created_at: string;
-}
-
-interface Notification {
-  id: string;
-  school_id: string;
-  student_id: string;
-  guardian_id?: string;
-  recipient_phone: string;
-  recipient_email?: string;
-  message_body: string;
-  delivery_status: string;
-  delivery_method?: string;
-  client_sequence: number;
-  device_id: string;
-  created_at: string;
-}
-
-interface SyncQueueItem {
-  id: string;
-  school_id: string;
-  entity_type: string;
-  entity_id: string;
-  operation: string;
-  payload: Record<string, any>;
-  status: string;
-  retry_count: number;
-  created_at: string;
-  processed_at?: string;
-  error_message?: string;
-}
-
-interface PaymentGatewayConfig {
-  id: string;
-  school_id: string;
-  provider: string;
-  api_key: string;
-  secret_key: string;
-  submerchant_code?: string;
-  settlement_account_number: string;
-  settlement_account_bank: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface DVAAssignment {
-  id: string;
-  school_id: string;
-  student_id: string;
-  provider: string;
-  dva_account_number: string;
-  dva_bank_name: string;
-  dva_account_name: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface PaymentTransaction {
-  id: string;
-  school_id: string;
-  student_id: string;
-  gateway_txn_ref: string;
-  reference: string;
-  amount: number;
-  settlement_status: string;
-  verified_at: string;
-}
+import type {
+  School,
+  Profile,
+  Guardian,
+  Student,
+  LedgerEntry,
+  Notification,
+  SyncQueueItem,
+  PaymentGatewayConfig,
+  PaymentTransaction,
+  PaymentAccount,
+  TuitionConfiguration,
+  FeeRule,
+} from '../types/billing';
 
 // Extend Dexie to include our tables
 class CapstoneDB extends Dexie {
@@ -134,15 +24,17 @@ class CapstoneDB extends Dexie {
   notifications!: Table<Notification, string>;
   sync_queue!: Table<SyncQueueItem, string>;
   payment_gateway_config!: Table<PaymentGatewayConfig, string>;
-  dva_assignments!: Table<DVAAssignment, string>;
+  payment_accounts!: Table<PaymentAccount, string>;
   payment_transactions!: Table<PaymentTransaction, string>;
+  tuition_configurations!: Table<TuitionConfiguration, string>;
+  fee_rules!: Table<FeeRule, string>;
 
   constructor() {
     super('capstone_local_db');
-    this.version(1).stores({
+    this.version(2).stores({
       schools: 'id, school_id, subscription_status, created_at',
       profiles: 'id, school_id, full_name, role, created_at',
-      students: 'id, school_id, first_name, last_name, class_name, guardian_id, status, client_sequence, device_id, created_at, updated_at',
+      students: 'id, school_id, first_name, last_name, class_name, category, guardian_id, status, client_sequence, device_id, created_at, updated_at',
       guardians: 'id, school_id, full_name, primary_phone, secondary_phone, email, relationship, created_at, updated_at',
       ledger_entries: 'id, school_id, student_id, amount, entry_type, entry_category, reference_id, metadata, client_sequence, device_id, created_at',
       notifications: 'id, school_id, student_id, guardian_id, recipient_phone, message_body, delivery_status, client_sequence, device_id, created_at',
@@ -151,9 +43,12 @@ class CapstoneDB extends Dexie {
       app_settings: 'school_id',
       // Payment gateway tables for offline-first sync
       payment_gateway_config: 'id, school_id, provider, api_key, secret_key, submerchant_code, settlement_account_number, settlement_account_bank, is_active, created_at',
-      dva_assignments: 'id, school_id, student_id, provider, dva_account_number, dva_bank_name, dva_account_name, is_active, created_at',
+      payment_accounts: 'id, school_id, student_id, provider_name, account_number, account_reference, status, created_at',
       payment_transactions: 'id, school_id, student_id, gateway_txn_ref, reference, amount, settlement_status, verified_at',
       settlement_records: 'id, payment_transaction_id, destination, account_number, bank_name, amount, settled_at',
+      // Tuition and fee configuration tables
+      tuition_configurations: 'id, school_id, academic_session, academic_term, category, tuition_amount, created_at',
+      fee_rules: 'id, school_id, is_active, effective_date, created_at',
     });
   }
 }
@@ -162,10 +57,9 @@ const db = new CapstoneDB();
 
 export const LocalRepository = {
   // Guardian methods
-  async saveGuardian(guardian: Partial<Guardian>) {
-    const record = guardian as Guardian;
-    await db.guardians.put(record);
-    return record;
+  async saveGuardian(guardian: Guardian) {
+    await db.guardians.put(guardian);
+    return guardian;
   },
 
   getGuardiansBySchool(school_id: string) {
@@ -181,10 +75,9 @@ export const LocalRepository = {
   },
 
   // Student methods
-  async saveStudent(student: Partial<Student>) {
-    const record = student as Student;
-    await db.students.put(record);
-    return record;
+  async saveStudent(student: Student) {
+    await db.students.put(student);
+    return student;
   },
 
   getStudentsBySchool(school_id: string) {
@@ -212,8 +105,8 @@ export const LocalRepository = {
   },
 
   // Ledger methods
-  saveLedgerEntry(entry: Partial<LedgerEntry>) {
-    return db.ledger_entries.put(entry as LedgerEntry);
+  saveLedgerEntry(entry: LedgerEntry) {
+    return db.ledger_entries.put(entry);
   },
 
   getLedgerEntriesByStudent(student_id: string) {
@@ -225,10 +118,9 @@ export const LocalRepository = {
   },
 
   // Notification methods
-  async saveNotification(notification: Partial<Notification>) {
-    const record = notification as Notification;
-    await db.notifications.put(record);
-    return record;
+  async saveNotification(notification: Notification) {
+    await db.notifications.put(notification);
+    return notification;
   },
 
   getNotificationsByStudent(student_id: string) {
@@ -240,22 +132,85 @@ export const LocalRepository = {
   },
 
   // Profile methods
-  saveProfile(profile: Partial<Profile>) {
-    return db.profiles.put(profile as Profile);
+  saveProfile(profile: Profile) {
+    return db.profiles.put(profile);
+  },
+
+  // Payment account (DVA) methods
+  async savePaymentAccount(account: PaymentAccount) {
+    await db.payment_accounts.put(account);
+    return account;
+  },
+
+  getPaymentAccountByStudent(student_id: string) {
+    return db.payment_accounts.where('student_id').equals(student_id).first();
+  },
+
+  getPaymentAccountsBySchool(school_id: string) {
+    return db.payment_accounts.where('school_id').equals(school_id).toArray();
+  },
+
+  // Tuition configuration methods
+  async saveTuitionConfiguration(config: TuitionConfiguration) {
+    await db.tuition_configurations.put(config);
+    return config;
+  },
+
+  getTuitionConfiguration(school_id: string, academic_session: string, academic_term: string, category: string) {
+    return db.tuition_configurations
+      .where('school_id')
+      .equals(school_id)
+      .and((c) => 
+        c.academic_session === academic_session && 
+        c.academic_term === academic_term && 
+        c.category === category
+      )
+      .first();
+  },
+
+  getTuitionConfigurationsBySchool(school_id: string) {
+    return db.tuition_configurations.where('school_id').equals(school_id).toArray();
+  },
+
+  // Fee rules methods
+  async saveFeeRule(rule: FeeRule) {
+    await db.fee_rules.put(rule);
+    return rule;
+  },
+
+  getActiveFeeRule(school_id: string) {
+    return db.fee_rules
+      .where('school_id')
+      .equals(school_id)
+      .and((r) => r.is_active)
+      .first();
+  },
+
+  getFeeRulesBySchool(school_id: string) {
+    return db.fee_rules.where('school_id').equals(school_id).toArray();
   },
 
   // Sync queue methods
-  enqueueSyncItem(item: Partial<SyncQueueItem>) {
-    return db.sync_queue.add({
-      ...item,
+  enqueueSyncItem(item: Partial<SyncQueueItem> & { 
+    school_id: string; 
+    entity_type: string; 
+    entity_id: string; 
+    payload: Record<string, unknown> 
+  }) {
+    const fullItem: SyncQueueItem = {
+      id: item.id ?? `sync-${item.entity_type}-${item.entity_id}-${Date.now()}`,
+      school_id: item.school_id,
+      entity_type: item.entity_type,
+      entity_id: item.entity_id,
       operation: item.operation ?? 'UPSERT',
+      payload: item.payload,
       status: item.status ?? 'PENDING',
       retry_count: item.retry_count ?? 0,
-      processed_at: item.processed_at ?? null,
-      error_message: item.error_message ?? null,
       created_at: item.created_at ?? new Date().toISOString(),
-      payload: item.payload ?? {},
-    } as SyncQueueItem);
+      processed_at: item.processed_at ?? undefined,
+      error_message: item.error_message ?? undefined,
+    };
+    return db.sync_queue.add(fullItem);
   },
 
   getPendingSyncItems() {

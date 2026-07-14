@@ -2,7 +2,7 @@
  * Webhook Route - Secure webhook endpoint for payment gateway notifications
  * 
  * Endoints:
- * - POST /api/webhook/monnify - Receive Monnify webhooks
+ * - POST /api/webhook/:provider - Receive payment provider webhooks
  * 
  * Security:
  * - Rate limiting
@@ -12,7 +12,6 @@
  */
 
 import express from 'express';
-import crypto from 'crypto';
 import { webhookVerifier } from '../services/WebhookVerifier.js';
 import { LedgerService } from '../services/LedgerService.js';
 import { supabase } from '../supabaseClient.js';
@@ -60,20 +59,21 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
 
     const dvaAccount = gateway.parseWebhookDVA(req.body);
     
-    // Find the DVA assignment to get school_id
-    const { data: dvaAssignment, error: dvaError } = await supabase
-      .from('dva_assignments')
-      .select('*, students!inner(school_id, first_name, last_name, guardian_phone)')
-      .eq('dva_account_number', dvaAccount)
-      .eq('is_active', true)
+    // Find the payment account to get school_id (using new payment_accounts table)
+    const { data: paymentAccount, error: dvaError } = await supabase
+      .from('payment_accounts')
+      .select('*, students!inner(school_id, first_name, last_name, guardian_id)')
+      .eq('account_number', dvaAccount)
+      .eq('status', 'ACTIVE')
       .single();
 
-    if (dvaError || !dvaAssignment) {
+    if (dvaError || !paymentAccount) {
       console.warn(`Webhook received for unknown DVA: ${dvaAccount}`);
       return res.status(200).json({ received: true, warning: 'DVA not found' });
     }
 
-    const school_id = dvaAssignment.students.school_id;
+    const school_id = paymentAccount.students.school_id;
+    const student_id = paymentAccount.student_id;
 
     // Step 3: Run full verification pipeline
     const verified = await webhookVerifier.verifyWebhook({
@@ -100,7 +100,7 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
       raw_payload: verified.raw_payload,
     });
 
-    // Step 6: Record CREDIT ledger entry
+    // Step 6: Record CREDIT ledger entry (with platform fee calculation)
     const ledgerEntry = await LedgerService.recordVerifiedPayment({
       school_id: verified.school_id,
       student_id: verified.student_id,
@@ -113,18 +113,20 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
     const settlements = gateway.parseSettlementDetails(req.body);
     await LedgerService.recordSettlements(paymentTransaction.id, settlements);
 
-    // Step 8: Enqueue notification
+    // Step 8: Enqueue notification via guardian phone
     const { data: student } = await supabase
       .from('students')
-      .select('*')
+      .select('*, guardians(primary_phone)')
       .eq('id', verified.student_id)
       .single();
 
     if (student) {
+      const guardianPhone = student.guardians?.primary_phone || student.guardian_id;
       await supabase.from('notifications').insert({
         school_id: verified.school_id,
         student_id: verified.student_id,
-        recipient_phone: student.guardian_phone,
+        guardian_id: student.guardian_id,
+        recipient_phone: guardianPhone,
         message_body: `Payment of ₦${verified.amount.toLocaleString()} received for ${student.first_name} ${student.last_name}. Thank you. - Capstone`,
         delivery_status: 'PENDING',
         client_sequence: Date.now(),

@@ -5,6 +5,7 @@
  * (Monnify, Flutterwave, Remita) without changing the billing engine.
  * 
  * All providers must support Dedicated Virtual Accounts (DVA) and split settlements.
+ * Platform fees are computed from fee_rules table, not hardcoded here.
  */
 
 export class PaymentGateway {
@@ -52,16 +53,6 @@ export class PaymentGateway {
   }
 
   /**
-   * Verify the settlement status (split settlement completed)
-   * @param {string} reference - Transaction reference
-   * @param {Object} gateway_config - School's gateway configuration
-   * @returns {Promise<Object>} Settlement status with destination details
-   */
-  async getSettlementStatus(reference, gateway_config) {
-    throw new Error('getSettlementStatus() must be implemented by subclass');
-  }
-
-  /**
    * Exchange API key for access token (for gateway auth)
    * @param {Object} gateway_config - School's gateway configuration
    * @returns {Promise<string>} Access token
@@ -100,6 +91,8 @@ export class PaymentGateway {
 
   /**
    * Parse settlement information from webhook
+   * NOTE: This now returns raw settlement data from the gateway.
+   * Platform fee calculation is done separately via fee_rules table.
    * @param {Object} payload - Raw webhook payload
    * @returns {Object} Settlement details with destinations
    */

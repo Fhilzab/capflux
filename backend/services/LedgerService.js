@@ -6,6 +6,8 @@
  * 
  * This bypasses the offline-first flow for the server-side webhook processing,
  * but the sync engine will pull these down to clients, preserving offline-first architecture.
+ * 
+ * Platform fees are computed from fee_rules table, not hardcoded.
  */
 
 import { supabase, hasSupabaseConfig } from '../supabaseClient.js';
@@ -25,12 +27,29 @@ export const LedgerService = {
   async recordVerifiedPayment(params) {
     const { school_id, student_id, amount, reference, transaction } = params;
 
+    // Get fee rule for platform fee calculation
+    const { data: feeRule, error: feeError } = await supabase
+      .from('fee_rules')
+      .select('*')
+      .eq('school_id', school_id)
+      .eq('is_active', true)
+      .single();
+
+    // Calculate platform fee based on fee rule
+    let platformFee = 0;
+    if (feeRule) {
+      const calculatedFee = amount * (feeRule.percentage / 100);
+      platformFee = Math.max(feeRule.minimum_fee, Math.min(calculatedFee, feeRule.maximum_fee));
+      // Floor to 2 decimal places
+      platformFee = Math.floor(platformFee * 100) / 100;
+    }
+
     const ledgerEntry = {
       school_id,
       student_id,
       amount: Number(amount),
       entry_type: 'CREDIT',
-      entry_category: 'TUITION', // Default; adjust based on business logic
+      entry_category: 'TUITION', // Main payment goes to tuition
       reference_id: null, // Will be set if linked to a fee invoice
       metadata: {
         gateway_reference: reference,
@@ -53,14 +72,35 @@ export const LedgerService = {
       throw new Error(`Failed to create ledger entry: ${error.message}`);
     }
 
+    // Create platform fee ledger entry if fee > 0
+    if (platformFee > 0) {
+      await supabase
+        .from('ledger_entries')
+        .insert({
+          school_id,
+          student_id,
+          amount: platformFee,
+          entry_type: 'CREDIT',
+          entry_category: 'PLATFORM_BANKING_FEE',
+          reference_id: data.id, // Link to original payment
+          metadata: {
+            fee_rule_id: feeRule?.id,
+            percentage_applied: feeRule?.percentage,
+            minimum_fee: feeRule?.minimum_fee,
+            maximum_fee: feeRule?.maximum_fee,
+          },
+        });
+    }
+
     // Log audit action
     await this.logAudit(school_id, 'payment_recorded', 'ledger_entries', data.id, {
       amount,
       reference,
       student_id,
+      platform_fee: platformFee,
     });
 
-    return data;
+    return { ...data, platform_fee: platformFee };
   },
 
   /**
@@ -116,32 +156,6 @@ export const LedgerService = {
       entity_uuid: entity_id,
       metadata_json: metadata,
     });
-  },
-
-  /**
-   * Create settlement records for tracking
-   * @param {string} payment_transaction_id - Payment transaction UUID
-   * @param {Array} settlements - Settlement details from gateway
-   */
-  async recordSettlements(payment_transaction_id, settlements) {
-    const records = settlements.map((s) => ({
-      payment_transaction_id,
-      destination: s.destination,
-      account_number: s.account_number,
-      bank_name: s.bank_name || 'N/A',
-      amount: Number(s.amount),
-      raw_response: s,
-    }));
-
-    const { error } = await supabase
-      .from('settlement_records')
-      .insert(records);
-
-    if (error) {
-      console.error('Failed to record settlements:', error);
-    }
-
-    return records;
   },
 
   /**
