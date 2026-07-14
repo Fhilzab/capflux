@@ -16,6 +16,16 @@ import GuardianInsights from '../components/dashboard/GuardianInsights.vue';
 import AIInsights from '../components/dashboard/AIInsights.vue';
 import QuickActionsPanel from '../components/dashboard/QuickActionsPanel.vue';
 import RightPanel from '../components/dashboard/RightPanel.vue';
+import RevenueRiskPanel from '../components/dashboard/RevenueRiskPanel.vue';
+import PaymentRecoveryPipeline from '../components/dashboard/PaymentRecoveryPipeline.vue';
+import PaymentHeatmap from '../components/dashboard/PaymentHeatmap.vue';
+import CategoryPerformance from '../components/dashboard/CategoryPerformance.vue';
+import InstallmentAnalytics from '../components/dashboard/InstallmentAnalytics.vue';
+import SystemHealth from '../components/dashboard/SystemHealth.vue';
+import SmartAlerts from '../components/dashboard/SmartAlerts.vue';
+import RevenueScoreboard from '../components/dashboard/RevenueScoreboard.vue';
+import CapstoneScore from '../components/dashboard/CapstoneScore.vue';
+import RecentSystemEvents from '../components/dashboard/RecentSystemEvents.vue';
 import ErrorState from '../components/ui/ErrorState.vue';
 import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 
@@ -28,7 +38,6 @@ const online = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 const aiInsights = computed(() => {
   const insights = [];
   
-  // Simulate AI-generated insights based on data
   if (dashboardStore.collectionRate < 70) {
     insights.push({
       id: '1',
@@ -74,10 +83,8 @@ onMounted(async () => {
 
 <template>
   <main class="min-h-screen bg-slate-950 text-white">
-    <!-- Main Content Area with Right Panel -->
     <div class="pr-80">
       <div class="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        <!-- Page Header -->
         <header class="flex items-center justify-between">
           <div>
             <h1 class="text-display">Financial Command Center</h1>
@@ -97,17 +104,14 @@ onMounted(async () => {
           </div>
         </header>
         
-        <!-- Loading State -->
         <div v-if="dashboardStore.loading" class="space-y-6">
           <SkeletonLoader type="card" :count="3" />
           <SkeletonLoader type="row" :count="2" />
           <SkeletonLoader type="card" :count="2" />
         </div>
         
-        <!-- Error State -->
         <ErrorState v-else-if="dashboardStore.error" :error="dashboardStore.error" @retry="refresh" />
         
-        <!-- Main Dashboard Content -->
         <div v-else class="space-y-8">
           <!-- Section 1: Mission Control -->
           <MissionControl 
@@ -210,11 +214,119 @@ onMounted(async () => {
           
           <!-- Section 12: Quick Actions -->
           <QuickActionsPanel :loading="dashboardStore.loading" />
+          
+          <!-- Section 13: Revenue Risk Panel -->
+          <RevenueRiskPanel
+            :expected-revenue="dashboardStore.totalCharges"
+            :collected-revenue="dashboardStore.totalPayments"
+            :outstanding-revenue="dashboardStore.netBalance"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 14: Payment Recovery Pipeline -->
+          <PaymentRecoveryPipeline
+            :total-students="dashboardStore.totalStudents"
+            :students-paid="dashboardStore.totalPayments > 0 ? 150 : 0"
+            :students-installment="50"
+            :students-overdue="dashboardStore.outstandingStudentCount"
+            :students-reminded="20"
+            :students-recovered="15"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 15: Payment Heatmap -->
+          <PaymentHeatmap
+            best-payment-day="Tuesday"
+            best-payment-hour="14:00"
+            best-collection-week="Week 3"
+            best-category="Primary"
+            highest-paying-segment="Class 5"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 16: Category Performance -->
+          <CategoryPerformance
+            :categories="[
+              { name: 'Nursery', students: 50, expected: 1000000, collected: 800000, outstanding: 200000, collectionRate: 80 },
+              { name: 'Primary', students: 120, expected: 2400000, collected: 2000000, outstanding: 400000, collectionRate: 83 },
+              { name: 'Secondary', students: 80, expected: 1600000, collected: 1200000, outstanding: 400000, collectionRate: 75 }
+            ]"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 17: Installment Analytics -->
+          <InstallmentAnalytics
+            :students-on-installments="Math.floor(dashboardStore.totalStudents * 0.4)"
+            :average-installment="80000"
+            :avg-installments-count="3"
+            :largest-installment="500000"
+            :installments-due-today="10"
+            :installments-overdue="5"
+            :recovery-rate="65"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 18: System Health -->
+          <SystemHealth
+            database-health="online"
+            offline-engine="running"
+            :sync-queue="syncStore.pendingCount"
+            webhook-health="online"
+            notification-delivery="healthy"
+            payment-verification="passed"
+            :dva-creation-queue="dashboardStore.pendingDVAs"
+            :internet-status="online"
+            :last-sync="syncStore.lastSyncedAt"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 19: Smart Alerts -->
+          <SmartAlerts
+            :alerts="[
+              { id: '1', type: 'high', title: 'High Outstanding Balance', message: '₦420,000 at risk of unpaid collections.' },
+              { id: '2', type: 'medium', title: 'Reminder Campaign Recommended', message: '23 guardians have outstanding balances.' }
+            ]"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 20: Revenue Scoreboard -->
+          <RevenueScoreboard
+            :expected-revenue="dashboardStore.totalCharges"
+            :collected-revenue="dashboardStore.totalPayments"
+            :outstanding-revenue="dashboardStore.netBalance"
+            :collection-rate="dashboardStore.collectionRate"
+            :recovery-rate="65"
+            :platform-revenue="Math.floor(dashboardStore.totalPayments * 0.01)"
+            :gateway-fees="Math.floor(dashboardStore.totalPayments * 0.02)"
+            :net-settlement="Math.floor(dashboardStore.totalPayments * 0.97)"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 21: Capstone Score -->
+          <CapstoneScore
+            :collection-rate="dashboardStore.collectionRate"
+            :payment-success="95"
+            :outstanding-balance="dashboardStore.netBalance"
+            :notification-success="98"
+            :offline-sync-health="92"
+            :guardian-reachability="90"
+            :verification-success="96"
+            :loading="dashboardStore.loading"
+          />
+          
+          <!-- Section 22: Recent System Events -->
+          <RecentSystemEvents
+            :events="[
+              { id: '1', type: 'payment', title: 'Payment Verified', description: '₦150,000 from John Doe', timestamp: '2 mins ago' },
+              { id: '2', type: 'dva', title: 'DVA Created', description: 'For new student Jane Smith', timestamp: '5 mins ago' },
+              { id: '3', type: 'sync', title: 'Offline Sync Completed', description: '5 records synced', timestamp: '10 mins ago' }
+            ]"
+            :loading="dashboardStore.loading"
+          />
         </div>
       </div>
     </div>
     
-    <!-- Right Panel -->
     <RightPanel
       :todays-collections="dashboardStore.todaysCollections"
       :pending-sync="syncStore.pendingCount"
