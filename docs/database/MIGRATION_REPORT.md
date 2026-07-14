@@ -120,11 +120,34 @@ Parent Payment
 - SyncService maintains legacy methods
 - LocalRepository methods preserved for existing code
 
+## Banking-Grade Financial Core (Supplemental Changes)
+
+### 9. ReconciliationService
+
+- Recovers missed webhook events via gateway API queries
+- Creates audit events for all recovered transactions
+- Notifies administrators of mismatches
+
+### 10. Financial Event Triggers
+
+- `PAYMENT_RECEIVED` - When payment_transaction is inserted
+- `PAYMENT_VERIFIED` - When CREDIT ledger entry is created
+- `SETTLEMENT_COMPLETED` - When settlement record is created
+- `DVA_CREATED` - When payment account is created
+- `TUITION_GENERATED` - When DEBIT ledger entry is created
+
+### 11. Ledger Immutability
+
+- Ledger entries are append-only (no UPDATE/DELETE triggers)
+- Balance computed from immutable entries: `sum(DEBIT) - sum(CREDIT)`
+- `LedgerRepository.createDebitLedgerEntry()` for local creation only
+- `LedgerRepository.createLedgerEntry()` rejects CREDIT entries
+
 ## Testing Checklist
 
-- [ ] Frontend build succeeds (✓)
+- [x] Frontend build succeeds
 - [ ] Entity ownership validation works correctly
-- [ ] Cannot create CREDIT ledger entries locally
+- [x] Cannot create CREDIT ledger entries locally
 - [ ] Realtime subscriptions update Dexie correctly
 - [ ] Download sync populates CLOUD OWNED entities
 - [ ] Upload sync rejects CLOUD OWNED entities
