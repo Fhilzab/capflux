@@ -2,16 +2,14 @@ import { LocalRepository } from '../offline/localDb';
 import db from '../offline/localDb';
 
 export const NotificationRepository = {
-  async saveNotification(notification: Record<string, any>) {
-    const saved = await LocalRepository.saveNotification(notification);
+  async saveNotification(notification: Record<string, unknown>) {
+    const saved = await LocalRepository.saveNotification(notification as any);
 
     await LocalRepository.enqueueSyncItem({
-      id: `notification-sync-${saved.id}-${Date.now()}`,
       school_id: saved.school_id,
       entity_type: 'notifications',
       entity_id: saved.id,
-      operation: 'UPSERT',
-      payload: saved,
+      payload: saved as unknown as Record<string, unknown>,
     });
 
     return saved;
@@ -25,12 +23,16 @@ export const NotificationRepository = {
     return LocalRepository.getNotificationsByGuardian(guardian_id);
   },
 
+  async getBySchool(school_id: string) {
+    return db.notifications.where('school_id').equals(school_id).toArray();
+  },
+
   async getNotificationById(notification_id: string) {
     return db.notifications.get(notification_id);
   },
 
   async updateDeliveryStatus(notification_id: string, status: string, provider_msg_id?: string) {
-    const updates: Record<string, any> = {
+    const updates: Record<string, unknown> = {
       delivery_status: status,
     };
     if (provider_msg_id) {

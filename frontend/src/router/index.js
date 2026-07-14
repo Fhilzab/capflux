@@ -4,13 +4,41 @@ import LoginView from '../views/LoginView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../views/HomeView.vue';
 import StudentListView from '../views/StudentListView.vue';
+import GuardianListView from '../views/GuardianListView.vue';
 import BillingView from '../views/BillingView.vue';
 import PaymentsView from '../views/PaymentsView.vue';
+import VirtualAccountsView from '../views/VirtualAccountsView.vue';
+import AIInsightsView from '../views/AIInsightsView.vue';
+import SupportView from '../views/SupportView.vue';
 import NotificationsView from '../views/NotificationsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import SyncView from '../views/SyncView.vue';
 
 const routes = [
+  {
+    path: '/guardians',
+    name: 'Guardians',
+    component: GuardianListView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/virtual-accounts',
+    name: 'VirtualAccounts',
+    component: VirtualAccountsView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/ai-insights',
+    name: 'AIInsights',
+    component: AIInsightsView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/support',
+    name: 'Support',
+    component: SupportView,
+    meta: { requiresAuth: true },
+  },
   {
     path: '/',
     name: 'Landing',
