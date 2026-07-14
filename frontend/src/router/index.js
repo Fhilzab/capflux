@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import LoginView from '../views/LoginView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../views/HomeView.vue';
+import OnboardingView from '../views/OnboardingView.vue';
 import StudentListView from '../views/StudentListView.vue';
 import GuardianListView from '../views/GuardianListView.vue';
 import BillingView from '../views/BillingView.vue';
@@ -127,6 +128,27 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: LoginView,
+  },
+  // Onboarding routes
+  {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: OnboardingView,
+  },
+  {
+    path: '/onboarding/financial-setup',
+    name: 'OnboardingFinancialSetup',
+    component: OnboardingView,
+  },
+  {
+    path: '/onboarding/activate',
+    name: 'OnboardingActivate',
+    component: OnboardingView,
+  },
+  {
+    path: '/onboarding/complete',
+    name: 'OnboardingComplete',
+    component: OnboardingView,
   },
 ];
 

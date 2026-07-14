@@ -5,6 +5,7 @@ import webhookRoutes from './routes/webhook.js';
 import paymentAccountRoutes from './routes/payment-accounts.js';
 import dvaRoutes from './routes/dva.js'; // DEPRECATED: For backward compatibility only
 import adminRoutes from './routes/admin.js';
+import onboardingRoutes from './routes/onboarding.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -53,6 +54,8 @@ app.use('/api/dva', dvaRoutes);
 app.use('/api/payment-accounts', paymentAccountRoutes);
 // Admin management routes (Owner/Admin authorization)
 app.use('/api/admin', adminRoutes);
+// Onboarding routes
+app.use('/api/onboarding', onboardingRoutes);
 
 // Health check endpoint with detailed status
 app.get('/health', async (req, res) => {
@@ -104,6 +107,11 @@ const PERMITTED_RPC_FUNCTIONS = [
   'student_balance',
   'school_balance',
   'trigger_apply_student_base_fees',
+  'create_school_with_owner',
+  'complete_business_verification',
+  'verify_settlement_account',
+  'activate_collections',
+  'update_onboarding_stage',
 ];
 
 // RPC proxy endpoint
