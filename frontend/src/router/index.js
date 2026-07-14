@@ -13,8 +13,15 @@ import SupportView from '../views/SupportView.vue';
 import NotificationsView from '../views/NotificationsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import SyncView from '../views/SyncView.vue';
+import SettingsView from '../views/SettingsView.vue';
 
 const routes = [
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: SettingsView,
+    meta: { requiresAuth: true },
+  },
   {
     path: '/guardians',
     name: 'Guardians',
