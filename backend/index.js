@@ -4,6 +4,7 @@ import { supabase, hasSupabaseConfig } from './supabaseClient.js';
 import webhookRoutes from './routes/webhook.js';
 import paymentAccountRoutes from './routes/payment-accounts.js';
 import dvaRoutes from './routes/dva.js'; // DEPRECATED: For backward compatibility only
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -50,6 +51,8 @@ app.use('/api/webhook', webhookRoutes);
 app.use('/api/dva', dvaRoutes);
 // Provider-agnostic payment accounts routes (NEW)
 app.use('/api/payment-accounts', paymentAccountRoutes);
+// Admin management routes (Owner/Admin authorization)
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint with detailed status
 app.get('/health', async (req, res) => {

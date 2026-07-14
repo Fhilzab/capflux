@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
-import { supabase } from '../services/api/supabase';
-import { hasSupabaseConfig } from '../services/api/supabase';
+import { supabase, hasSupabaseConfig } from '../services/api/supabase';
 import { AuthService } from '../services/AuthService.ts';
 
 export const useAuthStore = defineStore('auth', {
@@ -10,10 +9,15 @@ export const useAuthStore = defineStore('auth', {
     loading: false,
     error: null,
     schoolId: null,
+    role: null,
+    adminStatus: 'ACTIVE',
+    profile: null,
   }),
   getters: {
     isAuthenticated: (state) => !!state.user,
     currentSchoolId: (state) => state.schoolId,
+    isOwner: (state) => state.role === 'OWNER',
+    isAdmin: (state) => state.role === 'ADMIN',
   },
   actions: {
     async initialize() {
@@ -46,6 +50,8 @@ export const useAuthStore = defineStore('auth', {
       if (!hasSupabaseConfig) {
         // Local dev fallback: use demo-school
         this.schoolId = 'demo-school';
+        this.role = 'OWNER';
+        this.adminStatus = 'ACTIVE';
         return;
       }
 
@@ -55,12 +61,25 @@ export const useAuthStore = defineStore('auth', {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('school_id')
-            .eq('id', user.id)
-            .single();
-          this.schoolId = profile?.school_id ?? null;
+          // Use RPC to get profile with role info
+          const { data: profile, error } = await supabase.rpc('get_profile', { user_id: user.id });
+          if (!error && profile) {
+            this.schoolId = profile.school_id ?? null;
+            this.role = profile.role ?? null;
+            this.adminStatus = profile.admin_status ?? 'ACTIVE';
+          } else {
+            // Fallback to direct query
+            const result = await supabase
+              .from('profiles')
+              .select('school_id, role, admin_status')
+              .eq('id', user.id)
+              .single();
+            if (result.data) {
+              this.schoolId = result.data.school_id ?? null;
+              this.role = result.data.role ?? null;
+              this.adminStatus = result.data.admin_status ?? 'ACTIVE';
+            }
+          }
         }
       } catch {
         // Failed to fetch school - will be handled by RLS
