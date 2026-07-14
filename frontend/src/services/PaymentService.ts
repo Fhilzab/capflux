@@ -1,6 +1,5 @@
-import { supabase } from './api/supabase';
-import { PaymentGateway } from './PaymentGateway';
 import { FeeRuleRepository } from '../repositories/FeeRuleRepository';
+import { PaymentGateway } from './PaymentGateway';
 import type { PaymentAccount, PlatformFeeCalculation } from '../types/billing';
 
 export const PaymentService = {
@@ -8,21 +7,21 @@ export const PaymentService = {
    * Get payment history for a student
    * Reads from both ledger_entries (local/offline) and payment_transactions (verified payments)
    */
-  async getPaymentHistory(student_id: string, school_id: string) {
-    // Get verified payment transactions (server-side recorded)
-    const verifiedPayments = await PaymentGateway.getPaymentHistory(student_id, school_id);
+  async getPaymentHistory(student_id: string, _school_id: string) {
+    // Get verified payment transactions (local/offline)
+    const verifiedPayments = await PaymentGateway.getPaymentHistory(student_id, '');
     
     // Get all CREDIT ledger entries (includes offline-first entries that may sync later)
-    const { data: ledgerEntries } = await supabase
-      .from('ledger_entries')
-      .select('*')
-      .eq('student_id', student_id)
-      .eq('entry_type', 'CREDIT')
-      .order('created_at', { ascending: false });
+    const { default: db } = await import('../offline/localDb');
+    const ledgerEntries = await db.ledger_entries
+      .where('student_id')
+      .equals(student_id)
+      .and((e) => e.entry_type === 'CREDIT')
+      .toArray();
 
     return {
       verified_payments: verifiedPayments,
-      ledger_entries: ledgerEntries || [],
+      ledger_entries: ledgerEntries,
     };
   },
 
@@ -41,16 +40,19 @@ export const PaymentService = {
     // Get or create DVA for student
     let dva = await PaymentGateway.getDVA(student_id, school_id);
     
-    if (!dva?.dva) {
+    if (!dva?.dva && !dva?.payment_account) {
       // Provision DVA if not exists
       dva = await PaymentGateway.provisionDVA(student_id, school_id);
     }
 
+    // Extract from either PaymentAccount or DVAResponse format
+    const account = dva.dva || dva.payment_account;
+    
     return {
       payment_instructions: {
-        account_number: dva.dva?.dva_account_number ?? '',
-        bank_name: dva.dva?.dva_bank_name ?? '',
-        account_name: dva.dva?.dva_account_name ?? '',
+        account_number: account?.virtual_account_number || account?.dva_account_number || '',
+        bank_name: account?.bank_name || account?.dva_bank_name || '',
+        account_name: account?.account_name || account?.dva_account_name || '',
       },
       student_id,
     };

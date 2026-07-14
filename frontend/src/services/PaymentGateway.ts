@@ -9,7 +9,7 @@
  * Webhooks are handled server-side only (see backend/routes/webhook.js)
  */
 
-import { supabase } from './api/supabase';
+import type { PaymentAccount, DVAResponse } from '../types/billing';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
@@ -19,7 +19,10 @@ export const PaymentGateway = {
    * @param {string} student_id - Student UUID
    * @param {string} school_id - School UUID
    */
-  async provisionDVA(student_id: string, school_id: string) {
+  async provisionDVA(student_id: string, school_id: string): Promise<{
+    dva?: DVAResponse;
+    payment_account?: PaymentAccount;
+  }> {
     const response = await fetch(`${API_BASE_URL}/dva/provision`, {
       method: 'POST',
       headers: {
@@ -41,7 +44,11 @@ export const PaymentGateway = {
    * @param {string} student_id - Student UUID
    * @param {string} school_id - School UUID
    */
-  async getDVA(student_id: string, school_id: string) {
+  async getDVA(student_id: string, school_id: string): Promise<{
+    dva?: PaymentAccount | DVAResponse;
+    payment_account?: PaymentAccount;
+    success?: boolean;
+  }> {
     const response = await fetch(`${API_BASE_URL}/dva/${student_id}?school_id=${school_id}`);
 
     if (!response.ok) {
@@ -53,67 +60,40 @@ export const PaymentGateway = {
   },
 
   /**
-   * Get payment transaction history for a student
-   * @param {string} student_id - Student UUID
-   * @param {string} school_id - School UUID
+   * Get payment transaction history for a student (async using IndexedDB)
    */
-  async getPaymentHistory(student_id: string, school_id: string) {
-    const { data, error } = await supabase
-      .from('payment_transactions')
-      .select('*')
-      .eq('student_id', student_id)
-      .eq('school_id', school_id)
-      .order('verified_at', { ascending: false });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return data || [];
+  async getPaymentHistory(student_id: string, _school_id: string): Promise<unknown[]> {
+    // Use local DB instead of supabase for offline-first
+    const { default: db } = await import('../offline/localDb');
+    return db.payment_transactions.where('student_id').equals(student_id).toArray();
   },
 
   /**
-   * Get payment status for a transaction reference
-   * @param {string} reference - Transaction reference
-   * @param {string} school_id - School UUID
+   * Get payment status for a transaction reference (async using IndexedDB)
    */
-  async getPaymentStatus(reference: string, school_id: string) {
-    const { data, error } = await supabase
-      .from('payment_transactions')
-      .select('*')
-      .eq('reference', reference)
-      .eq('school_id', school_id)
-      .single();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return data;
+  async getPaymentStatus(reference: string, _school_id: string): Promise<unknown | null> {
+    const { default: db } = await import('../offline/localDb');
+    return db.payment_transactions.where('reference').equals(reference).first() || null;
   },
 
   /**
-   * Compute settlement breakdown for a payment
-   * This is calculated server-side during webhook processing
-   * @param {string} student_id - Student UUID
-   * @param {number} amount - Total payment amount
+   * Deactivate a payment account
    */
-  computeSettlementBreakdown(student_id: string, amount: number) {
-    // Placeholder: Actual settlement split is configured on the gateway
-    // and computed during webhook processing
-    // 
-    // Typical split:
-    // - Tuition portion goes to School's settlement account
-    // - Tech Levy (e.g., 1000) goes to Capstone
-    // - Platform Fee (e.g., 200) goes to Capstone
-    // 
-    // The exact split percentages are configured per-school in payment_gateway_config
-    return {
-      tuition: amount - 1000 - 200, // Assuming standard fees
-      tech_levy: 1000,
-      platform_fee: 200,
-      total: amount,
-    };
+  async deactivatePaymentAccount(account_id: string, school_id: string) {
+    const response = await fetch(`${API_BASE_URL}/dva/deactivate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ account_id, school_id }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to deactivate payment account');
+    }
+
+    return response.json();
   },
 };
 

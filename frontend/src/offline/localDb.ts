@@ -43,7 +43,7 @@ class CapstoneDB extends Dexie {
       app_settings: 'school_id',
       // Payment gateway tables for offline-first sync
       payment_gateway_config: 'id, school_id, provider, api_key, secret_key, submerchant_code, settlement_account_number, settlement_account_bank, is_active, created_at',
-      payment_accounts: 'id, school_id, student_id, provider_name, account_number, account_reference, status, created_at',
+      payment_accounts: 'id, school_id, student_id, provider, provider_account_id, provider_reference, virtual_account_number, account_name, bank_name, account_status, is_primary, created_at',
       payment_transactions: 'id, school_id, student_id, gateway_txn_ref, reference, amount, settlement_status, verified_at',
       settlement_records: 'id, payment_transaction_id, destination, account_number, bank_name, amount, settled_at',
       // Tuition and fee configuration tables

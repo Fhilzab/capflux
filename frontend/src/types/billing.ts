@@ -111,20 +111,43 @@ export interface PlatformFeeCalculation {
 
 // ============================================================================
 // PAYMENT ACCOUNTS (DEDICATED VIRTUAL ACCOUNTS)
-// ============================================================================
+// Provider-agnostic payment account domain
+// ==========================================================
 
 export interface PaymentAccount {
   id: string;
   school_id: string;
   student_id: string;
-  provider_name: 'monnify' | 'flutterwave' | 'remita';
-  account_number: string;
+  provider: 'monnify' | 'flutterwave' | 'remita';
+  provider_account_id?: string;
+  provider_reference?: string;
+  virtual_account_number: string;
+  account_name: string;
   bank_name: string;
-  account_reference: string;
-  provider_student_reference?: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  account_status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  is_primary: boolean;
   created_at: string;
   updated_at: string;
+  deactivated_at?: string;
+  // Legacy compatibility fields
+  dva_account_number?: string;
+  dva_bank_name?: string;
+  dva_account_name?: string;
+  provider_ref?: string;
+  account_number?: string;
+}
+
+// Request to create a payment account
+export interface PaymentAccountRequest {
+  school_id: string;
+  student_id: string;
+  provider: 'monnify' | 'flutterwave' | 'remita';
+  provider_account_id?: string;
+  provider_reference?: string;
+  virtual_account_number: string;
+  account_name: string;
+  bank_name: string;
+  account_status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 }
 
 // ============================================================================
@@ -271,6 +294,12 @@ export interface DVAResponse {
   dva_account_name: string;
   provider: string;
   provider_ref?: string;
+  // New fields for compatibility with PaymentAccount
+  provider_account_id?: string;
+  provider_reference?: string;
+  virtual_account_number?: string;
+  account_name?: string;
+  bank_name?: string;
 }
 
 export interface TransactionVerification {

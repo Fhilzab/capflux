@@ -76,9 +76,10 @@ const createFallbackClient = () => ({
       update: errorResponse,
       upsert: errorResponse,
       delete: errorResponse,
-      select: errorResponse,
+      select: () => builder,
       maybeSingle: errorResponse,
       single: errorResponse,
+      order: () => builder,
     };
     return builder;
   },

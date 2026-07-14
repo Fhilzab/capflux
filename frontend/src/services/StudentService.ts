@@ -3,19 +3,21 @@ import { GuardianService } from './GuardianService';
 import { TuitionConfigurationService } from './TuitionConfigurationService';
 import { PaymentAccountRepository } from '../repositories/PaymentAccountRepository';
 import { LedgerRepository } from '../repositories/LedgerRepository';
+import { PaymentGateway } from './PaymentGateway';
 import db from '../offline/localDb';
-import type { Student, StudentCategory, AcademicTerm, LedgerEntryCategory, Guardian } from '../types/billing';
+import type { Student, StudentCategory, AcademicTerm, LedgerEntryCategory, Guardian, PaymentAccount, DVAResponse } from '../types/billing';
 
 export const StudentService = {
   /**
-   * Register a student with guardian linking, DVA provisioning, and tuition billing
+   * Register a student with guardian linking, payment account provisioning, and tuition billing
    * Full workflow:
    * 1. Determine category
    * 2. Retrieve tuition from configuration
    * 3. Create student
    * 4. Create/Reuse guardian
-   * 5. Create DVA via PaymentGateway
-   * 6. Generate DEBIT ledger entry for tuition
+   * 5. Create payment account via backend API
+   * 6. Save payment account to local DB
+   * 7. Generate DEBIT ledger entry for tuition
    */
   async registerStudentWithGuardian(school_id: string, studentData: {
     first_name: string;
@@ -64,8 +66,18 @@ export const StudentService = {
       device_id: 'local-client',
     });
 
-    // Step 6: Create payment account (DVA) - to be done after gateway call
-    // The DVA will be created via the backend API when provisioning
+    // Step 6: Provision payment account via backend API
+    let paymentAccount: PaymentAccount | undefined;
+    try {
+      const dvaResponse = await PaymentGateway.provisionDVA(student.id, school_id);
+      if (dvaResponse?.dva || dvaResponse?.payment_account) {
+        const dva = dvaResponse.dva || dvaResponse.payment_account;
+        paymentAccount = await this.linkPaymentAccountFromDVA(student.id, dva);
+      }
+    } catch (error) {
+      console.warn('Payment account provisioning failed:', error);
+      // Continue without payment account - can be provisioned later
+    }
 
     // Step 7: Generate tuition DEBIT ledger entry
     await LedgerRepository.createLedgerEntry({
@@ -88,7 +100,35 @@ export const StudentService = {
       student,
       guardian,
       tuition_config: tuitionConfig,
+      payment_account: paymentAccount,
     };
+  },
+
+  /**
+   * Link payment account from DVA response
+   */
+  async linkPaymentAccountFromDVA(student_id: string, dva: DVAResponse | PaymentAccount) {
+    const student = await StudentRepository.getStudentById(student_id);
+    if (!student) throw new Error('Student not found');
+
+    // Extract values with proper null checks - DVAResponse uses dva_ prefixed fields
+    const provider = dva.provider || 'monnify';
+    const virtual_account_number = dva.dva_account_number || dva.virtual_account_number || '';
+    const account_name = dva.dva_account_name || dva.account_name || '';
+    const bank_name = dva.dva_bank_name || dva.bank_name || '';
+
+    return PaymentAccountRepository.savePaymentAccount({
+      school_id: student.school_id,
+      student_id,
+      provider: provider as 'monnify' | 'flutterwave' | 'remita',
+      provider_account_id: dva.provider_account_id,
+      provider_reference: dva.provider_ref || dva.provider_reference,
+      virtual_account_number,
+      account_name,
+      bank_name,
+      account_status: 'ACTIVE',
+      is_primary: true,
+    });
   },
 
   async saveStudent(student: Partial<Student>) {
@@ -140,11 +180,12 @@ export const StudentService = {
   async linkPaymentAccount(
     student_id: string,
     account_data: {
-      provider_name: 'monnify' | 'flutterwave' | 'remita';
-      account_number: string;
+      provider: 'monnify' | 'flutterwave' | 'remita';
+      provider_account_id?: string;
+      provider_reference?: string;
+      virtual_account_number: string;
+      account_name: string;
       bank_name: string;
-      account_reference: string;
-      provider_student_reference?: string;
     }
   ) {
     const student = await StudentRepository.getStudentById(student_id);
@@ -154,6 +195,8 @@ export const StudentService = {
       school_id: student.school_id,
       student_id,
       ...account_data,
+      account_status: 'ACTIVE',
+      is_primary: true,
     });
   },
 
