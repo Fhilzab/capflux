@@ -8,48 +8,39 @@ body,
   height: 100%;
 }
 
-body {
-  margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Light mode base */
+html:not(.dark) body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* Dark mode base */
+html.dark body {
   background-color: #0f172a;
   color: #ffffff;
 }
 
 /* Design System Tokens - Fintech Premium */
-:root {
-  /* Border radius */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
 
-  /* Shadows - Soft and premium */
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
-  --shadow-card-hover: 0 8px 40px rgba(0, 0, 0, 0.4);
-  --shadow-panel: -4px 0 24px rgba(0, 0, 0, 0.2);
-  --shadow-glow: 0 0 20px rgba(6, 182, 212, 0.15);
-  --shadow-glow-lg: 0 0 30px rgba(6, 182, 212, 0.2);
-  --shadow-glow-success: 0 0 30px rgba(16, 185, 129, 0.15);
-
-  /* Transitions - Smooth and natural */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-medium: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Spacing scale */
-  --space-xs: 0.5rem;
-  --space-sm: 0.75rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
-  --space-2xl: 2.5rem;
-  --space-3xl: 3rem;
+/* Light mode color scheme */
+html:not(.dark) {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-tertiary: #64748b;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #0891b2;
+  --color-ai: #7c3aed;
+  --color-purple: #7c3aed;
 }
 
 /* Dark mode color scheme - Premium fintech palette */
-.dark {
+html.dark {
   --color-bg: #0f172a;
   --color-surface: #1e293b;
   --color-surface-elevated: #334155;
@@ -65,65 +56,126 @@ body {
   --color-purple: #8b5cf6;
 }
 
-/* Premium card styling - The foundation */
-.premium-card {
-  @apply rounded-2xl bg-slate-900 border border-slate-800 shadow-xl transition-all duration-300;
+/* Border radius */
+:root {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  /* Transitions - Smooth and natural */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-medium: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Spacing scale */
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 2.5rem;
+  --space-3xl: 3rem;
 }
 
-.premium-card:hover {
-  @apply shadow-2xl;
-  transform: translateY(-2px);
+/* Premium card styling - The foundation */
+.premium-card {
+  @apply rounded-2xl border transition-all duration-300;
+}
+
+/* Light mode card */
+html:not(.dark) .premium-card {
+  @apply bg-white border-slate-200 shadow-lg;
+}
+
+html:not(.dark) .premium-card:hover {
+  @apply shadow-xl;
+}
+
+/* Dark mode card */
+html.dark .premium-card {
+  @apply bg-slate-900 border-slate-800;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .premium-card:hover {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
 }
 
 .premium-card--glow {
-  @apply rounded-2xl bg-slate-900/80 border border-slate-700/50 shadow-[0_0_30px_rgba(6,182,212,0.15)];
+  @apply rounded-2xl transition-shadow duration-300;
   backdrop-filter: blur(12px);
 }
 
-.premium-card--success {
-  @apply rounded-2xl bg-slate-900/80 border border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.15)];
+html:not(.dark) .premium-card--glow {
+  @apply bg-white/80 border-slate-200/50;
+  box-shadow: 0 0 20px rgba(8, 147, 178, 0.1);
 }
 
-.premium-card--warning {
-  @apply rounded-2xl bg-slate-900/80 border border-amber-500/20;
-}
-
-.premium-card--error {
-  @apply rounded-2xl bg-slate-900/80 border border-rose-500/20;
-}
-
-/* Glass morphism effect */
-.glass {
-  @apply bg-slate-900/70 backdrop-blur-xl border border-slate-800/50;
-}
-
-.glass--light {
-  @apply bg-slate-800/50 backdrop-blur-lg border border-slate-700/30;
+html.dark .premium-card--glow {
+  @apply bg-slate-900/80 border-slate-700/50;
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.15);
 }
 
 /* Typography - Executive and clean */
 .text-display {
-  @apply text-4xl font-bold tracking-tight text-white;
+  @apply text-4xl font-bold tracking-tight;
+}
+
+html:not(.dark) .text-display {
+  @apply text-slate-900;
+}
+
+html.dark .text-display {
+  @apply text-white;
 }
 
 .text-headline {
-  @apply text-2xl font-semibold tracking-tight text-white;
+  @apply text-2xl font-semibold tracking-tight;
+}
+
+html:not(.dark) .text-headline {
+  @apply text-slate-900;
+}
+
+html.dark .text-headline {
+  @apply text-white;
 }
 
 .text-title {
-  @apply text-lg font-semibold text-slate-200;
+  @apply text-lg font-semibold;
+}
+
+html:not(.dark) .text-title {
+  @apply text-slate-700;
+}
+
+html.dark .text-title {
+  @apply text-slate-200;
 }
 
 .text-metric {
   @apply text-3xl font-semibold font-mono;
 }
 
-.text-number {
-  @apply text-2xl font-mono font-semibold;
+html:not(.dark) .text-metric {
+  @apply text-slate-900;
+}
+
+html.dark .text-metric {
+  @apply text-white;
 }
 
 .text-label {
-  @apply text-xs uppercase tracking-[0.24em] font-medium text-slate-400;
+  @apply text-xs uppercase tracking-[0.24em] font-medium;
+}
+
+html:not(.dark) .text-label {
+  @apply text-slate-500;
+}
+
+html.dark .text-label {
+  @apply text-slate-400;
 }
 
 /* Skeleton animation */
@@ -133,79 +185,49 @@ body {
 }
 
 .skeleton {
-  @apply animate-pulse bg-slate-800 rounded;
-  background: linear-gradient(90deg, #1e293b 0%, #334155 50%, #1e293b 100%);
+  @apply animate-pulse rounded;
+}
+
+html:not(.dark) .skeleton {
+  background: linear-gradient(90deg, #e2e8f0 0%, #cbd5e1 50%, #e2e8f0 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
-.skeleton-dark {
-  background: linear-gradient(90deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+html.dark .skeleton {
+  background: linear-gradient(90deg, #1e293b 0%, #334155 50%, #1e293b 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
 /* Chart tooltip */
 .chart-tooltip {
-  @apply absolute hidden bg-slate-950/95 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-xl text-xs pointer-events-none z-50;
+  @apply absolute hidden backdrop-blur-md border rounded-xl p-3 shadow-xl text-xs pointer-events-none z-50;
+}
+
+html:not(.dark) .chart-tooltip {
+  @apply bg-white/95 border-slate-200;
+}
+
+html.dark .chart-tooltip {
+  @apply bg-slate-950/95 border-slate-700;
 }
 
 .chart-dot {
   @apply w-3 h-3 rounded-full;
 }
 
-/* Status badge variants */
-.status-success {
-  @apply bg-emerald-500/10 text-emerald-400 border border-emerald-500/20;
-}
-
-.status-warning {
-  @apply bg-amber-500/10 text-amber-400 border border-amber-500/20;
-}
-
-.status-error {
-  @apply bg-rose-500/10 text-rose-400 border border-rose-500/20;
-}
-
-.status-info {
-  @apply bg-cyan-500/10 text-cyan-400 border border-cyan-500/20;
-}
-
-.status-neutral {
-  @apply bg-slate-500/10 text-slate-400 border border-slate-500/20;
-}
-
-.status-pending {
-  @apply bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 animate-pulse;
-}
-
-/* Utility classes */
-.card-container {
-  @apply grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
-}
-
-.section-grid {
-  @apply grid gap-6 md:grid-cols-2 lg:grid-cols-3;
-}
-
-/* Responsive optimizations for 1366x768 office monitors */
-@media (max-width: 1366px) {
-  .premium-card {
-    @apply rounded-xl;
-  }
-  
-  .text-display {
-    @apply text-3xl;
-  }
-  
-  .text-metric {
-    @apply text-2xl;
-  }
-}
-
 /* Focus rings for accessibility */
 .focus-ring:focus {
-  @apply outline-none ring-2 ring-cyan-500 ring-offset-2 ring-offset-slate-950;
+  @apply outline-none ring-2 ring-cyan-500 ring-offset-2;
+}
+
+html:not(.dark) .focus-ring:focus {
+  @apply ring-offset-white;
+}
+
+html.dark .focus-ring:focus {
+  @apply ring-offset-slate-950;
 }
 
 /* Animation utilities */
@@ -224,3 +246,18 @@ body {
 .delay-300 { animation-delay: 300ms; }
 .delay-400 { animation-delay: 400ms; }
 .delay-500 { animation-delay: 500ms; }
+
+/* Responsive optimizations for 1366x768 office monitors */
+@media (max-width: 1366px) {
+  .premium-card {
+    @apply rounded-xl;
+  }
+  
+  .text-display {
+    @apply text-3xl;
+  }
+  
+  .text-metric {
+    @apply text-2xl;
+  }
+}

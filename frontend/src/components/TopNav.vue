@@ -4,11 +4,13 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import { useSyncStore } from '../stores/syncStore';
 import { useDashboardStore } from '../stores/dashboardStore';
+import { useThemeStore } from '../stores/themeStore';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const syncStore = useSyncStore();
 const dashboardStore = useDashboardStore();
+const themeStore = useThemeStore();
 
 const online = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -18,10 +20,15 @@ const displayName = computed(() => {
   return email.split('@')[0] || 'Admin';
 });
 
+const isDark = computed(() => themeStore.mode === 'dark');
+
 // Global search handler
 const openSearch = () => {
-  // Cmd+K / Ctrl+K handler placeholder
   console.log('Global search triggered');
+};
+
+const toggleTheme = () => {
+  themeStore.toggleTheme();
 };
 
 const syncStatus = computed(() => {
@@ -32,7 +39,7 @@ const syncStatus = computed(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl px-6">
+  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl px-6">
     <!-- Left: School branding -->
     <div class="flex items-center gap-4">
       <svg class="h-8 w-8 text-cyan-400" viewBox="0 0 32 32" fill="none">
@@ -41,7 +48,7 @@ const syncStatus = computed(() => {
         <path d="M16 12V20" stroke="currentColor" stroke-width="1.5" />
       </svg>
       <div>
-        <h1 class="text-lg font-bold text-white">Capstone</h1>
+        <h1 class="text-lg font-bold text-white dark:text-white">Capstone</h1>
         <p class="text-xs text-slate-500 -mt-0.5">School Finance</p>
       </div>
     </div>
@@ -50,7 +57,7 @@ const syncStatus = computed(() => {
     <div class="flex-1 max-w-md mx-8">
       <button 
         @click="openSearch"
-        class="flex w-full items-center gap-3 rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2 text-sm text-slate-400 hover:bg-slate-800/80 hover:text-slate-300 transition-colors focus-ring"
+        class="flex w-full items-center gap-3 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 border border-slate-800 dark:border-slate-800 px-4 py-2 text-sm text-slate-400 hover:bg-slate-800/80 transition-colors focus-ring"
       >
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.5-5.5m2.276-6.75a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" />
@@ -63,7 +70,7 @@ const syncStatus = computed(() => {
     <!-- Right: Status indicators and profile -->
     <div class="flex items-center gap-3">
       <!-- Notification Bell -->
-      <button class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/80 text-slate-400 hover:bg-slate-800/80 hover:text-slate-200 transition-colors">
+      <button class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/80 dark:bg-slate-900/80 text-slate-400 hover:bg-slate-800/80 transition-colors">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a7 7 0 00-5.714 0A2.25 2.25 0 013 15.75V9.125a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 9.125v6.625c0 .441-.204.857-.543 1.143l-2.24.962" />
         </svg>
@@ -72,15 +79,29 @@ const syncStatus = computed(() => {
         </span>
       </button>
 
+      <!-- Theme Toggle -->
+      <button 
+        @click="toggleTheme"
+        class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/80 dark:bg-slate-900/80 text-slate-400 hover:bg-slate-800/80 transition-colors focus-ring"
+        :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+      >
+        <svg v-if="isDark" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1.5m0 15V21m9-9h-1.5M4.5 12H3m15.356 6.356l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16.95 7.05a5.971 5.971 0 010 8.486l-1.414-1.414a4.021 4.021 0 01-5.656-5.656l1.414-1.414a5.971 5.971 0 018.486 0z" />
+        </svg>
+        <svg v-else class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0112 21.75c-5.385 0-9.718-4.335-9.718-9.718S6.615 2.314 12 2.314c.752 0 1.478.114 2.159.322A9.753 9.753 0 0021.752 15z" />
+        </svg>
+      </button>
+
       <!-- Messages -->
-      <button class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/80 text-slate-400 hover:bg-slate-800/80 hover:text-slate-200 transition-colors">
+      <button class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/80 dark:bg-slate-900/80 text-slate-400 hover:bg-slate-800/80 transition-colors">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.844L3 21l2.121-4.757C3.516 14.802 3 13.447 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
       </button>
 
       <!-- Sync Status -->
-      <div class="flex items-center gap-2 rounded-xl bg-slate-900/80 px-3 py-2">
+      <div class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 px-3 py-2">
         <span class="h-2 w-2 rounded-full" :class="{
           'bg-emerald-400': syncStatus.status === 'success',
           'bg-amber-400 animate-pulse': syncStatus.status === 'pending',
@@ -90,13 +111,13 @@ const syncStatus = computed(() => {
       </div>
 
       <!-- Internet Status -->
-      <div class="flex items-center gap-2 rounded-xl bg-slate-900/80 px-3 py-2">
+      <div class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 px-3 py-2">
         <span class="h-2 w-2 rounded-full" :class="online ? 'bg-emerald-400' : 'bg-rose-400'"></span>
         <span class="text-xs text-slate-400 hidden sm:inline">{{ online ? 'Online' : 'Offline' }}</span>
       </div>
 
       <!-- Offline Indicator -->
-      <div v-if="!online || syncStore.pendingCount > 0" class="flex items-center gap-2 rounded-xl bg-slate-900/80 px-3 py-2">
+      <div v-if="!online || syncStore.pendingCount > 0" class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 px-3 py-2">
         <span class="text-xs text-slate-400">
           {{ syncStore.pendingCount }} offline
         </span>
@@ -104,11 +125,11 @@ const syncStatus = computed(() => {
 
       <!-- Profile Menu -->
       <div class="relative">
-        <button class="flex items-center gap-2 rounded-xl bg-slate-900/80 pl-3 pr-2 py-2 hover:bg-slate-800/80 transition-colors">
+        <button class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 pl-3 pr-2 py-2 hover:bg-slate-800/80 transition-colors">
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-xs font-medium text-cyan-400">
             {{ displayName.charAt(0).toUpperCase() }}
           </span>
-          <span class="hidden sm:block text-sm font-medium text-white truncate max-w-32">{{ displayName }}</span>
+          <span class="hidden sm:block text-sm font-medium text-white dark:text-white truncate max-w-32">{{ displayName }}</span>
           <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
           </svg>

@@ -82,7 +82,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white">
+  <main class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
     <div class="pr-80">
       <div class="max-w-6xl mx-auto px-6 py-8 space-y-8">
         <header class="flex items-center justify-between">

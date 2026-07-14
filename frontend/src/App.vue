@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isAuthenticatedRoute" class="flex min-h-screen bg-slate-950">
+  <div v-if="isAuthenticatedRoute" class="flex min-h-screen bg-slate-50 dark:bg-slate-950">
     <Sidebar />
     <div class="flex-1 ml-64">
       <TopNav />
@@ -12,16 +12,23 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { useThemeStore } from './stores/themeStore';
 import Sidebar from './components/Sidebar.vue';
 import TopNav from './components/TopNav.vue';
 
 const route = useRoute();
+const themeStore = useThemeStore();
+
+onMounted(() => {
+  themeStore.initTheme();
+});
 
 const authRequiredRoutes = [
   'Home', 'Students', 'StudentDetail', 'Billing', 'Payments',
   'Notifications', 'Reports', 'Sync', 'SchoolProfile',
+  'Settings', 'AIInsights', 'VirtualAccounts', 'GuardianList',
 ];
 
 const isAuthenticatedRoute = computed(() => {
