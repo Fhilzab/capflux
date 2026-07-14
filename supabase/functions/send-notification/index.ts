@@ -10,6 +10,7 @@ interface NotificationPayload {
   id: string;
   school_id: string;
   student_id: string;
+  guardian_id?: string;
   recipient_phone: string;
   recipient_email?: string;
   message_body: string;

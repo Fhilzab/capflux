@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { StudentService } from '../services/StudentService';
 import { BillingService } from '../services/BillingService';
+import db from '../offline/localDb';
 
 const route = useRoute();
 const router = useRouter();
@@ -19,7 +20,6 @@ const editForm = ref({
   first_name: '',
   last_name: '',
   class_name: '',
-  guardian_phone: '',
 });
 
 const totalCharges = computed(() =>
@@ -48,16 +48,16 @@ const loadStudent = async () => {
   try {
     loading.value = true;
     error.value = '';
-    student.value = await StudentService.getStudentById(route.params.id);
-    if (!student.value) {
+    const studentRecord = await StudentService.getStudentById(route.params.id);
+    if (!studentRecord) {
       error.value = 'Student not found.';
       return;
     }
+    student.value = studentRecord;
     editForm.value = {
       first_name: student.value.first_name || '',
       last_name: student.value.last_name || '',
       class_name: student.value.class_name || '',
-      guardian_phone: student.value.guardian_phone || '',
     };
     ledgerItems.value = await BillingService.getStudentLedgerEntries(student.value.id);
   } catch (err) {
@@ -80,7 +80,6 @@ const cancelEditing = () => {
       first_name: student.value.first_name || '',
       last_name: student.value.last_name || '',
       class_name: student.value.class_name || '',
-      guardian_phone: student.value.guardian_phone || '',
     };
   }
 };
@@ -100,7 +99,6 @@ const saveEdit = async () => {
       first_name: editForm.value.first_name,
       last_name: editForm.value.last_name,
       class_name: editForm.value.class_name,
-      guardian_phone: editForm.value.guardian_phone,
     });
     await loadStudent();
     editing.value = false;
@@ -240,10 +238,6 @@ onMounted(loadStudent);
               <span class="text-sm text-slate-400">Class</span>
               <input v-model="editForm.class_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
             </label>
-            <label class="block">
-              <span class="text-sm text-slate-400">Guardian phone</span>
-              <input v-model="editForm.guardian_phone" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
-            </label>
             <div class="sm:col-span-2 flex gap-3">
               <button @click="saveEdit" :disabled="savingEdit" class="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50">
                 {{ savingEdit ? 'Saving...' : 'Save changes' }}
@@ -270,8 +264,12 @@ onMounted(loadStudent);
                 <p class="mt-1">{{ student.class_name }}</p>
               </div>
               <div>
-                <p class="text-sm text-slate-400">Guardian phone</p>
-                <p class="mt-1">{{ student.guardian_phone }}</p>
+                <p class="text-sm text-slate-400">Guardian</p>
+                <p class="mt-1" v-if="student.guardian_id">
+                  <span class="block">{{ student.guardian?.full_name || 'Loading...' }}</span>
+                  <span class="text-sm text-slate-500">{{ student.guardian?.primary_phone }} {{ student.guardian?.secondary_phone ? `(${student.guardian?.secondary_phone})` : '' }}</span>
+                </p>
+                <p class="mt-1 text-slate-500" v-else>-</p>
               </div>
               <div>
                 <p class="text-sm text-slate-400">Status</p>

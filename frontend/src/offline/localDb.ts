@@ -16,13 +16,25 @@ interface Profile {
   created_at: string;
 }
 
+interface Guardian {
+  id: string;
+  school_id: string;
+  full_name: string;
+  primary_phone: string;
+  secondary_phone?: string;
+  email?: string;
+  relationship: 'FATHER' | 'MOTHER' | 'GUARDIAN' | 'OTHER';
+  created_at: string;
+  updated_at: string;
+}
+
 interface Student {
   id: string;
   school_id: string;
   first_name: string;
   last_name: string;
   class_name: string;
-  guardian_phone: string;
+  guardian_id?: string;
   status: string;
   client_sequence: number;
   device_id: string;
@@ -39,6 +51,7 @@ interface LedgerEntry {
   amount: number;
   entry_type: string;
   entry_category: string;
+  entry_description?: string;
   reference_id?: string;
   metadata: Record<string, any>;
   client_sequence: number;
@@ -50,9 +63,12 @@ interface Notification {
   id: string;
   school_id: string;
   student_id: string;
+  guardian_id?: string;
   recipient_phone: string;
+  recipient_email?: string;
   message_body: string;
   delivery_status: string;
+  delivery_method?: string;
   client_sequence: number;
   device_id: string;
   created_at: string;
@@ -113,6 +129,7 @@ class CapstoneDB extends Dexie {
   schools!: Table<School, string>;
   profiles!: Table<Profile, string>;
   students!: Table<Student, string>;
+  guardians!: Table<Guardian, string>;
   ledger_entries!: Table<LedgerEntry, string>;
   notifications!: Table<Notification, string>;
   sync_queue!: Table<SyncQueueItem, string>;
@@ -125,9 +142,10 @@ class CapstoneDB extends Dexie {
     this.version(1).stores({
       schools: 'id, school_id, subscription_status, created_at',
       profiles: 'id, school_id, full_name, role, created_at',
-      students: 'id, school_id, first_name, last_name, class_name, guardian_phone, status, client_sequence, device_id, created_at, updated_at',
+      students: 'id, school_id, first_name, last_name, class_name, guardian_id, status, client_sequence, device_id, created_at, updated_at',
+      guardians: 'id, school_id, full_name, primary_phone, secondary_phone, email, relationship, created_at, updated_at',
       ledger_entries: 'id, school_id, student_id, amount, entry_type, entry_category, reference_id, metadata, client_sequence, device_id, created_at',
-      notifications: 'id, school_id, student_id, recipient_phone, message_body, delivery_status, client_sequence, device_id, created_at',
+      notifications: 'id, school_id, student_id, guardian_id, recipient_phone, message_body, delivery_status, client_sequence, device_id, created_at',
       audit_logs: 'id, school_id, actor_id, entity, entity_id, created_at',
       sync_queue: 'id, school_id, entity_type, entity_id, status, retry_count, created_at, processed_at, error_message, payload',
       app_settings: 'school_id',
@@ -143,12 +161,38 @@ class CapstoneDB extends Dexie {
 const db = new CapstoneDB();
 
 export const LocalRepository = {
-  saveStudent(student: Partial<Student>) {
-    return db.students.put(student as Student);
+  // Guardian methods
+  async saveGuardian(guardian: Partial<Guardian>) {
+    const record = guardian as Guardian;
+    await db.guardians.put(record);
+    return record;
+  },
+
+  getGuardiansBySchool(school_id: string) {
+    return db.guardians.where('school_id').equals(school_id).toArray();
+  },
+
+  findGuardianByPhone(school_id: string, phone: string) {
+    return db.guardians
+      .where('school_id')
+      .equals(school_id)
+      .and((g) => g.primary_phone === phone)
+      .first();
+  },
+
+  // Student methods
+  async saveStudent(student: Partial<Student>) {
+    const record = student as Student;
+    await db.students.put(record);
+    return record;
   },
 
   getStudentsBySchool(school_id: string) {
     return db.students.where('school_id').equals(school_id).toArray();
+  },
+
+  getStudentById(id: string) {
+    return db.students.get(id);
   },
 
   searchStudentsBySchool(school_id: string, query: string) {
@@ -167,6 +211,7 @@ export const LocalRepository = {
       .toArray();
   },
 
+  // Ledger methods
   saveLedgerEntry(entry: Partial<LedgerEntry>) {
     return db.ledger_entries.put(entry as LedgerEntry);
   },
@@ -179,18 +224,27 @@ export const LocalRepository = {
     return db.ledger_entries.where('school_id').equals(school_id).toArray();
   },
 
-  saveNotification(notification: Partial<Notification>) {
-    return db.notifications.put(notification as Notification);
+  // Notification methods
+  async saveNotification(notification: Partial<Notification>) {
+    const record = notification as Notification;
+    await db.notifications.put(record);
+    return record;
   },
 
   getNotificationsByStudent(student_id: string) {
     return db.notifications.where('student_id').equals(student_id).toArray();
   },
 
+  getNotificationsByGuardian(guardian_id: string) {
+    return db.notifications.where('guardian_id').equals(guardian_id).toArray();
+  },
+
+  // Profile methods
   saveProfile(profile: Partial<Profile>) {
     return db.profiles.put(profile as Profile);
   },
 
+  // Sync queue methods
   enqueueSyncItem(item: Partial<SyncQueueItem>) {
     return db.sync_queue.add({
       ...item,

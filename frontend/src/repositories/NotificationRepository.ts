@@ -21,6 +21,10 @@ export const NotificationRepository = {
     return LocalRepository.getNotificationsByStudent(student_id);
   },
 
+  async getNotificationsByGuardian(guardian_id: string) {
+    return LocalRepository.getNotificationsByGuardian(guardian_id);
+  },
+
   async getNotificationById(notification_id: string) {
     return db.notifications.get(notification_id);
   },

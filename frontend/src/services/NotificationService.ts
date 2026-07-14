@@ -4,6 +4,10 @@ import { supabase, hasSupabaseConfig } from './api/supabase';
 const DEFAULT_SCHOOL_ID = 'demo-school';
 
 export const NotificationService = {
+  /**
+   * Send a notification to a guardian
+   * The payload includes guardian_id for targeting and student_id for context
+   */
   async sendNotification(notification: Record<string, any>) {
     const saved = await NotificationRepository.saveNotification({
       ...notification,
@@ -20,6 +24,7 @@ export const NotificationService = {
             id: saved.id,
             school_id: saved.school_id,
             student_id: saved.student_id,
+            guardian_id: saved.guardian_id,
             recipient_phone: saved.recipient_phone,
             message_body: saved.message_body,
             delivery_method: saved.delivery_method || 'SMS',
@@ -45,6 +50,10 @@ export const NotificationService = {
     return NotificationRepository.getNotificationsByStudent(student_id);
   },
 
+  async getNotificationsForGuardian(guardian_id: string) {
+    return NotificationRepository.getNotificationsByGuardian(guardian_id);
+  },
+
   async retryFailedNotification(notification_id: string) {
     const notification = await NotificationRepository.getNotificationById(notification_id);
     if (!notification) throw new Error('Notification not found');
@@ -56,6 +65,7 @@ export const NotificationService = {
 
   /**
    * Generate notification templates for common scenarios.
+   * Templates are addressed to parents/guardians and reference the student.
    */
   generateTemplates(student_name: string, class_name: string) {
     return {

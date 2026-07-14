@@ -12,13 +12,18 @@ const form = ref({
   first_name: '',
   last_name: '',
   class_name: '',
+  guardian_full_name: '',
   guardian_phone: '',
+  guardian_secondary_phone: '',
+  guardian_email: '',
+  relationship: 'GUARDIAN',
 });
 const saving = ref(false);
 const message = ref('');
 
 const loadStudents = async (query = '') => {
-  students.value = await StudentService.searchStudents(DEFAULT_SCHOOL_ID, query, showArchived.value);
+  const result = await StudentService.getStudentsWithGuardians(DEFAULT_SCHOOL_ID, showArchived.value);
+  students.value = result.filter(s => !query || showArchived.value || s.status === 'ACTIVE');
 };
 
 const toggleArchived = () => {
@@ -30,15 +35,17 @@ const saveStudent = async () => {
   saving.value = true;
   message.value = '';
 
-  const student = {
-    school_id: DEFAULT_SCHOOL_ID,
-    ...form.value,
-    status: 'ACTIVE',
-    client_sequence: 0,
-    device_id: 'local-client',
-  };
+  await StudentService.registerStudentWithGuardian(DEFAULT_SCHOOL_ID, {
+    first_name: form.value.first_name,
+    last_name: form.value.last_name,
+    class_name: form.value.class_name,
+    guardian_full_name: form.value.guardian_full_name,
+    guardian_phone: form.value.guardian_phone,
+    guardian_secondary_phone: form.value.guardian_secondary_phone || undefined,
+    guardian_email: form.value.guardian_email || undefined,
+    relationship: form.value.relationship,
+  });
 
-  await StudentService.saveStudent(student);
   await loadStudents();
   saving.value = false;
   message.value = 'Student registered locally.';
@@ -46,7 +53,11 @@ const saveStudent = async () => {
     first_name: '',
     last_name: '',
     class_name: '',
+    guardian_full_name: '',
     guardian_phone: '',
+    guardian_secondary_phone: '',
+    guardian_email: '',
+    relationship: 'GUARDIAN',
   };
 };
 
@@ -100,8 +111,29 @@ onMounted(loadStudents);
             <input v-model="form.class_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
           </label>
           <label class="block">
-            <span class="text-sm text-slate-400">Guardian phone</span>
+            <span class="text-sm text-slate-400">Guardian full name</span>
+            <input v-model="form.guardian_full_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-slate-400">Primary phone</span>
             <input v-model="form.guardian_phone" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-slate-400">Secondary phone (optional)</span>
+            <input v-model="form.guardian_secondary_phone" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-slate-400">Email (optional)</span>
+            <input v-model="form.guardian_email" type="email" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-slate-400">Relationship</span>
+            <select v-model="form.relationship" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white">
+              <option value="GUARDIAN">Guardian</option>
+              <option value="FATHER">Father</option>
+              <option value="MOTHER">Mother</option>
+              <option value="OTHER">Other</option>
+            </select>
           </label>
           <button @click="saveStudent" :disabled="saving" class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
             {{ saving ? 'Saving...' : 'Register student' }}
@@ -147,7 +179,7 @@ onMounted(loadStudents);
               <td class="py-3">{{ student.first_name }}</td>
               <td class="py-3">{{ student.last_name }}</td>
               <td class="py-3">{{ student.class_name }}</td>
-              <td class="py-3">{{ student.guardian_phone }}</td>
+              <td class="py-3">{{ student.guardian?.full_name || student.guardian?.primary_phone || '-' }}</td>
             </tr>
             <tr v-if="students.length === 0">
               <td colspan="4" class="py-8 text-center text-slate-500">No local students yet.</td>
