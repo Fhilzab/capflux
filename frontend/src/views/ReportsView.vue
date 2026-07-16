@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { ReportService } from '../services/ReportService';
+import { ReportService } from '../shared/services/ReportService';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const loading = ref(false);

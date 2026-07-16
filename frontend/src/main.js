@@ -4,7 +4,7 @@ import './style.css';
 import App from './App.vue';
 import router from './router/index.js';
 import { useAuthStore } from './stores/authStore.js';
-import { SyncService } from './services/SyncService.ts';
+import { SyncService } from './shared/services/SyncService.ts';
 import { useSyncStore } from './stores/syncStore.js';
 
 const pinia = createPinia();

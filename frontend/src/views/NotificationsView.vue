@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { NotificationService } from '../services/NotificationService';
-import { StudentService } from '../services/StudentService';
+import { NotificationService } from '../shared/services/NotificationService';
+import { StudentService } from '../shared/services/StudentService';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const students = ref([]);

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { SchoolService } from '../services/SchoolService';
+import { SchoolService } from '../shared/services/SchoolService';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const DEFAULT_SCHOOL_NAME = 'Capstone Demo School';

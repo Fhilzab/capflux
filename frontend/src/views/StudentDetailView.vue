@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { StudentService } from '../services/StudentService';
-import { BillingService } from '../services/BillingService';
+import { StudentService } from '../shared/services/StudentService';
+import { BillingService } from '../shared/services/BillingService';
 import db from '../offline/localDb';
 
 const route = useRoute();

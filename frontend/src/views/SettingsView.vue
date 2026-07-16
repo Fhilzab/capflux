@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useThemeStore } from '../stores/themeStore';
 import { useAuthStore } from '../stores/authStore';
-import { AuthorizationService } from '../services/AuthorizationService';
+import { AuthorizationService } from '../shared/services/AuthorizationService';
 
 const themeStore = useThemeStore();
 const authStore = useAuthStore();

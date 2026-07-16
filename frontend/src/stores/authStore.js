@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { supabase, hasSupabaseConfig } from '../services/api/supabase';
-import { AuthService } from '../services/AuthService.ts';
+import { supabase, hasSupabaseConfig } from '../shared/services/api/supabase';
+import { AuthService } from '../shared/services/AuthService.ts';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({

@@ -8,7 +8,7 @@
  * - notifications (delivery status)
  */
 
-import { supabase, hasSupabaseConfig } from '../services/api/supabase';
+import { supabase, hasSupabaseConfig } from '../shared/services/api/supabase';
 import type { DataSource } from './localDb';
 
 type RealtimeCallback = (payload: unknown) => void;

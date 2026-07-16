@@ -10,7 +10,7 @@
  * - notification drafts
  */
 
-import { supabase, hasSupabaseConfig } from '../services/api/supabase';
+import { supabase, hasSupabaseConfig } from '../shared/services/api/supabase';
 import { SyncQueue } from './syncQueue';
 import { EntityOwnership } from './localDb';
 import type { SyncQueueItem } from '../types/billing';

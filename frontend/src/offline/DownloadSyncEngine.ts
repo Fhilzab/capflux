@@ -7,7 +7,7 @@
  * - payment_accounts (provider responses)
  */
 
-import { supabase, hasSupabaseConfig } from '../services/api/supabase';
+import { supabase, hasSupabaseConfig } from '../shared/services/api/supabase';
 import type { PaymentTransaction, DataSource } from '../types/billing';
 
 const CLOUD_OWNED_TABLES = ['payment_transactions', 'settlement_records'] as const;

@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import LoginView from '../views/LoginView.vue';
 import LandingView from '../views/LandingView.vue';
-import HomeView from '../views/HomeView.vue';
+import HomeView from '../features/dashboard/views/HomeView.vue';
 import OnboardingView from '../views/OnboardingView.vue';
 import StudentListView from '../views/StudentListView.vue';
 import GuardianListView from '../views/GuardianListView.vue';

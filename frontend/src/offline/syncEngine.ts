@@ -1,4 +1,4 @@
-import { supabase, hasSupabaseConfig } from '../services/api/supabase';
+import { supabase, hasSupabaseConfig } from '../shared/services/api/supabase';
 import { SyncQueue } from './syncQueue';
 
 const MAX_RETRIES = 3;

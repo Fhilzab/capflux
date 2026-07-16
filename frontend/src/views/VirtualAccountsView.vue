@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import VirtualAccountHealth from '../components/dashboard/VirtualAccountHealth.vue';
+import VirtualAccountHealth from '../features/dashboard/components/VirtualAccountHealth.vue';
 </script>
 
 <template>

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { useSyncStore } from '../stores/syncStore';
-import { SyncService } from '../services/SyncService';
+import { SyncService } from '../shared/services/SyncService';
 
 const syncStore = useSyncStore();
 const loading = ref(false);

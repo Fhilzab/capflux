@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import db from '../offline/localDb';
-import { SyncService } from '../services/SyncService';
+import { SyncService } from '../shared/services/SyncService';
 
 export const useSyncStore = defineStore('sync', {
   state: () => ({

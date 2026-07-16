@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import GuardianInsights from '../components/dashboard/GuardianInsights.vue';
+import GuardianInsights from '../features/dashboard/components/GuardianInsights.vue';
 </script>
 
 <template>

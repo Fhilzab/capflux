@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { BillingService } from '../services/BillingService';
-import { StudentService } from '../services/StudentService';
+import { BillingService } from '../shared/services/BillingService';
+import { StudentService } from '../shared/services/StudentService';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const items = ref([]);

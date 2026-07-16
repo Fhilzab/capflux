@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import { useSyncStore } from '../stores/syncStore';
-import { useDashboardStore } from '../stores/dashboardStore';
+import { useDashboardStore } from '../features/dashboard/stores/dashboardStore';
 import { useThemeStore } from '../stores/themeStore';
 
 const router = useRouter();

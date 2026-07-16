@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AIInsights from '../components/dashboard/AIInsights.vue';
+import AIInsights from '../features/dashboard/components/AIInsights.vue';
 </script>
 
 <template>

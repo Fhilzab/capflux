@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { StudentService } from '../services/StudentService';
+import { StudentService } from '../shared/services/StudentService';
 
 const router = useRouter();
 const DEFAULT_SCHOOL_ID = 'demo-school';
