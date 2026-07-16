@@ -63,7 +63,6 @@ const syncStatus = computed(() => {
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.5-5.5m2.276-6.75a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" />
         </svg>
         <span class="flex-1 text-left">Search students, payments, guardians...</span>
-        <kbd class="hidden sm:inline-flex items-center rounded-md bg-slate-800 px-1.5 py-0.5 text-xs">⌘K</kbd>
       </button>
     </div>
 

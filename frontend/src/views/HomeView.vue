@@ -98,11 +98,13 @@ onMounted(async () => {
   <main class="flex-1 overflow-y-auto">
     <div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
       
-      <!-- Header Section -->
-      <div class="flex items-center justify-between gap-4">
-        <DashboardHeader />
-        <UniversalSearch class="w-80" />
-      </div>
+    <!-- Header Section - Workflow Stack -->
+    <DashboardHeader />
+    <UniversalSearch class="mb-4" />
+    <div class="flex items-center gap-3 mb-6">
+      <span class="text-xs text-slate-400">System Online</span>
+      <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+    </div>
       
       <!-- Loading State -->
       <div v-if="dashboardStore.loading" class="space-y-6">
