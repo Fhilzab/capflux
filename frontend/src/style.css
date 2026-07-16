@@ -1,3 +1,8 @@
+/* ==========================================================================
+   Capstone Enterprise Minimalism Design System (CEMDS)
+   ========================================================================== */
+@import "./styles/cemds/tokens.css";
+@import "./styles/cemds/theme.css";
 @import "tailwindcss";
 
 /* Base styles */
