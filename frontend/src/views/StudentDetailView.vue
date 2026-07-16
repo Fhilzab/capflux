@@ -167,41 +167,41 @@ onMounted(loadStudent);
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white p-8">
+  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
     <div class="max-w-5xl mx-auto space-y-6">
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 class="text-4xl font-semibold">Student details</h1>
-            <p class="text-slate-400">Review selected student and local billing ledger.</p>
+            <h1 class="text-4xl font-semibold text-text-primary">Student details</h1>
+            <p class="text-text-muted">Review selected student and local billing ledger.</p>
           </div>
           <button
             @click="router.push({ name: 'Students' })"
-            class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            class="rounded-button bg-surface px-4 py-2 text-sm font-medium text-text-secondary border border-border hover:bg-sidebar transition-colors duration-150"
           >
             &larr; Back to students
           </button>
         </div>
       </section>
 
-      <section v-if="loading" class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <p class="text-slate-400">Loading student details...</p>
+      <section v-if="loading" class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+        <p class="text-text-muted">Loading student details...</p>
       </section>
 
-      <section v-else-if="error" class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <p class="text-rose-400">{{ error }}</p>
+      <section v-else-if="error" class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+        <p class="text-danger">{{ error }}</p>
       </section>
 
       <section v-else class="space-y-6">
         <!-- Student info and edit form -->
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+        <div class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-2xl font-semibold">Student Information</h2>
+            <h2 class="text-2xl font-semibold text-text-primary">Student Information</h2>
             <div class="flex gap-2">
               <button
                 v-if="!editing"
                 @click="startEditing"
-                class="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+                class="rounded-button bg-primary px-4 py-2 text-sm font-medium text-background hover:bg-primary-hover transition-colors duration-150"
               >
                 Edit
               </button>
@@ -209,7 +209,7 @@ onMounted(loadStudent);
                 v-if="student.status === 'ACTIVE'"
                 @click="archiveStudent('LEFT')"
                 :disabled="archiving"
-                class="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-400 disabled:opacity-50"
+                class="rounded-button bg-danger px-4 py-2 text-sm font-medium text-background hover:bg-danger-hover disabled:opacity-50 transition-colors duration-150"
               >
                 {{ archiving ? 'Archiving...' : 'Archive' }}
               </button>
@@ -217,7 +217,7 @@ onMounted(loadStudent);
                 v-if="student.status !== 'ACTIVE'"
                 @click="archiveStudent('ACTIVE')"
                 :disabled="archiving"
-                class="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-400 disabled:opacity-50"
+                class="rounded-button bg-success px-4 py-2 text-sm font-medium text-background hover:bg-success-hover disabled:opacity-50 transition-colors duration-150"
               >
                 {{ archiving ? 'Restoring...' : 'Restore' }}
               </button>
@@ -227,57 +227,57 @@ onMounted(loadStudent);
           <!-- Edit mode -->
           <div v-if="editing" class="grid gap-4 sm:grid-cols-2">
             <label class="block">
-              <span class="text-sm text-slate-400">First name</span>
-              <input v-model="editForm.first_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+              <span class="text-sm text-text-muted">First name</span>
+              <input v-model="editForm.first_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
             </label>
             <label class="block">
-              <span class="text-sm text-slate-400">Last name</span>
-              <input v-model="editForm.last_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+              <span class="text-sm text-text-muted">Last name</span>
+              <input v-model="editForm.last_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
             </label>
             <label class="block">
-              <span class="text-sm text-slate-400">Class</span>
-              <input v-model="editForm.class_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+              <span class="text-sm text-text-muted">Class</span>
+              <input v-model="editForm.class_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
             </label>
             <div class="sm:col-span-2 flex gap-3">
-              <button @click="saveEdit" :disabled="savingEdit" class="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50">
+              <button @click="saveEdit" :disabled="savingEdit" class="rounded-button bg-success px-5 py-3 font-medium text-background hover:bg-success-hover disabled:opacity-50 transition-colors duration-150">
                 {{ savingEdit ? 'Saving...' : 'Save changes' }}
               </button>
-              <button @click="cancelEditing" class="rounded-2xl bg-slate-800 px-5 py-3 font-semibold text-white hover:bg-slate-700">
+              <button @click="cancelEditing" class="rounded-button bg-surface px-5 py-3 font-medium text-text-secondary border border-border hover:bg-sidebar transition-colors duration-150">
                 Cancel
               </button>
             </div>
           </div>
 
           <!-- View mode -->
-          <div v-else class="space-y-3 text-slate-200">
+          <div v-else class="space-y-3">
             <div class="grid gap-4 sm:grid-cols-2">
               <div>
-                <p class="text-sm text-slate-400">First name</p>
-                <p class="mt-1 text-lg font-semibold">{{ student.first_name }}</p>
+                <p class="text-sm text-text-muted">First name</p>
+                <p class="mt-1 text-lg font-semibold text-text-primary">{{ student.first_name }}</p>
               </div>
               <div>
-                <p class="text-sm text-slate-400">Last name</p>
-                <p class="mt-1 text-lg font-semibold">{{ student.last_name }}</p>
+                <p class="text-sm text-text-muted">Last name</p>
+                <p class="mt-1 text-lg font-semibold text-text-primary">{{ student.last_name }}</p>
               </div>
               <div>
-                <p class="text-sm text-slate-400">Class</p>
-                <p class="mt-1">{{ student.class_name }}</p>
+                <p class="text-sm text-text-muted">Class</p>
+                <p class="mt-1 text-text-secondary">{{ student.class_name }}</p>
               </div>
               <div>
-                <p class="text-sm text-slate-400">Guardian</p>
-                <p class="mt-1" v-if="student.guardian_id">
-                  <span class="block">{{ student.guardian?.full_name || 'Loading...' }}</span>
-                  <span class="text-sm text-slate-500">{{ student.guardian?.primary_phone }} {{ student.guardian?.secondary_phone ? `(${student.guardian?.secondary_phone})` : '' }}</span>
+                <p class="text-sm text-text-muted">Guardian</p>
+                <p class="mt-1 text-text-secondary" v-if="student.guardian_id">
+                  <span class="block text-text-primary">{{ student.guardian?.full_name || 'Loading...' }}</span>
+                  <span class="text-sm text-text-muted">{{ student.guardian?.primary_phone }} {{ student.guardian?.secondary_phone ? `(${student.guardian?.secondary_phone})` : '' }}</span>
                 </p>
-                <p class="mt-1 text-slate-500" v-else>-</p>
+                <p class="mt-1 text-text-muted" v-else>-</p>
               </div>
               <div>
-                <p class="text-sm text-slate-400">Status</p>
+                <p class="text-sm text-text-muted">Status</p>
                 <span class="mt-1 inline-flex rounded-full px-3 py-1 text-sm font-semibold"
                   :class="{
-                    'bg-emerald-500/10 text-emerald-400': student.status === 'ACTIVE',
-                    'bg-slate-500/10 text-slate-400': student.status === 'GRADUATED',
-                    'bg-rose-500/10 text-rose-400': student.status === 'LEFT',
+                    'bg-success/10 text-success': student.status === 'ACTIVE',
+                    'bg-border/10 text-text-muted': student.status === 'GRADUATED',
+                    'bg-danger/10 text-danger': student.status === 'LEFT',
                   }"
                 >
                   {{ student.status }}
@@ -285,77 +285,77 @@ onMounted(loadStudent);
               </div>
             </div>
           </div>
-          <p v-if="editMessage" class="mt-4 text-sm text-emerald-400">{{ editMessage }}</p>
+          <p v-if="editMessage" class="mt-4 text-sm text-success">{{ editMessage }}</p>
         </div>
 
         <!-- Balance cards -->
         <div class="grid gap-6 lg:grid-cols-3">
-          <div class="rounded-3xl bg-slate-900 p-6 shadow-xl">
-            <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Charges</p>
-            <p class="mt-4 text-3xl font-bold text-cyan-400">₦{{ totalCharges.toLocaleString() }}</p>
+          <div class="rounded-card bg-card p-6 shadow-card transition-colors duration-200">
+            <p class="text-sm uppercase tracking-[0.24em] text-text-muted">Charges</p>
+            <p class="mt-4 text-3xl font-bold text-primary">₦{{ totalCharges.toLocaleString() }}</p>
           </div>
-          <div class="rounded-3xl bg-slate-900 p-6 shadow-xl">
-            <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Payments</p>
-            <p class="mt-4 text-3xl font-bold text-emerald-400">₦{{ totalPayments.toLocaleString() }}</p>
+          <div class="rounded-card bg-card p-6 shadow-card transition-colors duration-200">
+            <p class="text-sm uppercase tracking-[0.24em] text-text-muted">Payments</p>
+            <p class="mt-4 text-3xl font-bold text-success">₦{{ totalPayments.toLocaleString() }}</p>
           </div>
-          <div class="rounded-3xl bg-slate-900 p-6 shadow-xl">
-            <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Outstanding balance</p>
-            <p class="mt-4 text-3xl font-bold text-amber-400">₦{{ outstandingBalance.toLocaleString() }}</p>
+          <div class="rounded-card bg-card p-6 shadow-card transition-colors duration-200">
+            <p class="text-sm uppercase tracking-[0.24em] text-text-muted">Outstanding balance</p>
+            <p class="mt-4 text-3xl font-bold text-warning">₦{{ outstandingBalance.toLocaleString() }}</p>
           </div>
         </div>
 
         <!-- Record transaction -->
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-          <h2 class="text-2xl font-semibold mb-4">Record transaction</h2>
-          <p class="text-slate-400 mb-4">Add a charge or payment for this student locally.</p>
+        <div class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+          <h2 class="text-2xl font-semibold mb-4 text-text-primary">Record transaction</h2>
+          <p class="text-text-muted mb-4">Add a charge or payment for this student locally.</p>
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block">
-              <span class="text-sm text-slate-400">Type</span>
-              <select v-model="form.entry_type" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white">
+              <span class="text-sm text-text-muted">Type</span>
+              <select v-model="form.entry_type" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow">
                 <option value="DEBIT">Charge</option>
                 <option value="CREDIT">Payment</option>
               </select>
             </label>
             <label class="block">
-              <span class="text-sm text-slate-400">Amount</span>
-              <input v-model="form.amount" type="number" min="0" step="0.01" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+              <span class="text-sm text-text-muted">Amount</span>
+              <input v-model="form.amount" type="number" min="0" step="0.01" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
             </label>
             <label class="block sm:col-span-2">
-              <span class="text-sm text-slate-400">Description</span>
-              <input v-model="form.entry_description" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+              <span class="text-sm text-text-muted">Description</span>
+              <input v-model="form.entry_description" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
             </label>
           </div>
           <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <button @click="submitEntry" :disabled="saving" class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
+            <button @click="submitEntry" :disabled="saving" class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150">
               {{ saving ? 'Saving...' : 'Record transaction' }}
             </button>
-            <p v-if="message" class="text-sm text-emerald-400">{{ message }}</p>
+            <p v-if="message" class="text-sm text-success">{{ message }}</p>
           </div>
         </div>
 
         <!-- Ledger entries -->
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-          <h2 class="text-2xl font-semibold mb-4">Ledger entries</h2>
-          <p class="text-slate-400">Transactions saved locally for this student.</p>
+        <div class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+          <h2 class="text-2xl font-semibold mb-4 text-text-primary">Ledger entries</h2>
+          <p class="text-text-muted">Transactions saved locally for this student.</p>
           <div class="mt-6 space-y-4">
-            <div v-for="entry in ledgerItems" :key="entry.id" class="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div v-for="entry in ledgerItems" :key="entry.id" class="rounded-card border border-divider bg-card p-4">
               <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
                   <span class="rounded-full px-3 py-1 text-xs font-semibold"
-                    :class="entry.entry_type === 'DEBIT' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-emerald-500/10 text-emerald-400'"
+                    :class="entry.entry_type === 'DEBIT' ? 'bg-primary/10 text-primary' : 'bg-success/10 text-success'"
                   >
                     {{ entry.entry_type }}
                   </span>
-                  <p class="font-semibold">{{ entry.entry_category }}</p>
+                  <p class="font-semibold text-text-primary">{{ entry.entry_category }}</p>
                 </div>
-                <p class="font-semibold" :class="entry.entry_type === 'DEBIT' ? 'text-cyan-400' : 'text-emerald-400'">
+                <p class="font-semibold" :class="entry.entry_type === 'DEBIT' ? 'text-primary' : 'text-success'">
                   ₦{{ Number(entry.amount).toLocaleString() }}
                 </p>
               </div>
-              <p class="mt-2 text-slate-400">{{ entry.entry_description || 'No description' }}</p>
-              <p class="text-xs text-slate-500 mt-2">Created: {{ new Date(entry.created_at).toLocaleString() }}</p>
+              <p class="mt-2 text-text-muted">{{ entry.entry_description || 'No description' }}</p>
+              <p class="text-xs text-text-muted mt-2">Created: {{ new Date(entry.created_at).toLocaleString() }}</p>
             </div>
-            <p v-if="ledgerItems.length === 0" class="text-slate-500">No local ledger entries available.</p>
+            <p v-if="ledgerItems.length === 0" class="text-text-muted">No local ledger entries available.</p>
           </div>
         </div>
       </section>

@@ -50,7 +50,7 @@ const copyReference = (ref?: string) => {
   <section>
     <div class="mb-4 flex items-center justify-between">
       <h2 class="text-headline">Recent Payments</h2>
-      <router-link to="/payments" class="text-xs font-medium text-cyan-400 hover:text-cyan-300">View all →</router-link>
+      <router-link to="/payments" class="text-xs font-medium text-primary hover:text-primary-hover">View all →</router-link>
     </div>
 
     <!-- Loading state -->
@@ -64,37 +64,37 @@ const copyReference = (ref?: string) => {
     />
 
     <!-- Data table -->
-    <div v-else class="premium-card overflow-hidden">
+    <div v-else class="overflow-x-auto rounded-card border border-divider bg-surface transition-colors duration-200">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-slate-800/50">
-            <th class="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Student</th>
-            <th class="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Guardian</th>
-            <th class="px-5 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">Amount</th>
-            <th class="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Reference</th>
-            <th class="px-5 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-            <th class="px-5 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">Time</th>
-            <th class="px-5 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Method</th>
+          <tr class="border-b border-divider">
+            <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">Student</th>
+            <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">Guardian</th>
+            <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted">Amount</th>
+            <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">Reference</th>
+            <th class="px-5 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-text-muted">Status</th>
+            <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted">Time</th>
+            <th class="px-5 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-text-muted">Method</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="payment in sortedPayments.slice(0, 10)" :key="payment.id" class="border-t border-slate-800/30 hover:bg-slate-800/30 transition-colors">
+          <tr v-for="payment in sortedPayments.slice(0, 10)" :key="payment.id" class="border-t border-divider hover:bg-card/50 transition-colors duration-200">
             <td class="px-5 py-3.5">
-              <span class="font-medium text-white">{{ payment.student_name }}</span>
+              <span class="font-bold uppercase text-text-primary">{{ payment.student_name }}</span>
             </td>
-            <td class="px-5 py-3.5 text-slate-400">{{ payment.guardian_name }}</td>
-            <td class="px-5 py-3.5 text-right font-mono font-medium text-emerald-400">
+            <td class="px-5 py-3.5 text-text-secondary">{{ payment.guardian_name }}</td>
+            <td class="px-5 py-3.5 text-right font-mono font-medium text-success">
               ₦{{ payment.amount.toLocaleString() }}
             </td>
             <td class="px-5 py-3.5">
               <div class="flex items-center gap-1.5">
-                <span class="font-mono text-xs text-slate-400 truncate max-w-24" :title="payment.reference">
+                <span class="font-mono text-xs text-text-muted truncate max-w-24" :title="payment.reference">
                   {{ payment.reference || '-' }}
                 </span>
                 <button 
                   v-if="payment.reference"
                   @click="copyReference(payment.reference)"
-                  class="text-slate-500 hover:text-slate-300"
+                  class="text-text-muted hover:text-text-primary"
                 >
                   <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 0V9m0 3l3 3m6-3V9m0 3l-3-3" />
@@ -105,11 +105,11 @@ const copyReference = (ref?: string) => {
             <td class="px-5 py-3.5 text-center">
               <StatusBadge :status="payment.status === 'verified' ? 'success' : 'pending'" :label="payment.status || 'pending'" />
             </td>
-            <td class="px-5 py-3.5 text-right font-mono text-xs text-slate-400">
+            <td class="px-5 py-3.5 text-right font-mono text-xs text-text-muted">
               {{ formatTime(payment.created_at) }}
             </td>
             <td class="px-5 py-3.5 text-center">
-              <svg class="h-4 w-4 mx-auto text-slate-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <svg class="h-4 w-4 mx-auto text-text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 10.5h18M3 14.25h18M5.25 6a2.25 2.25 0 012.25-2.25h10.5A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H7.5A2.25 2.25 0 015.25 18V6z" />
               </svg>
             </td>

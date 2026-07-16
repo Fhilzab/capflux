@@ -69,120 +69,120 @@ onMounted(loadStudents);
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white p-8">
+  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
     <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 class="text-4xl font-semibold">Students</h1>
-            <p class="text-slate-400 mt-2">Register and review students in the local offline store.</p>
+            <h1 class="text-4xl font-semibold text-text-primary">Students</h1>
+            <p class="text-text-muted mt-2">Register and review students in the local offline store.</p>
           </div>
-          <p class="text-sm text-slate-500">School ID: demo-school</p>
+          <p class="text-sm text-text-muted">School ID: demo-school</p>
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 class="text-2xl font-semibold">Student register</h2>
-            <p class="text-slate-400">Search by name or class to filter the local student list.</p>
+            <h2 class="text-2xl font-semibold text-text-primary">Student register</h2>
+            <p class="text-text-muted">Search by name or class to filter the local student list.</p>
           </div>
           <div class="flex items-center gap-3">
             <input
               v-model="search"
               @input="() => loadStudents(search)"
               placeholder="Search students"
-              class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-cyan-400"
+              class="rounded-button border border-border bg-surface px-4 py-3 text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow"
             />
-            <button @click="() => loadStudents(search)" class="rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-400">Search</button>
+            <button @click="() => loadStudents(search)" class="rounded-button bg-primary px-4 py-3 text-sm font-medium text-background hover:bg-primary-hover transition-colors duration-150">Search</button>
           </div>
         </div>
         <div class="mt-6 space-y-4">
           <label class="block">
-            <span class="text-sm text-slate-400">First name</span>
-            <input v-model="form.first_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+            <span class="text-sm text-text-muted">First name</span>
+            <input v-model="form.first_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
           </label>
           <label class="block">
-            <span class="text-sm text-slate-400">Last name</span>
-            <input v-model="form.last_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+            <span class="text-sm text-text-muted">Last name</span>
+            <input v-model="form.last_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
           </label>
           <label class="block">
-            <span class="text-sm text-slate-400">Class</span>
-            <input v-model="form.class_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+            <span class="text-sm text-text-muted">Class</span>
+            <input v-model="form.class_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
           </label>
           <label class="block">
-            <span class="text-sm text-slate-400">Guardian full name</span>
-            <input v-model="form.guardian_full_name" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+            <span class="text-sm text-text-muted">Guardian full name</span>
+            <input v-model="form.guardian_full_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
           </label>
           <label class="block">
-            <span class="text-sm text-slate-400">Primary phone</span>
-            <input v-model="form.guardian_phone" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+            <span class="text-sm text-text-muted">Primary phone</span>
+            <input v-model="form.guardian_phone" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
           </label>
           <label class="block">
-            <span class="text-sm text-slate-400">Secondary phone (optional)</span>
-            <input v-model="form.guardian_secondary_phone" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+            <span class="text-sm text-text-muted">Secondary phone (optional)</span>
+            <input v-model="form.guardian_secondary_phone" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
           </label>
           <label class="block">
-            <span class="text-sm text-slate-400">Email (optional)</span>
-            <input v-model="form.guardian_email" type="email" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+            <span class="text-sm text-text-muted">Email (optional)</span>
+            <input v-model="form.guardian_email" type="email" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
           </label>
           <label class="block">
-            <span class="text-sm text-slate-400">Relationship</span>
-            <select v-model="form.relationship" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white">
+            <span class="text-sm text-text-muted">Relationship</span>
+            <select v-model="form.relationship" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow">
               <option value="GUARDIAN">Guardian</option>
               <option value="FATHER">Father</option>
               <option value="MOTHER">Mother</option>
               <option value="OTHER">Other</option>
             </select>
           </label>
-          <button @click="saveStudent" :disabled="saving" class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
+          <button @click="saveStudent" :disabled="saving" class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150">
             {{ saving ? 'Saving...' : 'Register student' }}
           </button>
-          <p v-if="message" class="text-sm text-emerald-400">{{ message }}</p>
+          <p v-if="message" class="text-sm text-success">{{ message }}</p>
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <h2 class="text-2xl font-semibold mb-4">Student count</h2>
-        <p class="text-5xl font-bold">{{ students.length }}</p>
-        <p class="mt-2 text-slate-400">Stored locally in Dexie.</p>
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+        <h2 class="text-2xl font-semibold mb-4 text-text-primary">Student count</h2>
+        <p class="text-5xl font-bold text-text-primary">{{ students.length }}</p>
+        <p class="mt-2 text-text-muted">Stored locally in Dexie.</p>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
+      <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto transition-colors duration-200">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
-          <h2 class="text-2xl font-semibold">Student list</h2>
+          <h2 class="text-2xl font-semibold text-text-primary">Student list</h2>
           <label class="flex items-center gap-2 cursor-pointer">
-            <span class="text-sm text-slate-400">Show archived</span>
+            <span class="text-sm text-text-muted">Show archived</span>
             <button
               @click="toggleArchived"
               class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              :class="showArchived ? 'bg-cyan-500' : 'bg-slate-700'"
+              :class="showArchived ? 'bg-primary' : 'bg-border'"
             >
               <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                class="inline-block h-4 w-4 transform rounded-full bg-background transition-transform"
                 :class="showArchived ? 'translate-x-6' : 'translate-x-1'"
               ></span>
             </button>
           </label>
         </div>
-        <table class="w-full border-collapse text-left text-sm text-slate-200">
+        <table class="w-full border-collapse text-left text-sm">
           <thead>
-            <tr class="border-b border-slate-700 text-slate-400">
-              <th class="py-3">First</th>
-              <th class="py-3">Last</th>
-              <th class="py-3">Class</th>
-              <th class="py-3">Guardian</th>
+            <tr class="border-b border-divider text-text-muted">
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">First</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Last</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Class</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Guardian</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="student in students" :key="student.id" class="cursor-pointer border-b border-slate-800 hover:bg-slate-950/50" @click="goToStudent(student.id)">
-              <td class="py-3">{{ student.first_name }}</td>
-              <td class="py-3">{{ student.last_name }}</td>
-              <td class="py-3">{{ student.class_name }}</td>
-              <td class="py-3">{{ student.guardian?.full_name || student.guardian?.primary_phone || '-' }}</td>
+            <tr v-for="student in students" :key="student.id" class="cursor-pointer border-b border-divider hover:bg-card/50 transition-colors" @click="goToStudent(student.id)">
+              <td class="py-3 font-bold uppercase text-text-primary">{{ student.first_name }}</td>
+              <td class="py-3 font-bold uppercase text-text-primary">{{ student.last_name }}</td>
+              <td class="py-3 text-text-secondary">{{ student.class_name }}</td>
+              <td class="py-3 text-text-secondary">{{ student.guardian?.full_name || student.guardian?.primary_phone || '-' }}</td>
             </tr>
             <tr v-if="students.length === 0">
-              <td colspan="4" class="py-8 text-center text-slate-500">No local students yet.</td>
+              <td colspan="4" class="py-8 text-center text-text-muted">No local students yet.</td>
             </tr>
           </tbody>
         </table>

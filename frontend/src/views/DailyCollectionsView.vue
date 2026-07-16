@@ -62,77 +62,77 @@ onMounted(loadCollections);
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white p-8">
+  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
     <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 class="text-4xl font-semibold mb-2">Daily Collections</h1>
-            <p class="text-slate-400">View payments collected per day with date range filtering.</p>
+            <h1 class="text-4xl font-semibold mb-2 text-text-primary">Daily Collections</h1>
+            <p class="text-text-muted">View payments collected per day with date range filtering.</p>
           </div>
           <button
             @click="downloadCsv"
             :disabled="collections.length === 0"
-            class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+            class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150"
           >
             Export CSV
           </button>
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block">
-              <span class="text-sm text-slate-400">Start date</span>
+              <span class="text-sm text-text-muted">Start date</span>
               <input
                 v-model="startDate"
                 type="date"
-                class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
+                class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow"
               />
             </label>
             <label class="block">
-              <span class="text-sm text-slate-400">End date</span>
+              <span class="text-sm text-text-muted">End date</span>
               <input
                 v-model="endDate"
                 type="date"
-                class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
+                class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow"
               />
             </label>
           </div>
           <button
             @click="loadCollections"
-            class="rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+            class="rounded-button bg-primary px-4 py-3 text-sm font-medium text-background hover:bg-primary-hover transition-colors duration-150"
           >
             Filter
           </button>
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <h2 class="text-2xl font-semibold mb-4">Total collected</h2>
-        <p class="text-5xl font-bold text-emerald-400">₦{{ totalCollected.toLocaleString() }}</p>
-        <p class="mt-2 text-slate-400">{{ collections.length }} days with payments</p>
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+        <h2 class="text-2xl font-semibold mb-4 text-text-primary">Total collected</h2>
+        <p class="text-5xl font-bold text-success">₦{{ totalCollected.toLocaleString() }}</p>
+        <p class="mt-2 text-text-muted">{{ collections.length }} days with payments</p>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
-        <h2 class="text-2xl font-semibold mb-4">Collections by day</h2>
-        <table class="w-full border-collapse text-left text-sm text-slate-200">
+      <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto transition-colors duration-200">
+        <h2 class="text-2xl font-semibold mb-4 text-text-primary">Collections by day</h2>
+        <table class="w-full border-collapse text-left text-sm">
           <thead>
-            <tr class="border-b border-slate-700 text-slate-400">
-              <th class="py-3">Date</th>
-              <th class="py-3">Payments</th>
-              <th class="py-3">Total collected</th>
+            <tr class="border-b border-divider text-text-muted">
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Date</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Payments</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Total collected</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in collections" :key="item.date" class="border-b border-slate-800 hover:bg-slate-950/50">
-              <td class="py-3">{{ item.date }}</td>
-              <td class="py-3">{{ item.count }}</td>
-              <td class="py-3 font-semibold text-emerald-400">₦{{ item.total.toLocaleString() }}</td>
+            <tr v-for="item in collections" :key="item.date" class="border-b border-divider hover:bg-card/50 transition-colors">
+              <td class="py-3 text-text-secondary">{{ item.date }}</td>
+              <td class="py-3 text-text-secondary">{{ item.count }}</td>
+              <td class="py-3 font-semibold text-success">₦{{ item.total.toLocaleString() }}</td>
             </tr>
             <tr v-if="collections.length === 0">
-              <td colspan="3" class="py-8 text-center text-slate-500">No collections found for the selected period.</td>
+              <td colspan="3" class="py-8 text-center text-text-muted">No collections found for the selected period.</td>
             </tr>
           </tbody>
         </table>

@@ -3,10 +3,10 @@ import GuardianInsights from '../features/dashboard/components/GuardianInsights.
 </script>
 
 <template>
-  <div class="p-6">
+  <div class="p-6 transition-colors duration-200">
     <div class="mb-6">
       <h1 class="text-headline">Guardians</h1>
-      <p class="text-slate-500">Manage parent/guardian accounts</p>
+      <p class="text-text-muted">Manage parent/guardian accounts</p>
     </div>
     
     <GuardianInsights />

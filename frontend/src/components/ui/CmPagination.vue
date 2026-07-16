@@ -62,7 +62,7 @@ const goToPage = (page: number) => {
         class="rounded-button px-3 py-1.5 text-sm font-medium border transition-all duration-150 focus-ring"
         :class="[
           page === currentPage
-            ? 'bg-primary text-white border-primary'
+            ? 'bg-primary text-background border-border'
             : 'text-text-primary border-border bg-surface hover:bg-surface/80',
           typeof page === 'string' ? 'cursor-default' : '',
         ]"

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isAuthenticatedRoute" class="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+  <div v-if="isAuthenticatedRoute" class="flex min-h-screen bg-background text-text-primary font-sans antialiased transition-colors duration-200">
     <Sidebar v-model:collapsed="sidebarCollapsed" />
     <div class="flex-1 transition-all duration-300" :class="sidebarCollapsed ? 'ml-20' : 'ml-72'">
       <TopNav />

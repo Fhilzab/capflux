@@ -22,7 +22,7 @@ const variantClasses = {
 };
 
 const variantBg = {
-  default: 'bg-surface',
+  default: 'bg-card',
   success: 'bg-success/10',
   warning: 'bg-warning/10',
   error: 'bg-danger/10',
@@ -32,9 +32,9 @@ const variantBg = {
 </script>
 
 <template>
-  <div class="premium-card p-6 transition-all duration-150 hover:shadow-card">
+  <div class="bg-card border border-border shadow-card rounded-card p-6 transition-all duration-150 hover:shadow-card">
     <div class="flex items-start justify-between mb-4">
-      <p class="text-label">{{ label }}</p>
+      <p class="text-xs uppercase tracking-wider font-semibold text-text-muted">{{ label }}</p>
       <div v-if="icon" class="flex h-9 w-9 items-center justify-center rounded-card border border-border" :class="variantBg[variant || 'default']">
         <svg class="h-4.5 w-4.5" :class="variantClasses[variant || 'default']" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" :d="icon" />
@@ -42,7 +42,7 @@ const variantBg = {
       </div>
     </div>
     <div class="space-y-1.5">
-      <p class="text-metric" :class="variantClasses[variant || 'default']">
+      <p class="text-3xl font-bold font-mono" :class="variantClasses[variant || 'default']">
         {{ currency ? '₦' : '' }}{{ typeof value === 'number' ? value.toLocaleString() : value }}
       </p>
       <div v-if="trend" class="flex items-center gap-2">

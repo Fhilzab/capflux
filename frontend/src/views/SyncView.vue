@@ -60,19 +60,19 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white p-8">
+  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
     <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 class="text-4xl font-semibold">Sync Center</h1>
-            <p class="text-slate-400">Monitor local sync status and resolve failed queue items.</p>
+            <h1 class="text-4xl font-semibold text-text-primary">Sync Center</h1>
+            <p class="text-text-muted">Monitor local sync status and resolve failed queue items.</p>
           </div>
           <div class="flex flex-wrap gap-3">
             <button
               @click="processQueue"
               :disabled="loading || syncStore.isSyncing"
-              class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+              class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150"
             >
               {{ loading ? 'Processing...' : 'Process queue' }}
             </button>
@@ -80,7 +80,7 @@ onMounted(async () => {
               v-if="syncStore.failedCount > 0"
               @click="retryAllFailed"
               :disabled="loading || syncStore.isSyncing"
-              class="rounded-2xl bg-amber-500 px-5 py-3 font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+              class="rounded-button bg-warning px-5 py-3 font-medium text-background hover:bg-warning-hover disabled:opacity-50 transition-colors duration-150"
             >
               Retry all failed
             </button>
@@ -88,30 +88,30 @@ onMounted(async () => {
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="grid gap-6 sm:grid-cols-3">
-          <div class="rounded-3xl bg-slate-950 p-6">
-            <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Pending</p>
-            <p class="mt-4 text-4xl font-semibold text-cyan-400">{{ syncStore.pendingCount }}</p>
+          <div class="rounded-card bg-surface p-6 shadow-card">
+            <p class="text-sm uppercase tracking-[0.24em] text-text-muted">Pending</p>
+            <p class="mt-4 text-4xl font-semibold text-primary">{{ syncStore.pendingCount }}</p>
           </div>
-          <div class="rounded-3xl bg-slate-950 p-6">
-            <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Failed</p>
-            <p class="mt-4 text-4xl font-semibold text-amber-400">{{ syncStore.failedCount }}</p>
+          <div class="rounded-card bg-surface p-6 shadow-card">
+            <p class="text-sm uppercase tracking-[0.24em] text-text-muted">Failed</p>
+            <p class="mt-4 text-4xl font-semibold text-warning">{{ syncStore.failedCount }}</p>
           </div>
-          <div class="rounded-3xl bg-slate-950 p-6">
-            <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Last refreshed</p>
-            <p class="mt-4 text-2xl font-semibold text-slate-100">{{ syncStore.lastSyncedAt || 'never' }}</p>
+          <div class="rounded-card bg-surface p-6 shadow-card">
+            <p class="text-sm uppercase tracking-[0.24em] text-text-muted">Last refreshed</p>
+            <p class="mt-4 text-2xl font-semibold text-text-primary">{{ syncStore.lastSyncedAt || 'never' }}</p>
           </div>
         </div>
-        <p v-if="actionMessage" class="mt-4 text-sm text-emerald-400">{{ actionMessage }}</p>
-        <p v-if="syncStore.error" class="mt-2 text-sm text-rose-400">{{ syncStore.error }}</p>
+        <p v-if="actionMessage" class="mt-4 text-sm text-success">{{ actionMessage }}</p>
+        <p v-if="syncStore.error" class="mt-2 text-sm text-danger">{{ syncStore.error }}</p>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <h2 class="text-2xl font-semibold mb-4">Failed sync items</h2>
-        <p class="text-slate-400 mb-6">Review and retry items that could not be synced.</p>
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+        <h2 class="text-2xl font-semibold mb-4 text-text-primary">Failed sync items</h2>
+        <p class="text-text-muted mb-6">Review and retry items that could not be synced.</p>
 
-        <div v-if="syncStore.failedItems.length === 0" class="rounded-3xl bg-slate-950 p-8 text-slate-400">
+        <div v-if="syncStore.failedItems.length === 0" class="rounded-card bg-surface p-8 text-text-muted">
           No failed sync items. Everything is up to date.
         </div>
 
@@ -119,24 +119,24 @@ onMounted(async () => {
           <div
             v-for="item in syncStore.failedItems"
             :key="item.id"
-            class="rounded-3xl border border-slate-800 bg-slate-950 p-6"
+            class="rounded-card border border-divider bg-card p-6"
           >
             <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p class="text-sm uppercase tracking-[0.24em] text-slate-500">{{ item.entity_type }} / {{ item.entity_id }}</p>
-                <p class="mt-2 text-lg font-semibold text-white">{{ item.operation }}</p>
-                <p class="mt-1 text-sm text-slate-400">Retry count: {{ item.retry_count }}</p>
+                <p class="text-sm uppercase tracking-[0.24em] text-text-muted">{{ item.entity_type }} / {{ item.entity_id }}</p>
+                <p class="mt-2 text-lg font-semibold text-text-primary">{{ item.operation }}</p>
+                <p class="mt-1 text-sm text-text-muted">Retry count: {{ item.retry_count }}</p>
               </div>
               <button
                 @click="retryFailedItem(item.id)"
                 :disabled="loading || syncStore.isSyncing"
-                class="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                class="rounded-button bg-success px-5 py-3 font-medium text-background hover:bg-success-hover disabled:opacity-50 transition-colors duration-150"
               >
                 Retry
               </button>
             </div>
-            <p class="mt-4 text-sm text-rose-400">Error: {{ item.error_message }}</p>
-            <p class="mt-2 text-xs text-slate-500">Created at: {{ new Date(item.created_at).toLocaleString() }}</p>
+            <p class="mt-4 text-sm text-danger">Error: {{ item.error_message }}</p>
+            <p class="mt-2 text-xs text-text-muted">Created at: {{ new Date(item.created_at).toLocaleString() }}</p>
           </div>
         </div>
       </section>

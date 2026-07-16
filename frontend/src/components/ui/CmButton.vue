@@ -18,13 +18,13 @@ const emit = defineEmits<{
 }>();
 
 const variantClasses = {
-  primary: 'bg-primary text-white border-primary hover:bg-primary-hover focus:ring-primary',
-  black: 'bg-background text-text-primary border-border hover:bg-surface focus:ring-primary',
-  secondary: 'bg-surface text-text-primary border-border hover:bg-surface-elevated focus:ring-primary',
-  success: 'bg-success text-white border-success hover:bg-success-hover focus:ring-success',
-  danger: 'bg-danger text-white border-danger hover:bg-danger-hover focus:ring-danger',
-  warning: 'bg-warning text-white border-warning hover:bg-warning-hover focus:ring-warning',
-  info: 'bg-info text-white border-info hover:bg-info-hover focus:ring-info',
+  primary: 'bg-primary text-background border-border hover:bg-primary-hover focus:ring-primary transition-colors duration-150',
+  black: 'bg-background text-text-primary border-border hover:bg-sidebar focus-ring transition-colors duration-150',
+  secondary: 'bg-surface text-text-secondary border-border hover:bg-sidebar focus-ring transition-colors duration-150',
+  success: 'bg-success text-background border-border hover:bg-success-hover focus:ring-success transition-colors duration-150',
+  danger: 'bg-danger text-background border-border hover:bg-danger-hover focus:ring-danger transition-colors duration-150',
+  warning: 'bg-warning text-background border-border hover:bg-warning-hover focus:ring-warning transition-colors duration-150',
+  info: 'bg-info text-background border-border hover:bg-info-hover focus:ring-info transition-colors duration-150',
 };
 
 const sizeClasses = {
@@ -39,7 +39,7 @@ const sizeClasses = {
     :type="type"
     :disabled="disabled || loading"
     @click="emit('click', $event)"
-    class="rounded-button font-medium transition-all duration-150 inline-flex items-center justify-center gap-2 focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+    class="rounded-button font-medium inline-flex items-center justify-center gap-2 focus-ring disabled:cursor-not-allowed disabled:opacity-50"
     :class="[
       variantClasses[variant],
       sizeClasses[size]

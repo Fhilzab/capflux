@@ -71,72 +71,72 @@ onMounted(loadOutstanding);
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white p-8">
+  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
     <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 class="text-4xl font-semibold mb-2">Outstanding Fees</h1>
-            <p class="text-slate-400">Drill down by class and student to see outstanding balances.</p>
+            <h1 class="text-4xl font-semibold mb-2 text-text-primary">Outstanding Fees</h1>
+            <p class="text-text-muted">Drill down by class and student to see outstanding balances.</p>
           </div>
           <button
             @click="downloadCsv"
             :disabled="filteredData.length === 0"
-            class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+            class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150"
           >
             Export CSV
           </button>
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
+      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 class="text-2xl font-semibold mb-2">Filter by class</h2>
+            <h2 class="text-2xl font-semibold mb-2 text-text-primary">Filter by class</h2>
             <select
               v-model="classFilter"
-              class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
+              class="rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow"
             >
               <option value="">All classes</option>
               <option v-for="name in classNames" :key="name" :value="name">{{ name }}</option>
             </select>
           </div>
           <div class="text-right">
-            <p class="text-sm text-slate-400">Total outstanding</p>
-            <p class="text-3xl font-bold text-amber-400">₦{{ totalOutstanding.toLocaleString() }}</p>
+            <p class="text-sm text-text-muted">Total outstanding</p>
+            <p class="text-3xl font-bold text-warning">₦{{ totalOutstanding.toLocaleString() }}</p>
           </div>
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
-        <h2 class="text-2xl font-semibold mb-4">Students with outstanding balances</h2>
-        <table class="w-full border-collapse text-left text-sm text-slate-200">
+      <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto transition-colors duration-200">
+        <h2 class="text-2xl font-semibold mb-4 text-text-primary">Students with outstanding balances</h2>
+        <table class="w-full border-collapse text-left text-sm">
           <thead>
-            <tr class="border-b border-slate-700 text-slate-400">
-              <th class="py-3">Student</th>
-              <th class="py-3">Class</th>
-              <th class="py-3">Charges</th>
-              <th class="py-3">Payments</th>
-              <th class="py-3">Outstanding</th>
+            <tr class="border-b border-divider text-text-muted">
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Student</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Class</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Charges</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Payments</th>
+              <th class="py-3 text-xs font-bold uppercase tracking-wider">Outstanding</th>
             </tr>
           </thead>
           <tbody>
             <tr
               v-for="item in filteredData"
               :key="item.student_id"
-              class="cursor-pointer border-b border-slate-800 hover:bg-slate-950/50"
+              class="cursor-pointer border-b border-divider hover:bg-card/50 transition-colors"
               @click="router.push({ name: 'StudentDetail', params: { id: item.student_id } })"
             >
-              <td class="py-3 font-semibold">{{ item.student_name }}</td>
-              <td class="py-3">{{ item.class_name }}</td>
-              <td class="py-3 text-cyan-400">₦{{ item.totalCharges.toLocaleString() }}</td>
-              <td class="py-3 text-emerald-400">₦{{ item.totalPayments.toLocaleString() }}</td>
-              <td class="py-3 font-semibold" :class="item.outstanding > 0 ? 'text-amber-400' : 'text-slate-400'">
+              <td class="py-3 font-bold uppercase text-text-primary">{{ item.student_name }}</td>
+              <td class="py-3 text-text-secondary">{{ item.class_name }}</td>
+              <td class="py-3 text-primary">₦{{ item.totalCharges.toLocaleString() }}</td>
+              <td class="py-3 text-success">₦{{ item.totalPayments.toLocaleString() }}</td>
+              <td class="py-3 font-semibold" :class="item.outstanding > 0 ? 'text-warning' : 'text-text-muted'">
                 ₦{{ item.outstanding.toLocaleString() }}
               </td>
             </tr>
             <tr v-if="filteredData.length === 0">
-              <td colspan="5" class="py-8 text-center text-slate-500">No outstanding balances found.</td>
+              <td colspan="5" class="py-8 text-center text-text-muted">No outstanding balances found.</td>
             </tr>
           </tbody>
         </table>

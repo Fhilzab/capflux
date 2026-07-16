@@ -11,7 +11,7 @@ const logout = async () => {
 <template>
   <button
     @click="logout"
-    class="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-400"
+    class="rounded-button bg-danger px-4 py-2 text-sm font-medium text-background hover:bg-danger-hover transition-colors duration-150"
   >
     Logout
   </button>
