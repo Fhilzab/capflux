@@ -29,7 +29,7 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
           :key="range"
           @click="timeRange = range"
           class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
-          :class="timeRange === range ? 'bg-cyan-500/20 text-cyan-400' : 'text-slate-400 hover:bg-slate-800/50'"
+          :class="timeRange === range ? 'bg-primary/20 text-primary' : 'text-text-muted hover:bg-surface'"
         >
           {{ range.charAt(0).toUpperCase() + range.slice(1) }}
         </button>
@@ -39,15 +39,15 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
       <div class="relative flex-1">
         <svg :viewBox="`0 0 ${chartWidth} ${chartHeight}`" class="w-full h-full">
           <!-- Grid lines -->
-          <g stroke="currentColor" stroke-opacity="0.05">
-            <line v-for="i in 4" :key="i" :x1="0" :y1="i * 45" :x2="chartWidth" :y2="i * 45" class="text-slate-600" />
+          <g stroke="currentColor" stroke-opacity="0.1">
+            <line v-for="i in 4" :key="i" :x1="0" :y1="i * 45" :x2="chartWidth" :y2="i * 45" class="text-text-muted" />
           </g>
           
-          <!-- Area gradient -->
+          <!-- Area gradient - Emerald only -->
           <defs>
             <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="currentColor" stop-opacity="0.25" class="text-cyan-400" />
-              <stop offset="100%" stop-color="currentColor" stop-opacity="0" class="text-cyan-400" />
+              <stop offset="0%" stop-color="currentColor" stop-opacity="0.25" class="text-success" />
+              <stop offset="100%" stop-color="currentColor" stop-opacity="0" class="text-success" />
             </linearGradient>
           </defs>
           
@@ -62,7 +62,7 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
             fill="url(#trendGradient)"
           />
           
-          <!-- Chart line -->
+          <!-- Chart line - Emerald -->
           <polyline
             v-if="chartData.length > 1"
             :points="chartData.map((d, i) => 
@@ -71,16 +71,16 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            class="text-cyan-400"
+            class="text-success"
           />
           
-          <!-- Data points -->
+          <!-- Data points - Emerald -->
           <g v-for="(point, i) in chartData" :key="i">
             <circle
               :cx="padding.left + (i / (chartData.length - 1)) * (chartWidth - padding.left - padding.right)"
               :cy="chartHeight - padding.bottom - (point.total / maxValue) * (chartHeight - padding.top - padding.bottom)"
               r="4"
-              class="text-cyan-400 fill-slate-900 stroke-cyan-400"
+              class="text-success fill-surface stroke-success"
               stroke-width="2"
             />
           </g>
@@ -88,7 +88,7 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
         
         <!-- Empty state for chart -->
         <div v-if="chartData.length === 0" class="absolute inset-0 flex items-center justify-center">
-          <span class="text-xs text-slate-500">No data available</span>
+          <span class="text-xs text-text-muted">No data available</span>
         </div>
       </div>
     </div>

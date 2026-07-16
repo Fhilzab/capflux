@@ -95,7 +95,7 @@ onMounted(async () => {
 
 <template>
   <main class="flex-1 overflow-y-auto">
-    <div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    <div class="max-w-7xl mx-auto px-6 py-6 space-y-6">
       <!-- Header Section -->
       <DashboardHeader />
       
@@ -109,9 +109,9 @@ onMounted(async () => {
       <!-- Error State -->
       <ErrorState v-else-if="dashboardStore.error" :error="dashboardStore.error" @retry="refresh" />
       
-      <!-- Dashboard Content -->
-      <div v-else class="space-y-8">
-        <!-- Section 1: KPI Hero -->
+      <!-- Dashboard Content - Financial Command Center -->
+      <div v-else class="space-y-6">
+        <!-- Section 1: Primary KPI Hero -->
         <KpiHero 
           :todays-collections="dashboardStore.todaysCollections"
           :outstanding-balance="dashboardStore.netBalance"
@@ -128,8 +128,8 @@ onMounted(async () => {
           :loading="dashboardStore.loading"
         />
         
-        <!-- Section 3: Activity & Payments -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Section 3: Recent Activity & Payments -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ActivityFeed :activities="activityItems" :loading="dashboardStore.loading" />
           <RecentPaymentsTable 
             :payments="dashboardStore.recentPayments"
@@ -137,8 +137,8 @@ onMounted(async () => {
           />
         </div>
         
-        <!-- Section 4: Outstanding & AI Insights -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Section 4: Outstanding & Needs Attention -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <OutstandingBalancesTable 
             :students="dashboardStore.outstandingByStudent"
             :loading="dashboardStore.loading"
@@ -149,8 +149,8 @@ onMounted(async () => {
           />
         </div>
         
-        <!-- Section 5: Owner-only -->
-        <div v-if="isOwner" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Section 5: System Health (Owner only) -->
+        <div v-if="isOwner" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <GatewayCard 
             :loading="dashboardStore.loading"
           />
