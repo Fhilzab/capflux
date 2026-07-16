@@ -1,7 +1,7 @@
 <template>
   <div v-if="isAuthenticatedRoute" class="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-    <Sidebar />
-    <div class="flex-1 ml-64">
+    <Sidebar v-model:collapsed="sidebarCollapsed" />
+    <div class="flex-1 transition-all duration-300" :class="sidebarCollapsed ? 'ml-20' : 'ml-72'">
       <TopNav />
       <main class="p-0">
         <router-view />
@@ -12,7 +12,7 @@
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue';
+import { onMounted, computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useThemeStore } from './stores/themeStore';
 import Sidebar from './components/Sidebar.vue';
@@ -20,6 +20,7 @@ import TopNav from './components/TopNav.vue';
 
 const route = useRoute();
 const themeStore = useThemeStore();
+const sidebarCollapsed = ref(false);
 
 onMounted(() => {
   themeStore.initTheme();
