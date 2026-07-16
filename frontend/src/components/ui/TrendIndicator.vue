@@ -11,9 +11,9 @@ defineProps<Props>();
 <template>
   <div class="flex items-center gap-2">
     <span class="inline-flex items-center text-xs font-medium" :class="{
-      'text-emerald-400': trend === 'up',
-      'text-rose-400': trend === 'down',
-      'text-slate-400': trend === 'flat'
+      'text-success': trend === 'up',
+      'text-danger': trend === 'down',
+      'text-text-muted': trend === 'flat'
     }">
       {{ trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→' }}
       <span v-if="value">{{ value }}</span>
@@ -27,9 +27,9 @@ defineProps<Props>();
         stroke-width="1.5"
         stroke-linecap="round"
         :class="{
-          'text-emerald-400': trend === 'up',
-          'text-rose-400': trend === 'down',
-          'text-slate-400': trend === 'flat'
+          'text-success': trend === 'up',
+          'text-danger': trend === 'down',
+          'text-text-muted': trend === 'flat'
         }"
       />
     </svg>
