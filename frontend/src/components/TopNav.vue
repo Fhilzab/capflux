@@ -20,54 +20,85 @@ const displayName = computed(() => {
   return email.split('@')[0] || 'Admin';
 });
 
-const isDark = computed(() => themeStore.mode === 'dark');
+// Greeting for time of day
+const greeting = computed(() => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+});
 
-// Global search handler
-const openSearch = () => {
-  console.log('Global search triggered');
-};
-
-const toggleTheme = () => {
-  themeStore.toggleTheme();
-};
-
-const syncStatus = computed(() => {
+// Combined system status
+const systemStatus = computed(() => {
   if (!online.value) return { label: 'Offline', status: 'error' as const };
   if (syncStore.pendingCount > 0) return { label: `${syncStore.pendingCount} pending`, status: 'pending' as const };
   return { label: 'Synced', status: 'success' as const };
 });
+
+// Dropdown state
+const showDropdown = ref(false);
+const toggleDropdown = () => { showDropdown.value = !showDropdown.value; };
+const closeDropdown = () => { showDropdown.value = false; };
+
+// Navigation functions
+const navigate = (name: string) => {
+  router.push({ name });
+  closeDropdown();
+};
+
+// Appearance toggle (moved from UI)
+const toggleAppearance = () => {
+  const isDark = themeStore.mode === 'dark';
+  themeStore.setTheme(isDark ? 'light' : 'dark');
+  closeDropdown();
+};
+
+// Logout
+const logout = async () => {
+  await authStore.signOut();
+  closeDropdown();
+};
 </script>
 
 <template>
   <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl px-6">
-    <!-- Left: School branding -->
-    <div class="flex items-center gap-4">
-      <svg class="h-8 w-8 text-cyan-400" viewBox="0 0 32 32" fill="none">
-        <rect width="32" height="32" rx="8" fill="currentColor" fill-opacity="0.1" />
-        <path d="M16 4L24 8V16L16 20L8 16V8L16 4Z" stroke="currentColor" stroke-width="1.5" />
-        <path d="M16 12V20" stroke="currentColor" stroke-width="1.5" />
-      </svg>
-      <div>
-        <h1 class="text-lg font-bold text-white dark:text-white">Capstone</h1>
-        <p class="text-xs text-slate-500 -mt-0.5">School Finance</p>
-      </div>
+    <!-- Left: Greeting -->
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-white/60">
+        {{ greeting }},
+      </span>
+      <span class="text-sm font-medium text-white">
+        {{ displayName }}
+      </span>
+      <span class="text-lg">👋</span>
     </div>
 
     <!-- Center: Global Search -->
     <div class="flex-1 max-w-md mx-8">
-      <button 
-        @click="openSearch"
-        class="flex w-full items-center gap-3 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 border border-slate-800 dark:border-slate-800 px-4 py-2 text-sm text-slate-400 hover:bg-slate-800/80 transition-colors focus-ring"
-      >
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.5-5.5m2.276-6.75a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" />
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
-        <span class="flex-1 text-left">Search students, payments, guardians...</span>
-      </button>
+        <input
+          type="text"
+          placeholder="Search students, invoices, payments..."
+          class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/50 border border-slate-800/50 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all"
+        />
+      </div>
     </div>
 
     <!-- Right: Status indicators and profile -->
     <div class="flex items-center gap-3">
+      <!-- System Status (merged) -->
+      <div class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 px-3 py-2">
+        <span class="h-2 w-2 rounded-full" :class="{
+          'bg-emerald-400': systemStatus.status === 'success',
+          'bg-amber-400 animate-pulse': systemStatus.status === 'pending',
+          'bg-rose-400': systemStatus.status === 'error'
+        }"></span>
+        <span class="text-xs text-slate-400 hidden sm:inline">{{ systemStatus.label }}</span>
+      </div>
+
       <!-- Notification Bell -->
       <button class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/80 dark:bg-slate-900/80 text-slate-400 hover:bg-slate-800/80 transition-colors">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -78,53 +109,12 @@ const syncStatus = computed(() => {
         </span>
       </button>
 
-      <!-- Theme Toggle -->
-      <button 
-        @click="toggleTheme"
-        class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/80 dark:bg-slate-900/80 text-slate-400 hover:bg-slate-800/80 transition-colors focus-ring"
-        :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
-      >
-        <svg v-if="isDark" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1.5m0 15V21m9-9h-1.5M4.5 12H3m15.356 6.356l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16.95 7.05a5.971 5.971 0 010 8.486l-1.414-1.414a4.021 4.021 0 01-5.656-5.656l1.414-1.414a5.971 5.971 0 018.486 0z" />
-        </svg>
-        <svg v-else class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0112 21.75c-5.385 0-9.718-4.335-9.718-9.718S6.615 2.314 12 2.314c.752 0 1.478.114 2.159.322A9.753 9.753 0 0021.752 15z" />
-        </svg>
-      </button>
-
-      <!-- Messages -->
-      <button class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/80 dark:bg-slate-900/80 text-slate-400 hover:bg-slate-800/80 transition-colors">
-        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.844L3 21l2.121-4.757C3.516 14.802 3 13.447 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      </button>
-
-      <!-- Sync Status -->
-      <div class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 px-3 py-2">
-        <span class="h-2 w-2 rounded-full" :class="{
-          'bg-emerald-400': syncStatus.status === 'success',
-          'bg-amber-400 animate-pulse': syncStatus.status === 'pending',
-          'bg-rose-400': syncStatus.status === 'error'
-        }"></span>
-        <span class="text-xs text-slate-400 hidden sm:inline">{{ syncStatus.label }}</span>
-      </div>
-
-      <!-- Internet Status -->
-      <div class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 px-3 py-2">
-        <span class="h-2 w-2 rounded-full" :class="online ? 'bg-emerald-400' : 'bg-rose-400'"></span>
-        <span class="text-xs text-slate-400 hidden sm:inline">{{ online ? 'Online' : 'Offline' }}</span>
-      </div>
-
-      <!-- Offline Indicator -->
-      <div v-if="!online || syncStore.pendingCount > 0" class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 px-3 py-2">
-        <span class="text-xs text-slate-400">
-          {{ syncStore.pendingCount }} offline
-        </span>
-      </div>
-
-      <!-- Profile Menu -->
-      <div class="relative">
-        <button class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 pl-3 pr-2 py-2 hover:bg-slate-800/80 transition-colors">
+      <!-- Profile Dropdown -->
+      <div class="relative" @click-outside="closeDropdown">
+        <button 
+          @click="toggleDropdown"
+          class="flex items-center gap-2 rounded-xl bg-slate-900/80 dark:bg-slate-900/80 pl-3 pr-2 py-2 hover:bg-slate-800/80 transition-colors"
+        >
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-xs font-medium text-cyan-400">
             {{ displayName.charAt(0).toUpperCase() }}
           </span>
@@ -133,7 +123,54 @@ const syncStatus = computed(() => {
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
           </svg>
         </button>
+
+        <!-- Dropdown Menu -->
+        <transition name="fade">
+          <div v-if="showDropdown" class="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl py-2 z-50">
+            <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700">
+              <p class="text-xs text-slate-500">Signed in as</p>
+              <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{{ userEmail }}</p>
+            </div>
+            <div class="py-1">
+              <button @click="navigate('SchoolProfile')" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                School Profile
+              </button>
+              <button @click="navigate('Settings')" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                Settings
+              </button>
+              <button @click="toggleAppearance" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                Appearance
+              </button>
+              <div class="border-t border-slate-200 dark:border-slate-700 my-1"></div>
+              <button @click="navigate('Support')" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                Help
+              </button>
+              <button @click="navigate('Support')" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                Documentation
+              </button>
+              <button @click="navigate('Settings')" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                Roles & Permissions
+              </button>
+              <div class="border-t border-slate-200 dark:border-slate-700 my-1"></div>
+              <button @click="logout" class="w-full px-4 py-2 text-left text-sm text-rose-500 hover:bg-rose-500/10 transition-colors">
+                Logout
+              </button>
+            </div>
+          </div>
+        </transition>
       </div>
     </div>
   </header>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

@@ -5,7 +5,6 @@ import { useSyncStore } from '../stores/syncStore';
 import { useAuthStore } from '../stores/authStore';
 import DashboardHeader from '../components/dashboard/DashboardHeader.vue';
 import KpiHero from '../components/dashboard/KpiHero.vue';
-import UniversalSearch from '../components/dashboard/UniversalSearch.vue';
 import ActivityFeed from '../components/dashboard/ActivityFeed.vue';
 import SystemHealthCard from '../components/dashboard/SystemHealthCard.vue';
 import GatewayCard from '../components/dashboard/GatewayCard.vue';
@@ -97,14 +96,8 @@ onMounted(async () => {
 <template>
   <main class="flex-1 overflow-y-auto">
     <div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
-      
-    <!-- Header Section - Workflow Stack -->
-    <DashboardHeader />
-    <UniversalSearch class="mb-4" />
-    <div class="flex items-center gap-3 mb-6">
-      <span class="text-xs text-slate-400">System Online</span>
-      <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
-    </div>
+      <!-- Header Section -->
+      <DashboardHeader />
       
       <!-- Loading State -->
       <div v-if="dashboardStore.loading" class="space-y-6">
