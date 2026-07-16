@@ -79,10 +79,10 @@ const searchPlaceholder = computed(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-divider bg-card backdrop-blur-xl px-6">
+  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-divider bg-background backdrop-blur-xl px-6 transition-colors duration-200">
     <!-- Left: Greeting with Contextual Status -->
-    <div class="flex items-center gap-3">
-      <span class="text-sm text-text-muted">
+    <div class="flex items-center gap-3 transition-colors duration-200">
+      <span class="text-sm font-medium text-text-primary">
         {{ greeting }},
       </span>
       <span class="text-sm font-medium text-text-primary">
@@ -96,7 +96,7 @@ const searchPlaceholder = computed(() => {
           'bg-warning animate-pulse': systemStatus.status === 'syncing',
           'bg-danger': systemStatus.status === 'offline'
         }"></span>
-        <span class="text-xs text-text-muted hidden sm:inline">{{ contextMessage }}</span>
+        <span class="text-xs hidden sm:inline" :class="systemStatus.status === 'online' ? 'text-success' : 'text-text-muted'">{{ contextMessage }}</span>
       </div>
     </div>
 
@@ -109,7 +109,7 @@ const searchPlaceholder = computed(() => {
         <input
           type="text"
           :placeholder="searchPlaceholder"
-          class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface border border-divider text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+          class="w-full pl-10 pr-4 py-2.5 rounded-button bg-surface border border-border text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:shadow-glow transition-all duration-200"
         />
       </div>
     </div>
@@ -121,7 +121,7 @@ const searchPlaceholder = computed(() => {
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a7 7 0 00-5.714 0A2.25 2.25 0 013 15.75V9.125a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 9.125v6.625c0 .441-.204.857-.543 1.143l-2.24.962" />
         </svg>
-        <span v-if="dashboardStore.pendingNotifications > 0" class="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-danger px-1 text-xs font-medium text-white">
+        <span v-if="dashboardStore.pendingNotifications > 0" class="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-danger px-1 text-xs font-medium text-background">
           {{ dashboardStore.pendingNotifications > 99 ? '99+' : dashboardStore.pendingNotifications }}
         </span>
       </button>

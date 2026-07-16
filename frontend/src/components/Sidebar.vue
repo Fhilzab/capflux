@@ -68,10 +68,10 @@ const logout = async () => {
     <div class="flex items-center justify-between px-6 py-4 border-b border-divider">
       <div class="flex items-center gap-3" :class="{ 'justify-center w-full': collapsed }">
         <!-- Logo or Hamburger - NOT both -->
-        <div v-if="!collapsed" class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-hover text-background font-bold text-lg shadow-lg shadow-glow">
+        <div v-if="!collapsed" class="flex h-10 w-10 items-center justify-center rounded-button bg-primary text-background font-bold text-lg shadow-card">
           C
         </div>
-        <div v-else class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-hover text-background font-bold text-lg shadow-lg shadow-glow">
+        <div v-else class="flex h-10 w-10 items-center justify-center rounded-button bg-primary text-background font-bold text-lg shadow-card">
           C
         </div>
         
@@ -109,7 +109,7 @@ const logout = async () => {
     <!-- Navigation Groups -->
     <nav class="flex-1 overflow-y-auto py-4">
       <div v-for="(group, groupIndex) in navGroups" :key="group.label" class="mb-6 last:mb-0">
-        <p v-if="!collapsed" class="px-6 text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
+        <p v-if="!collapsed" class="px-6 text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2 transition-colors duration-200">
           {{ group.label }}
         </p>
         <div class="px-3 space-y-1">
@@ -121,7 +121,7 @@ const logout = async () => {
             :class="[
               collapsed ? 'justify-center px-3' : 'px-4',
               isActive(item.name)
-                ? 'text-text-primary bg-surface font-semibold'
+                ? 'text-text-primary bg-background font-semibold'
                 : 'text-text-secondary hover:bg-surface hover:text-text-primary'
             ]"
           >
