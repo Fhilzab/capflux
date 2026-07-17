@@ -53,7 +53,7 @@ const handleInput = (event: Event) => {
         @input="handleInput"
         @blur="emit('blur', $event)"
         @focus="emit('focus', $event)"
-        class="w-full rounded-button border bg-surface px-4 py-3 text-sm transition-shadow focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow disabled:cursor-not-allowed disabled:opacity-50"
+        class="w-full rounded-input border bg-surface px-4 py-3.5 text-sm transition-all focus:border-success focus:outline-none focus:ring-2 focus:ring-success shadow-float disabled:cursor-not-allowed disabled:opacity-50"
         :class="[
           error ? 'border-danger focus:ring-danger' : 'border-border',
         ]"

@@ -1,13 +1,13 @@
 /* ==========================================================================
-   Capstone Enterprise Minimalism Design System (CEMDS)
-   Tailwind v4 Theme Configuration using @theme
-   ========================================================================== */
+    Capstone Enterprise Minimalism Design System (CEMDS)
+    Tailwind v4 Theme Configuration using @theme
+    ========================================================================== */
 
 /* This file must be imported after tokens.css */
 @theme {
   /* --------------------------------------------------------------------------
-     Colors - Semantic Tokens
-     -------------------------------------------------------------------------- */
+    Colors - Semantic Tokens
+    -------------------------------------------------------------------------- */
   --color-background: var(--color-background);
   --color-surface: var(--color-surface);
   --color-card: var(--color-card);
@@ -20,10 +20,12 @@
   --color-text-secondary: var(--color-text-secondary);
   --color-text-muted: var(--color-text-muted);
 
-  --color-primary: var(--color-primary);
-  --color-primary-hover: var(--color-primary-hover);
-  --color-primary-active: var(--color-primary-active);
+  /* Brand Colors */
+  --color-brand: var(--color-brand);
+  --color-brand-hover: var(--color-brand-hover);
+  --color-brand-active: var(--color-brand-active);
 
+  /* Semantic Status Colors */
   --color-success: var(--color-success);
   --color-success-hover: var(--color-success-hover);
 
@@ -39,39 +41,52 @@
   --color-ai: var(--color-ai);
   --color-ai-hover: var(--color-ai-hover);
 
+  /* Backward Compatibility - Primary maps to Brand */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-active: var(--color-primary-active);
+
   /* --------------------------------------------------------------------------
-     Fonts
-     -------------------------------------------------------------------------- */
+    Fonts
+    -------------------------------------------------------------------------- */
   --font-family-sans: var(--font-family-sans);
   --font-family-mono: var(--font-family-mono);
 
   /* --------------------------------------------------------------------------
-     Border Radius
-     -------------------------------------------------------------------------- */
+    Border Radius
+    -------------------------------------------------------------------------- */
+  --radius-input: var(--radius-input);
   --radius-button: var(--radius-button);
   --radius-card: var(--radius-card);
   --radius-dialog: var(--radius-dialog);
+  --radius-search: var(--radius-search);
 
   /* --------------------------------------------------------------------------
-     Shadows
-     -------------------------------------------------------------------------- */
+    Shadows
+    -------------------------------------------------------------------------- */
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-card: var(--shadow-card);
+  --shadow-float: var(--shadow-float);
+  --shadow-elevated: var(--shadow-elevated);
+  --shadow-topnav: var(--shadow-topnav);
+  --shadow-button: var(--shadow-button);
   --shadow-glow: var(--shadow-glow);
 
   /* --------------------------------------------------------------------------
-     Transitions
-     -------------------------------------------------------------------------- */
+    Transitions
+    -------------------------------------------------------------------------- */
   --transition-fast: var(--transition-fast);
   --transition-medium: var(--transition-medium);
   --transition-slow: var(--transition-slow);
+  --transition-bounce: var(--transition-bounce);
+  --transition-spring: var(--transition-spring);
 
   /* --------------------------------------------------------------------------
-     Z-index
-     -------------------------------------------------------------------------- */
+    Z-index
+    -------------------------------------------------------------------------- */
   --z-dropdown: var(--z-dropdown);
   --z-sticky: var(--z-sticky);
   --z-fixed: var(--z-fixed);
@@ -82,8 +97,8 @@
   --z-notification: var(--z-notification);
 
   /* --------------------------------------------------------------------------
-     Spacing Scale (8-pt grid)
-     -------------------------------------------------------------------------- */
+    Spacing Scale (8-pt grid)
+    -------------------------------------------------------------------------- */
   --spacing-0: var(--space-0);
   --spacing-1: var(--space-1);
   --spacing-2: var(--space-2);

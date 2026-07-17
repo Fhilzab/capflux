@@ -37,15 +37,15 @@ onUnmounted(() => {
 <template>
   <header
     class="fixed inset-x-0 top-0 z-50 transition-all duration-300"
-    :class="isScrolled ? 'bg-background/80 backdrop-blur-md border-b border-border' : 'bg-transparent'"
+    :class="isScrolled ? 'bg-background/80 backdrop-blur-md border-b border-divider shadow-topnav' : 'bg-transparent'"
   >
     <nav class="mx-auto max-w-7xl px-6 lg:px-8">
       <div class="flex h-16 items-center justify-between">
         <!-- Logo -->
         <div class="flex items-center">
           <a href="/" class="flex items-center space-x-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <div class="flex h-8 w-8 items-center justify-center rounded-button bg-brand shadow-card">
+              <svg class="h-5 w-5 text-background" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2 1.343-2zm0 0v.5" />
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 12v3.5" />
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v3" />
@@ -87,7 +87,7 @@ onUnmounted(() => {
           <!-- Book Demo Button -->
           <button
             @click="navigateTo('demo')"
-            class="hidden md:inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-background hover:bg-primary-hover transition-colors focus-ring"
+            class="hidden md:inline-flex items-center justify-center rounded-button bg-brand px-4 py-2 text-sm font-medium text-background hover:shadow-md transition-all focus-ring"
           >
             Book Demo
           </button>
@@ -118,7 +118,7 @@ onUnmounted(() => {
       >
         <div
           v-show="isMobileMenuOpen"
-          class="md:hidden py-4 space-y-2 border-t border-border"
+          class="md:hidden py-4 space-y-2 border-t border-divider"
         >
           <button
             v-for="item in ['features', 'how-it-works', 'security', 'pricing', 'faq']"
@@ -130,7 +130,7 @@ onUnmounted(() => {
           </button>
           <button
             @click="navigateTo('demo')"
-            class="w-full mt-2 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-background hover:bg-primary-hover transition-colors focus-ring"
+            class="w-full mt-2 inline-flex items-center justify-center rounded-button bg-brand px-4 py-2 text-sm font-medium text-background hover:shadow-md transition-all focus-ring"
           >
             Book Demo
           </button>
@@ -139,11 +139,3 @@ onUnmounted(() => {
     </nav>
   </header>
 </template>
-
-<style scoped>
-.focus-ring:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--color-primary);
-  border-radius: 0.5rem;
-}
-</style>

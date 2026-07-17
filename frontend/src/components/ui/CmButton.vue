@@ -18,13 +18,13 @@ const emit = defineEmits<{
 }>();
 
 const variantClasses = {
-  primary: 'bg-primary text-background border-border hover:bg-primary-hover focus:ring-primary transition-colors duration-150',
-  black: 'bg-background text-text-primary border-border hover:bg-sidebar focus-ring transition-colors duration-150',
-  secondary: 'bg-surface text-text-secondary border-border hover:bg-sidebar focus-ring transition-colors duration-150',
-  success: 'bg-success text-background border-border hover:bg-success-hover focus:ring-success transition-colors duration-150',
-  danger: 'bg-danger text-background border-border hover:bg-danger-hover focus:ring-danger transition-colors duration-150',
-  warning: 'bg-warning text-background border-border hover:bg-warning-hover focus:ring-warning transition-colors duration-150',
-  info: 'bg-info text-background border-border hover:bg-info-hover focus:ring-info transition-colors duration-150',
+  primary: 'bg-brand text-background border-transparent hover:bg-brand-hover focus:ring-brand transition-all duration-200',
+  black: 'bg-background text-text-primary border-border hover:bg-surface focus-ring transition-colors duration-150',
+  secondary: 'bg-surface text-text-secondary border-border hover:bg-surface/80 focus-ring transition-colors duration-150',
+  success: 'bg-success text-background border-transparent hover:bg-success-hover focus:ring-success transition-all duration-200',
+  danger: 'bg-danger text-background border-transparent hover:bg-danger-hover focus:ring-danger transition-all duration-200',
+  warning: 'bg-warning text-background border-transparent hover:bg-warning-hover focus:ring-warning transition-all duration-200',
+  info: 'bg-info text-background border-transparent hover:bg-info-hover focus:ring-info transition-all duration-200',
 };
 
 const sizeClasses = {
@@ -42,7 +42,9 @@ const sizeClasses = {
     class="rounded-button font-medium inline-flex items-center justify-center gap-2 focus-ring disabled:cursor-not-allowed disabled:opacity-50"
     :class="[
       variantClasses[variant],
-      sizeClasses[size]
+      sizeClasses[size],
+      variant === 'primary' ? 'shadow-button hover:shadow-lg hover:-translate-y-0.5' : '',
+      variant === 'success' || variant === 'danger' || variant === 'warning' || variant === 'info' ? 'shadow-sm hover:shadow-md hover:-translate-y-0.5' : '',
     ]"
   >
     <svg

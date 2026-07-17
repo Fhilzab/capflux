@@ -1,6 +1,7 @@
 /* ==========================================================================
-   Capstone Enterprise Minimalism Design System (CEMDS)
-   ========================================================================== */
+    Capstone Enterprise Minimalism Design System (CEMDS)
+    Global Styles - Premium Visual Language
+    ========================================================================== */
 @import "./styles/cemds/tokens.css";
 @import "./styles/cemds/theme.css";
 @import "tailwindcss";
@@ -13,11 +14,16 @@ body,
   height: 100%;
 }
 
-/* CEMDS semantic tokens are already defined in tokens.css and mapped in theme.css */
-
-/* Premium card styling - Now using CEMDS semantic tokens */
+/* ==========================================================================
+    Premium Card Styling - CEMDS Semantic Tokens
+    ========================================================================== */
 .premium-card {
-  @apply rounded-card border border-border shadow-card transition-all duration-300;
+  @apply rounded-card border border-border bg-card shadow-card transition-all duration-300;
+}
+
+.premium-card:hover {
+  @apply shadow-elevated -translate-y-0.5;
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .premium-card--glow {
@@ -25,7 +31,20 @@ body,
   backdrop-filter: blur(12px);
 }
 
-/* Typography - Using CEMDS semantic color tokens */
+/* ==========================================================================
+    Premium Input / Search Styling - CEMDS Semantic Tokens
+    ========================================================================== */
+.premium-input {
+  @apply w-full rounded-input border bg-surface px-4 py-3.5 text-sm transition-all focus:border-success focus:outline-none focus:ring-2 focus:ring-success shadow-float disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.premium-search {
+  @apply w-full rounded-search pl-10 pr-4 py-2.5 text-sm bg-surface border border-border text-text-primary placeholder:text-text-muted/60 transition-all focus:border-success focus:outline-none focus:ring-2 focus:ring-success shadow-float;
+}
+
+/* ==========================================================================
+    Typography - CEMDS Semantic Color Tokens
+    ========================================================================== */
 .text-display {
   @apply text-4xl font-bold tracking-tight text-text-primary;
 }
@@ -46,29 +65,37 @@ body,
   @apply text-xs uppercase tracking-[0.24em] font-semibold text-text-muted;
 }
 
-/* Skeleton animation - CEMDS compliant */
+.text-financial {
+  @apply font-mono text-text-primary;
+}
+
+/* ==========================================================================
+    Skeleton Animation - CEMDS Compliant
+    ========================================================================== */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 .skeleton {
-  @apply animate-pulse rounded;
+  @apply animate-pulse rounded-card;
 }
 
 html:not(.dark) .skeleton {
-  background: linear-gradient(90deg, var(--color-border) 0%, var(--color-text-muted) 50%, var(--color-border) 100%);
+  background: linear-gradient(90deg, var(--color-border) 0%, color-mix(in srgb, var(--color-brand) 20%, var(--color-border)) 50%, var(--color-border) 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
 html.dark .skeleton {
-  background: linear-gradient(90deg, var(--color-divider) 0%, var(--color-text-secondary) 50%, var(--color-divider) 100%);
+  background: linear-gradient(90deg, var(--color-divider) 0%, color-mix(in srgb, var(--color-brand) 30%, var(--color-divider)) 50%, var(--color-divider) 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
-/* Chart tooltip - CEMDS semantic */
+/* ==========================================================================
+    Chart Tooltip - CEMDS Semantic
+    ========================================================================== */
 .chart-tooltip {
   @apply absolute hidden backdrop-blur-md border rounded-xl p-3 shadow-xl text-xs pointer-events-none;
   z-index: 1500;
@@ -86,9 +113,11 @@ html.dark .chart-tooltip {
   @apply w-3 h-3 rounded-full;
 }
 
-/* Focus rings for accessibility - CEMDS semantic */
+/* ==========================================================================
+    Focus Rings for Accessibility - CEMDS Semantic
+    ========================================================================== */
 .focus-ring:focus {
-  @apply outline-none ring-2 ring-primary ring-offset-2;
+  @apply outline-none ring-2 ring-success ring-offset-2;
 }
 
 html:not(.dark) .focus-ring:focus {
@@ -99,7 +128,9 @@ html.dark .focus-ring:focus {
   @apply ring-offset-background;
 }
 
-/* Animation utilities */
+/* ==========================================================================
+    Animation Utilities - Premium Motion
+    ========================================================================== */
 .animate-scale-in {
   animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -125,6 +156,45 @@ html.dark .focus-ring:focus {
 
 .animate-count {
   animation: countUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Slide in from right - for toasts, sidebars */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(100%); }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-slide-out-right {
+  animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fade in up - for cards */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Pulse glow for brand accent */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(6, 182, 212, 0); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s infinite;
 }
 
 /* Cross-fade animation for rotating brief */
@@ -153,18 +223,36 @@ html.dark .focus-ring:focus {
 
 /* Chart loading gradient - CEMDS semantic */
 .chart-loading-gradient {
-  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--color-primary) 10%, transparent) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--color-brand) 15%, transparent) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 html.dark .chart-loading-gradient {
-  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--color-primary) 20%, transparent) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--color-brand) 25%, transparent) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* Responsive optimizations for 1366x768 office monitors */
+/* Accent line - for KPI cards */
+.accent-line {
+  display: block;
+  height: 3px;
+  border-radius: 9999px;
+  width: 40px;
+  margin-bottom: 0.75rem;
+}
+
+.accent-line--brand { background-color: var(--color-brand); }
+.accent-line--success { background-color: var(--color-success); }
+.accent-line--warning { background-color: var(--color-warning); }
+.accent-line--danger { background-color: var(--color-danger); }
+.accent-line--info { background-color: var(--color-info); }
+.accent-line--ai { background-color: var(--color-ai); }
+
+/* ==========================================================================
+    Responsive Optimizations for 1366x768 Office Monitors
+    ========================================================================== */
 @media (max-width: 1366px) {
   .premium-card {
     @apply rounded-xl;
@@ -179,7 +267,9 @@ html.dark .chart-loading-gradient {
   }
 }
 
-/* Sidebar states */
+/* ==========================================================================
+    Sidebar States
+    ========================================================================== */
 .sidebar-expanded {
   width: 280px;
 }
@@ -188,7 +278,9 @@ html.dark .chart-loading-gradient {
   width: 72px;
 }
 
-/* Right panel responsive */
+/* ==========================================================================
+    Right Panel Responsive
+    ========================================================================== */
 @media (max-width: 1024px) {
   .right-panel-mobile {
     position: fixed;
@@ -202,7 +294,9 @@ html.dark .chart-loading-gradient {
   }
 }
 
-/* Mobile responsive */
+/* ==========================================================================
+    Mobile Responsive
+    ========================================================================== */
 @media (max-width: 768px) {
   .dashboard-grid {
     grid-template-columns: 1fr;

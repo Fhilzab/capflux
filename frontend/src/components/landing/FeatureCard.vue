@@ -11,11 +11,11 @@ defineProps<Props>();
 
 <template>
   <div
-    class="bg-card border border-border rounded-card p-6 shadow-card transition-all duration-200 hover:shadow-md"
+    class="premium-card bg-card p-6 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
     :style="{ animationDelay: `${delay || 0}ms` }"
   >
-    <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
-      <svg class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-brand/10 mb-4 border border-brand/20">
+      <svg class="h-6 w-6 text-brand" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" :d="icon" />
       </svg>
     </div>
@@ -26,7 +26,7 @@ defineProps<Props>();
 
 <style scoped>
 @media (prefers-reduced-motion: no-preference) {
-  .bg-card {
+  .premium-card {
     animation: fadeInUp 0.5s ease-out forwards;
     opacity: 0;
     transform: translateY(20px);

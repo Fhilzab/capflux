@@ -18,7 +18,7 @@ const isVisible = ref(true);
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 const variantClasses = {
-  primary: 'bg-primary/10 border-primary/20',
+  primary: 'bg-brand/10 border-brand/20',
   success: 'bg-success/10 border-success/20',
   danger: 'bg-danger/10 border-danger/20',
   warning: 'bg-warning/10 border-warning/20',
@@ -26,7 +26,7 @@ const variantClasses = {
 };
 
 const iconColorClasses = {
-  primary: 'text-primary',
+  primary: 'text-brand',
   success: 'text-success',
   danger: 'text-danger',
   warning: 'text-warning',
@@ -54,14 +54,14 @@ onUnmounted(() => {
 
 <template>
   <transition
-    enter-from-class="opacity-0 translate-y-2"
-    enter-active-class="transition duration-150"
-    leave-to-class="opacity-0 translate-y-2"
-    leave-active-class="transition duration-150"
+    enter-from-class="opacity-0 translate-x-8"
+    enter-active-class="transition duration-300"
+    leave-to-class="opacity-0 translate-x-8"
+    leave-active-class="transition duration-200"
   >
     <div
       v-if="isVisible"
-      class="fixed top-4 right-4 z-notification rounded-card border p-4 shadow-lg flex items-start gap-3 w-80"
+      class="fixed top-4 right-4 z-notification rounded-card border p-4 shadow-elevated flex items-start gap-3 w-80"
       :class="variantClasses[variant]"
     >
       <div class="flex-shrink-0 mt-0.5">
@@ -89,7 +89,7 @@ onUnmounted(() => {
       <button
         v-if="closable"
         @click="closeToast"
-        class="flex-shrink-0 text-text-muted hover:text-text-primary transition-colors"
+        class="flex-shrink-0 text-text-muted hover:text-text-primary transition-colors focus-ring"
       >
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />

@@ -9,7 +9,7 @@ defineProps<Props>();
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center rounded-card bg-surface/30 p-10 text-center border border-border">
+  <div class="flex flex-col items-center justify-center rounded-card bg-surface/30 p-10 text-center border border-border premium-card">
     <div class="flex h-16 w-16 items-center justify-center rounded-card bg-surface/50 mb-4">
       <svg v-if="icon" class="h-8 w-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" :d="icon" />

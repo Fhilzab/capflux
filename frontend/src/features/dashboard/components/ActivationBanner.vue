@@ -17,7 +17,7 @@ const handleCompleteSetup = () => {
 <template>
   <div
     v-if="visible"
-    class="bg-info/10 border border-info/20 rounded-card p-4 mb-6 flex items-center justify-between gap-4"
+    class="bg-brand/10 border border-brand/20 rounded-card p-4 mb-6 flex items-center justify-between gap-4 premium-card transition-all duration-300 hover:shadow-elevated"
   >
     <div class="flex-1">
       <p class="text-sm font-medium text-text-primary">
@@ -26,10 +26,10 @@ const handleCompleteSetup = () => {
     </div>
     <CmButton
       @click="handleCompleteSetup"
-      variant="info"
+      variant="primary"
       size="sm"
     >
-      Complete Setup
+      Activate
     </CmButton>
   </div>
 </template>

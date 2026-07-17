@@ -62,14 +62,14 @@ onUnmounted(() => {
   <div ref="dropdownRef" class="relative inline-block">
     <slot :open="() => isOpen = true" />
     <transition
-      enter-from-class="opacity-0 scale-95"
-      enter-active-class="transition duration-150"
-      leave-to-class="opacity-0 scale-95"
+      enter-from-class="opacity-0 scale-95 -translate-y-2"
+      enter-active-class="transition duration-200"
+      leave-to-class="opacity-0 scale-95 -translate-y-2"
       leave-active-class="transition duration-150"
     >
       <div
         v-show="isOpen"
-        class="absolute z-dropdown mt-2 w-56 rounded-card border border-border bg-card shadow-lg"
+        class="absolute z-dropdown mt-2 w-56 rounded-card border border-border bg-card shadow-elevated"
         :class="placementClasses[placement]"
       >
         <div class="py-1.5 max-h-64 overflow-y-auto">
@@ -81,7 +81,7 @@ onUnmounted(() => {
             class="w-full text-left px-3 py-2 text-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
             :class="[
               option.value === modelValue
-                ? 'bg-primary/10 text-primary'
+                ? 'bg-brand/10 text-brand'
                 : 'text-text-primary hover:bg-surface',
               option.disabled && 'opacity-50',
             ]"

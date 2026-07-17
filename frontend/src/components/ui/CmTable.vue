@@ -7,6 +7,7 @@ interface Column {
   sortable?: boolean;
   width?: string;
   align?: 'left' | 'center' | 'right';
+  format?: 'financial' | 'text' | 'number';
 }
 
 interface Props {
@@ -64,7 +65,7 @@ const sortBy = (field: string) => {
           <th v-if="selectable" class="w-12 px-4 py-3">
             <input
               type="checkbox"
-              class="rounded border-border text-primary focus:ring-primary"
+              class="rounded border-border text-success focus:ring-success"
               :checked="selectedRows.length === data.length && data.length > 0"
               @change="toggleAll"
             />
@@ -76,7 +77,7 @@ const sortBy = (field: string) => {
             :class="[
               column.align === 'center' ? 'text-center' : '',
               column.align === 'right' ? 'text-right' : '',
-              column.sortable ? 'cursor-pointer hover:text-text-primary' : '',
+              column.sortable ? 'cursor-pointer hover:text-text-primary transition-colors' : '',
             ]"
             :style="{ width: column.width }"
             @click="column.sortable && sortBy(column.key)"
@@ -85,7 +86,7 @@ const sortBy = (field: string) => {
               {{ column.label }}
               <svg
                 v-if="column.sortable && sortField === column.key"
-                class="h-3 w-3 text-primary"
+                class="h-3 w-3 text-brand"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke-width="1.5"
@@ -101,22 +102,22 @@ const sortBy = (field: string) => {
           </th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-divider">
+      <tbody class="divide-y divide-divider/50">
         <tr
           v-for="(row, index) in data"
           :key="index"
           class="transition-colors duration-150"
           :class="[
             striped && index % 2 === 1 ? 'bg-surface/30' : '',
-            hoverable ? 'hover:bg-surface' : '',
+            hoverable ? 'hover:bg-surface/50' : '',
             compact ? 'py-2' : 'py-3',
-            selectable && selectedRows.includes(row) ? 'bg-primary/10' : '',
+            selectable && selectedRows.includes(row) ? 'bg-brand/10' : '',
           ]"
         >
           <td v-if="selectable" class="px-4 py-3">
             <input
               type="checkbox"
-              class="rounded border-border text-primary focus:ring-primary"
+              class="rounded border-border text-success focus:ring-success"
               :checked="selectedRows.includes(row)"
               @change="toggleRow(row)"
             />
@@ -124,8 +125,9 @@ const sortBy = (field: string) => {
           <td
             v-for="column in columns"
             :key="column.key"
-            class="px-4 text-sm text-text-primary"
+            class="px-4 text-sm"
             :class="[
+              column.format === 'financial' ? 'font-mono' : 'text-text-primary',
               column.align === 'center' ? 'text-center' : '',
               column.align === 'right' ? 'text-right' : '',
             ]"

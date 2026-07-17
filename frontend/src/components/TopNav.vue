@@ -79,7 +79,7 @@ const searchPlaceholder = computed(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-divider bg-background backdrop-blur-xl px-6 transition-colors duration-200">
+  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-divider bg-background/80 backdrop-blur-xl px-6 transition-colors duration-200 shadow-topnav">
     <!-- Left: Greeting with Contextual Status -->
     <div class="flex items-center gap-3 transition-colors duration-200">
       <span class="text-sm font-medium text-text-primary">
@@ -109,7 +109,7 @@ const searchPlaceholder = computed(() => {
         <input
           type="text"
           :placeholder="searchPlaceholder"
-          class="w-full pl-10 pr-4 py-2.5 rounded-button bg-surface border border-border text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:shadow-glow transition-all duration-200"
+          class="w-full pl-10 pr-4 py-2.5 rounded-search bg-surface border border-border text-text-primary placeholder:text-text-muted/60 focus:border-success focus:outline-none focus:ring-2 focus:ring-success shadow-float transition-all duration-200 premium-search"
         />
       </div>
     </div>
@@ -117,7 +117,7 @@ const searchPlaceholder = computed(() => {
     <!-- Right: Notification and Profile -->
     <div class="flex items-center gap-3">
       <!-- Notification Bell -->
-      <button class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-surface border border-divider text-text-secondary hover:bg-surface hover:text-text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
+      <button class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-surface border border-divider text-text-secondary hover:bg-surface hover:text-text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a7 7 0 00-5.714 0A2.25 2.25 0 013 15.75V9.125a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 9.125v6.625c0 .441-.204.857-.543 1.143l-2.24.962" />
         </svg>
@@ -130,9 +130,9 @@ const searchPlaceholder = computed(() => {
       <div class="relative">
         <button 
           @click="toggleDropdown"
-          class="flex items-center gap-2 rounded-xl bg-surface border border-divider pl-3 pr-2 py-2 hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+          class="flex items-center gap-2 rounded-xl bg-surface border border-divider pl-3 pr-2 py-2 hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50"
         >
-          <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/20 text-xs font-medium text-primary">
+          <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/20 text-xs font-medium text-brand">
             {{ displayName.charAt(0).toUpperCase() }}
           </span>
           <span class="hidden sm:block text-sm font-medium text-text-primary truncate max-w-32">{{ displayName }}</span>
@@ -143,26 +143,26 @@ const searchPlaceholder = computed(() => {
 
         <!-- Dropdown Menu -->
         <transition name="fade">
-          <div v-if="showDropdown" class="absolute right-0 top-full mt-2 w-56 rounded-xl bg-card border border-divider shadow-xl py-2 z-50">
+          <div v-if="showDropdown" class="absolute right-0 top-full mt-2 w-56 rounded-xl bg-card border border-divider shadow-elevated py-2 z-50">
             <div class="px-3 py-2 border-b border-divider">
               <p class="text-xs text-text-muted">Signed in as</p>
               <p class="text-sm font-medium text-text-primary truncate">{{ userEmail }}</p>
             </div>
             <div class="py-1">
-              <button @click="navigate('SchoolProfile')" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
+              <button @click="navigate('SchoolProfile')" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50">
                 School Profile
               </button>
-              <button @click="navigate('Settings')" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
+              <button @click="navigate('Settings')" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50">
                 Account
               </button>
-              <button @click="toggleAppearance" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
+              <button @click="toggleAppearance" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50">
                 Appearance
               </button>
               <div class="border-t border-divider my-1"></div>
-              <button @click="navigate('Support')" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
+              <button @click="navigate('Support')" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50">
                 Documentation
               </button>
-              <button @click="navigate('Support')" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
+              <button @click="navigate('Support')" class="w-full px-4 py-2 text-left text-sm text-text-secondary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50">
                 Support
               </button>
               <div class="border-t border-divider my-1"></div>

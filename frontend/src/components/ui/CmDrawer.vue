@@ -34,9 +34,9 @@ const closeDrawer = () => {
   <teleport to="body">
     <transition
       enter-from-class="opacity-0"
-      enter-active-class="transition-opacity duration-150"
+      enter-active-class="transition-opacity duration-200"
       leave-to-class="opacity-0"
-      leave-active-class="transition-opacity duration-150"
+      leave-active-class="transition-opacity duration-200"
     >
       <div
         v-if="modelValue"
@@ -45,9 +45,9 @@ const closeDrawer = () => {
       >
         <transition
           :enter-from-class="placement === 'right' ? 'translate-x-full' : '-translate-x-full'"
-          enter-active-class="transition-transform duration-150"
+          enter-active-class="transition-transform duration-300"
           :leave-to-class="placement === 'right' ? 'translate-x-full' : '-translate-x-full'"
-          leave-active-class="transition-transform duration-150"
+          leave-active-class="transition-transform duration-300"
         >
           <div
             class="absolute top-0 h-full bg-card border-l border-border flex flex-col"
@@ -61,7 +61,7 @@ const closeDrawer = () => {
               <slot name="header" />
               <button
                 @click="closeDrawer"
-                class="rounded-button p-1.5 text-text-muted hover:text-text-primary hover:bg-surface transition-colors"
+                class="rounded-button p-1.5 text-text-muted hover:text-text-primary hover:bg-surface transition-colors focus-ring"
               >
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />

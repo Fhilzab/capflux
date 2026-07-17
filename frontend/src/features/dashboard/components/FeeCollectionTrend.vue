@@ -28,8 +28,8 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
           v-for="range in ['daily', 'weekly', 'monthly', 'term', 'session'] as const"
           :key="range"
           @click="timeRange = range"
-          class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
-          :class="timeRange === range ? 'bg-primary/20 text-primary' : 'text-text-muted hover:bg-surface'"
+          class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors focus-ring"
+          :class="timeRange === range ? 'bg-brand/20 text-brand' : 'text-text-muted hover:bg-surface'"
         >
           {{ range.charAt(0).toUpperCase() + range.slice(1) }}
         </button>
@@ -43,11 +43,11 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
             <line v-for="i in 4" :key="i" :x1="0" :y1="i * 45" :x2="chartWidth" :y2="i * 45" class="text-text-muted" />
           </g>
           
-          <!-- Area gradient - Emerald only -->
+          <!-- Area gradient - Brand Cyan -->
           <defs>
             <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="currentColor" stop-opacity="0.25" class="text-success" />
-              <stop offset="100%" stop-color="currentColor" stop-opacity="0" class="text-success" />
+              <stop offset="0%" stop-color="currentColor" stop-opacity="0.25" class="text-brand" />
+              <stop offset="100%" stop-color="currentColor" stop-opacity="0" class="text-brand" />
             </linearGradient>
           </defs>
           
@@ -62,7 +62,7 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
             fill="url(#trendGradient)"
           />
           
-          <!-- Chart line - Emerald -->
+          <!-- Chart line - Brand Cyan -->
           <polyline
             v-if="chartData.length > 1"
             :points="chartData.map((d, i) => 
@@ -71,16 +71,16 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            class="text-success"
+            class="text-brand"
           />
           
-          <!-- Data points - Emerald -->
+          <!-- Data points - Brand Cyan -->
           <g v-for="(point, i) in chartData" :key="i">
             <circle
               :cx="padding.left + (i / (chartData.length - 1)) * (chartWidth - padding.left - padding.right)"
               :cy="chartHeight - padding.bottom - (point.total / maxValue) * (chartHeight - padding.top - padding.bottom)"
               r="4"
-              class="text-success fill-surface stroke-success"
+              class="text-brand fill-surface stroke-brand"
               stroke-width="2"
             />
           </g>

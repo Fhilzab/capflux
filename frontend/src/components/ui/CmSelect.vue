@@ -49,7 +49,7 @@ const selectedLabel = computed(() => {
         @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
         @blur="emit('blur', $event)"
         @focus="emit('focus', $event)"
-        class="w-full appearance-none rounded-button border bg-surface px-3 py-2.5 text-sm text-text-primary transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        class="w-full appearance-none rounded-input border bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:outline-none focus:ring-2 focus:ring-success disabled:cursor-not-allowed disabled:opacity-50 shadow-float"
         :class="[
           error ? 'border-danger' : 'border-border hover:border-border/80',
         ]"

@@ -17,10 +17,10 @@ const operationalSummary = computed(() => {
 <template>
   <header class="mb-4">
     <div>
-      <h1 class="text-2xl font-bold text-white mb-1">
+      <h1 class="text-2xl font-bold text-text-primary mb-1">
         Dashboard
       </h1>
-      <p class="text-xs text-slate-400">
+      <p class="text-xs text-text-muted">
         Financial Command Center • {{ operationalSummary }}
       </p>
     </div>

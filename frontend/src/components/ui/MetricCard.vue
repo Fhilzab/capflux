@@ -7,7 +7,7 @@ interface Props {
   description?: string;
   currency?: boolean;
   icon?: string;
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'ai';
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'ai' | 'collection' | 'outstanding' | 'pending' | 'revenue';
 }
 
 const props = defineProps<Props>();
@@ -19,6 +19,10 @@ const variantClasses = {
   error: 'text-danger',
   info: 'text-info',
   ai: 'text-ai',
+  collection: 'text-brand',
+  outstanding: 'text-danger',
+  pending: 'text-warning',
+  revenue: 'text-success',
 };
 
 const variantBg = {
@@ -28,11 +32,28 @@ const variantBg = {
   error: 'bg-danger/10',
   info: 'bg-info/10',
   ai: 'bg-ai/10',
+  collection: 'bg-brand/10',
+  outstanding: 'bg-danger/10',
+  pending: 'bg-warning/10',
+  revenue: 'bg-success/10',
+};
+
+const accentVariant = {
+  default: 'brand',
+  success: 'success',
+  warning: 'warning',
+  error: 'danger',
+  info: 'info',
+  ai: 'ai',
+  collection: 'brand',
+  outstanding: 'danger',
+  pending: 'warning',
+  revenue: 'success',
 };
 </script>
 
 <template>
-  <div class="bg-card border border-border shadow-card rounded-card p-6 transition-all duration-150 hover:shadow-card">
+  <div class="bg-card border border-border shadow-card rounded-card p-6 transition-all duration-300 hover:shadow-elevated">
     <div class="flex items-start justify-between mb-4">
       <p class="text-xs uppercase tracking-wider font-semibold text-text-muted">{{ label }}</p>
       <div v-if="icon" class="flex h-9 w-9 items-center justify-center rounded-card border border-border" :class="variantBg[variant || 'default']">
@@ -41,6 +62,8 @@ const variantBg = {
         </svg>
       </div>
     </div>
+    <!-- Accent line -->
+    <span v-if="variant && variant !== 'default'" class="accent-line" :class="`accent-line--${accentVariant[variant]}`"></span>
     <div class="space-y-1.5">
       <p class="text-3xl font-bold font-mono" :class="variantClasses[variant || 'default']">
         {{ currency ? '₦' : '' }}{{ typeof value === 'number' ? value.toLocaleString() : value }}

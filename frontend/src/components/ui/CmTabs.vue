@@ -35,14 +35,14 @@ const selectTab = (key: string) => {
           class="relative py-3 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
           :class="[
             modelValue === tab.key
-              ? 'text-primary'
+              ? 'text-brand'
               : 'text-text-secondary hover:text-text-primary',
           ]"
         >
           {{ tab.label }}
           <span
             v-if="modelValue === tab.key"
-            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
+            class="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-full transition-transform duration-300"
           ></span>
         </button>
       </nav>
