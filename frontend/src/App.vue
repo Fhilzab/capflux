@@ -26,13 +26,7 @@ onMounted(() => {
   themeStore.initTheme();
 });
 
-const authRequiredRoutes = [
-  'Home', 'Students', 'StudentDetail', 'Billing', 'Payments',
-  'Notifications', 'Reports', 'Sync', 'SchoolProfile',
-  'Settings', 'AIInsights', 'VirtualAccounts', 'GuardianList',
-];
-
 const isAuthenticatedRoute = computed(() => {
-  return route.meta?.requiresAuth || authRequiredRoutes.includes(route.name);
+  return route.meta?.requiresAuth;
 });
 </script>

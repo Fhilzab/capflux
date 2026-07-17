@@ -12,7 +12,7 @@ export const useAuthStore = defineStore('auth', {
     role: null,
     adminStatus: 'ACTIVE',
     profile: null,
-    onboardingComplete: false,
+    schoolSetupComplete: false,
     emailVerified: false,
   }),
   getters: {
@@ -20,7 +20,7 @@ export const useAuthStore = defineStore('auth', {
     currentSchoolId: (state) => state.schoolId,
     isOwner: (state) => state.role === 'OWNER',
     isAdmin: (state) => state.role === 'ADMIN',
-    isOnboardingComplete: (state) => state.onboardingComplete && !!state.schoolId,
+    isSchoolSetupComplete: (state) => state.schoolSetupComplete && !!state.schoolId,
   },
   actions: {
     async initialize() {

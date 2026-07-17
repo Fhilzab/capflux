@@ -1,12 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
-import LoginView from '../views/LoginView.vue';
-import SignUpView from '../views/SignUpView.vue';
-import VerifyEmailView from '../views/VerifyEmailView.vue';
-import SchoolSetupView from '../views/SchoolSetupView.vue';
+import AuthView from '../features/auth/AuthView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../features/dashboard/views/HomeView.vue';
-import OnboardingView from '../views/OnboardingView.vue';
 import StudentListView from '../views/StudentListView.vue';
 import GuardianListView from '../views/GuardianListView.vue';
 import BillingView from '../views/BillingView.vue';
@@ -18,7 +14,6 @@ import NotificationsView from '../views/NotificationsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import SyncView from '../views/SyncView.vue';
 import SettingsView from '../views/SettingsView.vue';
-import WorkspaceLocked from '../components/onboarding/WorkspaceLocked.vue';
 
 const routes = [
   {
@@ -128,50 +123,16 @@ const routes = [
     component: () => import('../views/SchoolProfileView.vue'),
     meta: { requiresAuth: true },
   },
-  // Auth routes
   {
-    path: '/login',
-    name: 'Login',
-    component: LoginView,
+    path: '/auth',
+    name: 'Auth',
+    component: AuthView,
   },
   {
-    path: '/signup',
-    name: 'SignUp',
-    component: SignUpView,
-  },
-  {
-    path: '/verify',
-    name: 'VerifyEmail',
-    component: VerifyEmailView,
-    meta: { requiresAuth: true },
-  },
-  // School Setup (post-login onboarding)
-  {
-    path: '/onboarding/school-setup',
+    path: '/setup',
     name: 'SchoolSetup',
-    component: SchoolSetupView,
+    component: () => import('../features/setup/SchoolSetupView.vue'),
     meta: { requiresAuth: true },
-  },
-  // Onboarding routes (legacy wizard)
-  {
-    path: '/onboarding',
-    name: 'Onboarding',
-    component: OnboardingView,
-  },
-  {
-    path: '/onboarding/financial-setup',
-    name: 'OnboardingFinancialSetup',
-    component: OnboardingView,
-  },
-  {
-    path: '/onboarding/activate',
-    name: 'OnboardingActivate',
-    component: OnboardingView,
-  },
-  {
-    path: '/onboarding/complete',
-    name: 'OnboardingComplete',
-    component: OnboardingView,
   },
 ];
 
@@ -193,10 +154,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return { name: 'Login' };
+    return { name: 'Auth' };
   }
 
-  if (to.name === 'Login' && authStore.isAuthenticated) {
+  if (to.name === 'Auth' && authStore.isAuthenticated) {
     return { name: 'Home' };
   }
 
@@ -206,10 +167,10 @@ router.beforeEach(async (to) => {
 
   // Feature gate for school setup
   if (authStore.isAuthenticated && SCHOOL_SETUP_REQUIRED_ROUTES.includes(to.name)) {
-    const onboardingComplete = authStore.isOnboardingComplete;
-    
+    const schoolSetupComplete = authStore.isSchoolSetupComplete;
+
     // Redirect to school setup if workspace not ready
-    if (!onboardingComplete) {
+    if (!schoolSetupComplete) {
       return { name: 'SchoolSetup' };
     }
   }

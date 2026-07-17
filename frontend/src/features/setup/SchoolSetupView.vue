@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/authStore';
-import { useOnboardingStore } from '../stores/onboardingStore';
-import CmInput from '../components/ui/CmInput.vue';
-import CmSelect from '../components/ui/CmSelect.vue';
-import CmButton from '../components/ui/CmButton.vue';
-import CmAlert from '../components/ui/CmAlert.vue';
+import { useAuthStore } from '../../stores/authStore';
+import { supabase, hasSupabaseConfig } from '../../shared/services/api/supabase';
+import CmInput from '../../components/ui/CmInput.vue';
+import CmSelect from '../../components/ui/CmSelect.vue';
+import CmButton from '../../components/ui/CmButton.vue';
+import CmAlert from '../../components/ui/CmAlert.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const onboardingStore = useOnboardingStore();
 
 const form = ref({
   schoolName: '',
@@ -20,6 +19,9 @@ const form = ref({
   address: '',
   academicSession: '2024/2025',
   currentTerm: 'FIRST',
+  adminName: '',
+  adminEmail: '',
+  adminPhone: '',
 });
 
 const errors = ref<Record<string, string>>({});
@@ -41,35 +43,52 @@ const terms = [
 
 const validate = () => {
   errors.value = {};
-  
+
   if (!form.value.schoolName) errors.value.schoolName = 'School name is required';
   if (!form.value.phone) errors.value.phone = 'Phone number is required';
-  if (!form.value.email) errors.value.email = 'Email is required';
-  else if (!form.value.email.includes('@')) errors.value.email = 'Valid email required';
-  
+  if (!form.value.email) {
+    errors.value.email = 'Email is required';
+  } else if (!form.value.email.includes('@')) {
+    errors.value.email = 'Valid email required';
+  }
+  if (!form.value.adminName) errors.value.adminName = 'Administrator name is required';
+
   return Object.keys(errors.value).length === 0;
 };
 
 const handleSubmit = async () => {
   if (!validate()) return;
-  
+
   loading.value = true;
   errors.value = {};
 
   try {
-    await onboardingStore.createSchool({
-      schoolName: form.value.schoolName,
-      proprietorName: authStore.user?.email?.split('@')[0] || 'School Admin',
-      email: form.value.email,
-      phone: form.value.phone,
-      address: form.value.address,
-      schoolType: form.value.schoolType,
-      academicSession: form.value.academicSession,
-      currentTerm: form.value.currentTerm,
+    // In demo mode, just mark setup as complete
+    if (!hasSupabaseConfig) {
+      // Demo: simulate successful setup
+      authStore.schoolSetupComplete = true;
+      router.push({ name: 'Home' });
+      return;
+    }
+
+    // Production: Create school via RPC
+    const { data, error } = await supabase.rpc('create_school_with_owner', {
+      p_school_name: form.value.schoolName,
+      p_proprietor_name: form.value.adminName,
+      p_email: form.value.email,
+      p_phone: form.value.phone,
+      p_address: form.value.address,
+      p_school_type: form.value.schoolType,
+      p_academic_session: form.value.academicSession,
+      p_current_term: form.value.currentTerm,
     });
-    
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
     // Mark onboarding as complete in auth store
-    authStore.onboardingComplete = true;
+    authStore.schoolSetupComplete = true;
     router.push({ name: 'Home' });
   } catch (e: any) {
     errors.value.submit = e.message || 'Failed to save school information';
@@ -157,6 +176,35 @@ window.addEventListener('offline', () => isOffline.value = true);
               v-model="form.currentTerm"
               label="Current Term"
               :options="terms"
+            />
+          </div>
+
+          <!-- Administrator Details -->
+          <div class="pt-4 border-t border-divider">
+            <h2 class="text-lg font-semibold text-text-primary mb-4">Administrator Details</h2>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <CmInput
+                v-model="form.adminName"
+                label="Full Name"
+                placeholder="John Doe"
+                required
+                :error="errors.adminName"
+              />
+              <CmInput
+                v-model="form.adminEmail"
+                label="Email"
+                type="email"
+                placeholder="admin@yourschool.edu.ng"
+              />
+            </div>
+
+            <CmInput
+              v-model="form.adminPhone"
+              label="Phone"
+              type="tel"
+              placeholder="08012345678"
+              class="mt-4"
             />
           </div>
 
