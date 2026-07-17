@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 
 interface Props {
   modelValue: string | number;
@@ -11,6 +11,7 @@ interface Props {
   helperText?: string;
   required?: boolean;
   id?: string;
+  autofocus?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -21,6 +22,13 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => props.id || `input-${Math.random().toString(36).slice(2, 9)}`);
+const inputRef = ref<HTMLInputElement | null>(null);
+
+onMounted(() => {
+  if (props.autofocus && inputRef.value) {
+    inputRef.value.focus();
+  }
+});
 
 const handleInput = (event: Event) => {
   const target = event.target as HTMLInputElement;
@@ -36,6 +44,7 @@ const handleInput = (event: Event) => {
     </label>
     <div class="relative">
       <input
+        ref="inputRef"
         :id="inputId"
         :type="type"
         :value="modelValue"

@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useOnboardingStore } from '../../stores/onboardingStore';
+import CmInput from '../../components/ui/CmInput.vue';
+import CmSelect from '../../components/ui/CmSelect.vue';
+import CmButton from '../../components/ui/CmButton.vue';
+import CmAlert from '../../components/ui/CmAlert.vue';
 
+const router = useRouter();
 const onboardingStore = useOnboardingStore();
 
 const form = ref({
@@ -17,6 +23,7 @@ const form = ref({
 
 const errors = ref<Record<string, string>>({});
 const loading = ref(false);
+const isOffline = ref(!navigator.onLine);
 
 const schoolTypes = [
   { value: 'NURSERY', label: 'Nursery Only' },
@@ -25,14 +32,20 @@ const schoolTypes = [
   { value: 'MIXED', label: 'Mixed' },
 ];
 
+const terms = [
+  { value: 'FIRST', label: 'First Term' },
+  { value: 'SECOND', label: 'Second Term' },
+  { value: 'THIRD', label: 'Third Term' },
+];
+
 const validate = () => {
   errors.value = {};
   
   if (!form.value.schoolName) errors.value.schoolName = 'School name is required';
   if (!form.value.proprietorName) errors.value.proprietorName = 'Proprietor name is required';
+  if (!form.value.phone) errors.value.phone = 'Phone number is required';
   if (!form.value.email) errors.value.email = 'Email is required';
   else if (!form.value.email.includes('@')) errors.value.email = 'Valid email required';
-  if (!form.value.phone) errors.value.phone = 'Phone number is required';
   
   return Object.keys(errors.value).length === 0;
 };
@@ -41,18 +54,24 @@ const handleSubmit = async () => {
   if (!validate()) return;
   
   loading.value = true;
-  
+  errors.value = {};
+
   try {
-    const result = await onboardingStore.createSchool({
-      ...form.value,
+    await onboardingStore.createSchool({
+      schoolName: form.value.schoolName,
+      proprietorName: form.value.proprietorName,
+      email: form.value.email,
+      phone: form.value.phone,
+      address: form.value.address,
+      schoolType: form.value.schoolType,
+      academicSession: form.value.academicSession,
+      currentTerm: form.value.currentTerm,
     });
     
-    if (result.success) {
-      await onboardingStore.completeStep('school_profile');
-      onboardingStore.setStage(2);
-    }
+    await onboardingStore.completeStep('school_info');
+    onboardingStore.setStage(2);
   } catch (e: any) {
-    errors.value.submit = e.message || 'Failed to create school';
+    errors.value.submit = e.message || 'Failed to save school information';
   } finally {
     loading.value = false;
   }
@@ -60,136 +79,105 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="premium-card p-8">
-    <h2 class="text-headline mb-2">School Profile</h2>
-    <p class="text-slate-500 mb-6">Let's start with your school's basic information</p>
+  <div class="premium-card bg-card p-8">
+    <h2 class="text-headline mb-2">School Information</h2>
+    <p class="text-text-secondary mb-6">Let's start with your school's basic information</p>
+
+    <!-- Offline Notice -->
+    <CmAlert
+      v-if="isOffline"
+      variant="warning"
+      title="Offline Mode"
+      description="Internet access is required to complete school setup."
+      class="mb-6"
+    />
 
     <form @submit.prevent="handleSubmit" class="space-y-6">
       <!-- School Name -->
-      <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-          School Name
-        </label>
-        <input
-          v-model="form.schoolName"
-          type="text"
-          placeholder="Capstone International School"
-          class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          :class="{ 'border-rose-500': errors.schoolName }"
-        />
-        <p v-if="errors.schoolName" class="text-xs text-rose-600 mt-1">{{ errors.schoolName }}</p>
-      </div>
+      <CmInput
+        v-model="form.schoolName"
+        label="School Name"
+        placeholder="Capstone International School"
+        required
+        :error="errors.schoolName"
+      />
 
       <!-- Proprietor Name -->
-      <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-          Proprietor Full Name
-        </label>
-        <input
-          v-model="form.proprietorName"
-          type="text"
-          placeholder="Dr. Ade Johnson"
-          class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          :class="{ 'border-rose-500': errors.proprietorName }"
-        />
-        <p v-if="errors.proprietorName" class="text-xs text-rose-600 mt-1">{{ errors.proprietorName }}</p>
-      </div>
+      <CmInput
+        v-model="form.proprietorName"
+        label="Proprietor Full Name"
+        placeholder="Dr. Ade Johnson"
+        required
+        :error="errors.proprietorName"
+      />
 
-      <!-- Email & Phone -->
+      <!-- Phone & Email -->
       <div class="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Email Address
-          </label>
-          <input
-            v-model="form.email"
-            type="email"
-            placeholder="proprietor@school.edu.ng"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-            :class="{ 'border-rose-500': errors.email }"
-          />
-          <p v-if="errors.email" class="text-xs text-rose-600 mt-1">{{ errors.email }}</p>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Phone Number
-          </label>
-          <input
-            v-model="form.phone"
-            type="tel"
-            placeholder="08012345678"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-            :class="{ 'border-rose-500': errors.phone }"
-          />
-          <p v-if="errors.phone" class="text-xs text-rose-600 mt-1">{{ errors.phone }}</p>
-        </div>
+        <CmInput
+          v-model="form.phone"
+          label="Phone Number"
+          type="tel"
+          placeholder="08012345678"
+          required
+          :error="errors.phone"
+        />
+        <CmInput
+          v-model="form.email"
+          label="Email Address"
+          type="email"
+          placeholder="info@yourschool.edu.ng"
+          required
+          :error="errors.email"
+        />
       </div>
 
       <!-- Address -->
-      <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-          School Address
-        </label>
-        <textarea
-          v-model="form.address"
-          placeholder="123 Education Avenue, Lagos"
-          class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          rows="2"
-        ></textarea>
-      </div>
+      <CmInput
+        v-model="form.address"
+        label="School Address"
+        placeholder="123 Education Avenue, Lagos"
+        :error="errors.address"
+      />
 
       <!-- School Type -->
-      <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-          School Type
-        </label>
-        <select
-          v-model="form.schoolType"
-          class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-        >
-          <option v-for="type in schoolTypes" :key="type.value" :value="type.value">
-            {{ type.label }}
-          </option>
-        </select>
-      </div>
+      <CmSelect
+        v-model="form.schoolType"
+        label="School Type"
+        :options="schoolTypes"
+        placeholder="Select school type"
+      />
 
-      <!-- Academic Session & Term -->
+      <!-- Academic Structure -->
       <div class="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Academic Session
-          </label>
-          <input
-            v-model="form.academicSession"
-            type="text"
-            placeholder="2024/2025"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Current Term
-          </label>
-          <select
-            v-model="form.currentTerm"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          >
-            <option value="FIRST">First Term</option>
-            <option value="SECOND">Second Term</option>
-            <option value="THIRD">Third Term</option>
-          </select>
-        </div>
+        <CmInput
+          v-model="form.academicSession"
+          label="Academic Session"
+          placeholder="2024/2025"
+        />
+        <CmSelect
+          v-model="form.currentTerm"
+          label="Current Term"
+          :options="terms"
+        />
       </div>
 
-      <p v-if="errors.submit" class="text-sm text-rose-600">{{ errors.submit }}</p>
+      <!-- Submit Error -->
+      <CmAlert
+        v-if="errors.submit"
+        variant="danger"
+        :description="errors.submit"
+      />
 
-      <button
+      <!-- Continue Button -->
+      <CmButton
         type="submit"
-        :disabled="loading"
-        class="w-full rounded-xl px-4 py-3 bg-cyan-500 text-slate-950 font-medium hover:bg-cyan-400 transition-colors disabled:opacity-50 focus-ring"
+        variant="primary"
+        :loading="loading"
+        :disabled="isOffline"
+        class="w-full"
       >
-        {{ loading ? 'Creating...' : 'Continue to Financial Setup' }}
-      </button>
+        Continue to Administrator Setup
+      </CmButton>
     </form>
   </div>
 </template>

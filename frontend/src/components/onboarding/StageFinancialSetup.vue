@@ -1,226 +1,187 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useOnboardingStore } from '../../stores/onboardingStore';
+import CmInput from '../../components/ui/CmInput.vue';
+import CmButton from '../../components/ui/CmButton.vue';
+import CmAlert from '../../components/ui/CmAlert.vue';
 
+const router = useRouter();
 const onboardingStore = useOnboardingStore();
 
-const businessForm = ref({
-  proprietorBvn: '',
-  proprietorNin: '',
-  businessType: 'SOLE_PROPRIETOR',
-  cacNumber: '',
-  tin: '',
+const adminForm = ref({
+  adminName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
 });
 
-const settlementForm = ref({
-  bank: '',
-  accountNumber: '',
-  accountName: '',
+const errors = ref<Record<string, string>>({});
+const loading = ref(false);
+const showPassword = ref(false);
+const isOffline = ref(!navigator.onLine);
+
+// Password strength calculation
+const passwordStrength = computed(() => {
+  const pwd = adminForm.value.password;
+  if (!pwd) return 0;
+  
+  let strength = 0;
+  if (pwd.length >= 8) strength += 1;
+  if (/[A-Z]/.test(pwd)) strength += 1;
+  if (/[0-9]/.test(pwd)) strength += 1;
+  if (/[^A-Za-z0-9]/.test(pwd)) strength += 1;
+  
+  return strength;
 });
 
-const verifyLoading = ref(false);
-const verifyError = ref('');
-const showSettlementForm = ref(false);
+const strengthLabel = computed(() => {
+  const labels = ['Weak', 'Fair', 'Good', 'Strong'];
+  return labels[passwordStrength.value - 1] || '';
+});
 
-const businessTypes = [
-  { value: 'SOLE_PROPRIETOR', label: 'Sole Proprietor' },
-  { value: 'PARTNERSHIP', label: 'Partnership' },
-  { value: 'LIMITED_COMPANY', label: 'Limited Company' },
-];
+const strengthColor = computed(() => {
+  const colors = ['border-danger', 'border-warning', 'border-info', 'border-success'];
+  return colors[passwordStrength.value - 1] || 'border-border';
+});
 
-const banks = [
-  { value: 'ACCESS', label: 'Access Bank' },
-  { value: 'GTBANK', label: 'Guaranty Trust Bank' },
-  { value: 'ZENITH', label: 'Zenith Bank' },
-  { value: 'FIRST_BANK', label: 'First Bank of Nigeria' },
-  { value: 'UBA', label: 'United Bank for Africa' },
-  { value: 'UNION_BANK', label: 'Union Bank' },
-];
-
-const verifyAccount = async () => {
-  if (!settlementForm.value.bank || !settlementForm.value.accountNumber) return;
+const validate = () => {
+  errors.value = {};
   
-  verifyLoading.value = true;
-  verifyError.value = '';
-  
-  try {
-    const response = await fetch('/api/onboarding/verify-account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bank: settlementForm.value.bank,
-        accountNumber: settlementForm.value.accountNumber,
-      }),
-    });
-    
-    const result = await response.json();
-    
-    if (result.verified) {
-      settlementForm.value.accountName = result.accountName;
-      showSettlementForm.value = true;
-    } else {
-      verifyError.value = result.error || 'Verification failed';
-    }
-  } catch (e: any) {
-    verifyError.value = 'Network error. Please try again.';
-  } finally {
-    verifyLoading.value = false;
+  if (!adminForm.value.adminName) errors.value.adminName = 'Administrator name is required';
+  if (!adminForm.value.email) errors.value.email = 'Email is required';
+  else if (!adminForm.value.email.includes('@')) errors.value.email = 'Valid email required';
+  if (!adminForm.value.password) errors.value.password = 'Password is required';
+  else if (adminForm.value.password.length < 8) errors.value.password = 'Password must be at least 8 characters';
+  if (!adminForm.value.confirmPassword) errors.value.confirmPassword = 'Please confirm your password';
+  else if (adminForm.value.password !== adminForm.value.confirmPassword) {
+    errors.value.confirmPassword = 'Passwords do not match';
   }
+  
+  return Object.keys(errors.value).length === 0;
 };
 
 const handleSubmit = async () => {
-  // Complete business verification
-  await onboardingStore.completeBusinessVerification({
-    proprietorBvn: businessForm.value.proprietorBvn,
-    proprietorNin: businessForm.value.proprietorNin,
-    businessType: businessForm.value.businessType,
-    cacNumber: businessForm.value.cacNumber,
-    tin: businessForm.value.tin,
-  });
+  if (!validate()) return;
   
-  // Complete settlement verification
-  await onboardingStore.verifySettlementAccount({
-    bank: settlementForm.value.bank,
-    accountNumber: settlementForm.value.accountNumber,
-    accountName: settlementForm.value.accountName,
-  });
-  
-  await onboardingStore.completeStep('financial_setup');
-  onboardingStore.setStage(3);
+  loading.value = true;
+  errors.value = {};
+
+  try {
+    await onboardingStore.createAdminAccount({
+      adminName: adminForm.value.adminName,
+      email: adminForm.value.email,
+      password: adminForm.value.password,
+    });
+    onboardingStore.setStage(3);
+  } catch (e: any) {
+    errors.value.submit = e.message || 'Failed to create administrator account';
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
 
 <template>
-  <div class="premium-card p-8">
-    <h2 class="text-headline mb-2">Financial Setup</h2>
-    <p class="text-slate-500 mb-6">Verify your business and settlement account for compliance</p>
+  <div class="premium-card bg-card p-8">
+    <h2 class="text-headline mb-2">Administrator Account</h2>
+    <p class="text-text-secondary mb-6">Create the administrator account for your school</p>
 
-    <!-- Business Verification Section -->
-    <div class="space-y-6 mb-8">
-      <h3 class="text-title border-b border-slate-200 dark:border-slate-700 pb-2">Business Verification</h3>
-      
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Proprietor BVN
-          </label>
-          <input
-            v-model="businessForm.proprietorBvn"
-            type="text"
-            placeholder="12345678901"
-            maxlength="11"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Proprietor NIN
-          </label>
-          <input
-            v-model="businessForm.proprietorNin"
-            type="text"
-            placeholder="123456789012"
-            maxlength="12"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          />
-        </div>
-      </div>
+    <!-- Offline Notice -->
+    <CmAlert
+      v-if="isOffline"
+      variant="warning"
+      title="Offline Mode"
+      description="Internet access is required to create an administrator account."
+      class="mb-6"
+    />
 
-      <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-          Business Type
-        </label>
-        <select
-          v-model="businessForm.businessType"
-          class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
+    <form @submit.prevent="handleSubmit" class="space-y-6">
+      <!-- Administrator Name -->
+      <CmInput
+        v-model="adminForm.adminName"
+        label="Administrator Full Name"
+        placeholder="Dr. Ade Johnson"
+        required
+        :error="errors.adminName"
+      />
+
+      <!-- Email -->
+      <CmInput
+        v-model="adminForm.email"
+        label="Email Address"
+        type="email"
+        placeholder="admin@yourschool.edu.ng"
+        required
+        :error="errors.email"
+      />
+
+      <!-- Password -->
+      <div class="space-y-2">
+        <CmInput
+          v-model="adminForm.password"
+          :label="showPassword ? 'Password' : 'Password'"
+          :type="showPassword ? 'text' : 'password'"
+          placeholder="••••••••"
+          required
+          :error="errors.password"
+          autocomplete="new-password"
+        />
+        <button
+          type="button"
+          @click="showPassword = !showPassword"
+          class="text-sm font-medium text-primary hover:text-primary-hover transition-colors focus-ring"
+          aria-label="Toggle password visibility"
         >
-          <option v-for="type in businessTypes" :key="type.value" :value="type.value">
-            {{ type.label }}
-          </option>
-        </select>
+          {{ showPassword ? 'Hide' : 'Show' }} password
+        </button>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            CAC Number (Optional)
-          </label>
-          <input
-            v-model="businessForm.cacNumber"
-            type="text"
-            placeholder="RC123456"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Tax Identification Number (Optional)
-          </label>
-          <input
-            v-model="businessForm.tin"
-            type="text"
-            placeholder="1234567890"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- Settlement Account Section -->
-    <div class="space-y-6 mb-8">
-      <h3 class="text-title border-b border-slate-200 dark:border-slate-700 pb-2">Settlement Account</h3>
-      
-      <div class="grid gap-4 sm:grid-cols-3">
-        <div class="sm:col-span-2">
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Bank
-          </label>
-          <select
-            v-model="settlementForm.bank"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          >
-            <option value="">Select Bank</option>
-            <option v-for="bank in banks" :key="bank.value" :value="bank.value">
-              {{ bank.label }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Account Number
-          </label>
-          <input
-            v-model="settlementForm.accountNumber"
-            type="text"
-            placeholder="0123456789"
-            maxlength="10"
-            class="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
-          />
-        </div>
+      <!-- Confirm Password -->
+      <div class="space-y-2">
+        <CmInput
+          v-model="adminForm.confirmPassword"
+          :label="showPassword ? 'Confirm Password' : 'Confirm Password'"
+          :type="showPassword ? 'text' : 'password'"
+          placeholder="••••••••"
+          required
+          :error="errors.confirmPassword"
+          autocomplete="new-password"
+        />
       </div>
 
-      <button
-        @click="verifyAccount"
-        :disabled="verifyLoading || !settlementForm.bank || !settlementForm.accountNumber"
-        class="rounded-xl px-4 py-2 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-colors disabled:opacity-50 focus-ring"
+      <!-- Password Strength Indicator -->
+      <div v-if="adminForm.password" class="space-y-2">
+        <div class="flex gap-1">
+          <div 
+            v-for="i in 4" 
+            :key="i"
+            class="flex-1 h-1 rounded-full transition-colors"
+            :class="i <= passwordStrength ? strengthColor.replace('border-', 'bg-') : 'bg-border'"
+          ></div>
+        </div>
+        <p class="text-xs text-text-muted">
+          Password strength: <span class="font-medium">{{ strengthLabel }}</span>
+        </p>
+      </div>
+
+      <!-- Submit Error -->
+      <CmAlert
+        v-if="errors.submit"
+        variant="danger"
+        :description="errors.submit"
+      />
+
+      <!-- Submit Button -->
+      <CmButton
+        type="submit"
+        variant="primary"
+        :loading="loading"
+        :disabled="isOffline"
+        class="w-full"
       >
-        {{ verifyLoading ? 'Verifying...' : 'Verify Account' }}
-      </button>
-
-      <p v-if="verifyError" class="text-sm text-rose-600">{{ verifyError }}</p>
-
-      <div v-if="showSettlementForm && settlementForm.accountName" class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-        <p class="text-sm font-medium text-emerald-600 dark:text-emerald-400">Account Verified</p>
-        <p class="text-slate-900 dark:text-white">{{ settlementForm.accountName }}</p>
-      </div>
-    </div>
-
-    <button
-      @click="handleSubmit"
-      :disabled="!showSettlementForm"
-      class="w-full rounded-xl px-4 py-3 bg-cyan-500 text-slate-950 font-medium hover:bg-cyan-400 transition-colors disabled:opacity-50 focus-ring"
-    >
-      Continue to Activation
-    </button>
+        Continue to Confirmation
+      </CmButton>
+    </form>
   </div>
 </template>

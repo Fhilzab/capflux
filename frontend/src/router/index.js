@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import LoginView from '../views/LoginView.vue';
+import SignUpView from '../views/SignUpView.vue';
+import VerifyEmailView from '../views/VerifyEmailView.vue';
+import SchoolSetupView from '../views/SchoolSetupView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../features/dashboard/views/HomeView.vue';
 import OnboardingView from '../views/OnboardingView.vue';
@@ -15,6 +18,7 @@ import NotificationsView from '../views/NotificationsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import SyncView from '../views/SyncView.vue';
 import SettingsView from '../views/SettingsView.vue';
+import WorkspaceLocked from '../components/onboarding/WorkspaceLocked.vue';
 
 const routes = [
   {
@@ -124,12 +128,31 @@ const routes = [
     component: () => import('../views/SchoolProfileView.vue'),
     meta: { requiresAuth: true },
   },
+  // Auth routes
   {
     path: '/login',
     name: 'Login',
     component: LoginView,
   },
-  // Onboarding routes
+  {
+    path: '/signup',
+    name: 'SignUp',
+    component: SignUpView,
+  },
+  {
+    path: '/verify',
+    name: 'VerifyEmail',
+    component: VerifyEmailView,
+    meta: { requiresAuth: true },
+  },
+  // School Setup (post-login onboarding)
+  {
+    path: '/onboarding/school-setup',
+    name: 'SchoolSetup',
+    component: SchoolSetupView,
+    meta: { requiresAuth: true },
+  },
+  // Onboarding routes (legacy wizard)
   {
     path: '/onboarding',
     name: 'Onboarding',
@@ -157,6 +180,11 @@ const router = createRouter({
   routes,
 });
 
+const SCHOOL_SETUP_REQUIRED_ROUTES = [
+  'Students', 'Billing', 'Payments', 'VirtualAccounts',
+  'DailyCollections', 'OutstandingFees', 'RevenueDashboard'
+];
+
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
@@ -174,6 +202,16 @@ router.beforeEach(async (to) => {
 
   if (to.name === 'Landing' && authStore.isAuthenticated) {
     return { name: 'Home' };
+  }
+
+  // Feature gate for school setup
+  if (authStore.isAuthenticated && SCHOOL_SETUP_REQUIRED_ROUTES.includes(to.name)) {
+    const onboardingComplete = authStore.isOnboardingComplete;
+    
+    // Redirect to school setup if workspace not ready
+    if (!onboardingComplete) {
+      return { name: 'SchoolSetup' };
+    }
   }
 });
 

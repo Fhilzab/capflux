@@ -12,6 +12,7 @@ import FeeCollectionTrend from '../components/FeeCollectionTrend.vue';
 import RecentPaymentsTable from '../components/RecentPaymentsTable.vue';
 import OutstandingBalancesTable from '../components/OutstandingBalancesTable.vue';
 import AIInsights from '../components/AIInsights.vue';
+import OnboardingBanner from '../../../components/onboarding/OnboardingBanner.vue';
 import ErrorState from '../../../components/ui/ErrorState.vue';
 import SkeletonLoader from '../../../components/ui/SkeletonLoader.vue';
 
@@ -96,6 +97,9 @@ onMounted(async () => {
 <template>
   <main class="flex-1 overflow-y-auto">
     <div class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <!-- Onboarding Banner (when school setup incomplete) -->
+      <OnboardingBanner v-if="!authStore.isOnboardingComplete" />
+      
       <!-- Header Section -->
       <DashboardHeader />
       

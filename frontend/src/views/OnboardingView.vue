@@ -15,9 +15,9 @@ const onboardingStore = useOnboardingStore();
 const currentStage = computed(() => {
   const path = route.path;
   if (path === '/onboarding/complete') return 'complete';
-  if (path.includes('financial-setup')) return 2;
-  if (path.includes('activate')) return 3;
-  return 1;
+  if (path.includes('activate')) return 3; // Confirmation
+  if (path.includes('financial-setup')) return 2; // Administrator Account
+  return 1; // School Information
 });
 
 onMounted(() => {
@@ -26,13 +26,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 dark:bg-slate-950">
+  <div class="min-h-screen bg-background">
     <div class="container mx-auto px-6 py-12">
       <div class="max-w-2xl mx-auto">
         <!-- Header -->
         <div class="mb-10 text-center">
           <h1 class="text-display mb-2">Welcome to Capstone</h1>
-          <p class="text-slate-500 dark:text-slate-400">Set up your school's fee collection in minutes</p>
+          <p class="text-text-secondary">Set up your school's fee collection in minutes</p>
         </div>
 
         <!-- Progress Indicator -->

@@ -31,6 +31,10 @@ export const useOnboardingStore = defineStore('onboarding', {
     // Stage 3 flags
     paymentServiceReady: false,
     activated: false,
+    adminCreated: false,
+    adminName: '',
+    adminEmail: '',
+    adminPassword: '',
   }),
 
   getters: {
@@ -206,6 +210,17 @@ export const useOnboardingStore = defineStore('onboarding', {
     reset() {
       this.$reset();
       localStorage.removeItem('onboardingProgress');
+    },
+
+    async createAdminAccount(formData) {
+      // Store admin account data locally for demo mode
+      this.adminName = formData.adminName;
+      this.adminEmail = formData.email;
+      
+      // In production, this would create the admin user via API
+      // For now, we just store the data and mark as complete
+      await this.completeStep('admin_account');
+      this.adminCreated = true;
     },
   },
 });

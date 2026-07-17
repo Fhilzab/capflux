@@ -12,12 +12,15 @@ export const useAuthStore = defineStore('auth', {
     role: null,
     adminStatus: 'ACTIVE',
     profile: null,
+    onboardingComplete: false,
+    emailVerified: false,
   }),
   getters: {
     isAuthenticated: (state) => !!state.user,
     currentSchoolId: (state) => state.schoolId,
     isOwner: (state) => state.role === 'OWNER',
     isAdmin: (state) => state.role === 'ADMIN',
+    isOnboardingComplete: (state) => state.onboardingComplete && !!state.schoolId,
   },
   actions: {
     async initialize() {
@@ -107,6 +110,32 @@ export const useAuthStore = defineStore('auth', {
       }
 
       return true;
+    },
+
+    async signUp({ email, password }) {
+      this.loading = true;
+      this.error = null;
+
+      const { data, error } = await AuthService.signUp(email, password);
+
+      this.loading = false;
+
+      if (error) {
+        this.error = error.message;
+        return { error };
+      }
+
+      return { data, error: null };
+    },
+
+    async refreshSession() {
+      const { session } = await AuthService.refreshSession();
+      this.session = session;
+      this.user = session?.user ?? null;
+      if (session) {
+        await this.fetchSchoolFromProfile();
+      }
+      return { session };
     },
 
     async signOut() {

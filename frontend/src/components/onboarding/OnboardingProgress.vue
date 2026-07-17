@@ -11,9 +11,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const steps = [
-  { id: 1, name: 'School Profile', key: 'school_profile' },
-  { id: 2, name: 'Financial Setup', key: 'financial_setup' },
-  { id: 3, name: 'Activate Collections', key: 'activate' },
+  { id: 1, label: 'School Information' },
+  { id: 2, label: 'Administrator Account' },
+  { id: 3, label: 'Confirmation' },
 ];
 
 const progressPercentage = computed(() => ((props.currentStep - 1) / (props.totalSteps - 1)) * 100);
@@ -21,39 +21,46 @@ const progressPercentage = computed(() => ((props.currentStep - 1) / (props.tota
 
 <template>
   <div class="w-full">
-    <!-- Progress Bar -->
-    <div class="flex items-center gap-4 mb-8">
-      <div class="flex-1 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-        <div 
-          class="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full transition-all duration-500"
-          :style="{ width: progressPercentage + '%' }"
-        ></div>
-      </div>
-      <span class="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">
-        Step {{ currentStep }} of {{ totalSteps }}
-      </span>
-    </div>
-
     <!-- Step Indicators -->
-    <div class="flex justify-between">
+    <div class="flex items-center justify-between mb-8">
       <div v-for="step in steps" :key="step.id" class="flex flex-col items-center">
+        <!-- Step Circle -->
         <div 
-          class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium"
+          class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition-all duration-300"
           :class="step.id === currentStep 
-            ? 'bg-cyan-500 text-slate-950' 
+            ? 'bg-primary text-background' 
             : step.id < currentStep 
-              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-              : 'bg-slate-200 dark:bg-slate-700 text-slate-500'"
+              ? 'bg-primary/10 text-primary' 
+              : 'border border-border text-text-muted'"
         >
           <svg v-if="step.id < currentStep" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          <span v-else>{{ step.id }}</span>
+          <span v-else class="w-5 h-5 flex items-center justify-center">{{ step.id }}</span>
         </div>
-        <span class="mt-2 text-xs font-medium" :class="step.id <= currentStep ? 'text-slate-900 dark:text-white' : 'text-slate-500'">
-          {{ step.name }}
+        
+        <!-- Step Label -->
+        <span class="mt-2 text-xs font-medium text-center" :class="step.id <= currentStep ? 'text-text-primary' : 'text-text-muted'">
+          {{ step.label }}
         </span>
       </div>
+    </div>
+
+    <!-- Connecting Lines -->
+    <div class="flex items-center gap-4 mb-8">
+      <div 
+        v-for="i in totalSteps - 1" 
+        :key="i"
+        class="flex-1 h-0.5 transition-colors duration-300"
+        :class="i < currentStep ? 'bg-primary' : 'bg-border'"
+      ></div>
+    </div>
+
+    <!-- Step Counter -->
+    <div class="text-center">
+      <span class="text-sm text-text-muted">
+        Step {{ currentStep }} of {{ totalSteps }}
+      </span>
     </div>
   </div>
 </template>
