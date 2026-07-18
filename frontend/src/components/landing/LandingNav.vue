@@ -21,6 +21,11 @@ const navigateTo = (section: string) => {
   isMobileMenuOpen.value = false;
 };
 
+const navigateToAuth = (mode: 'login' | 'signup') => {
+  router.push({ name: 'Auth', query: { mode } });
+  isMobileMenuOpen.value = false;
+};
+
 const toggleTheme = () => {
   themeStore.toggleTheme();
 };
@@ -59,12 +64,12 @@ onUnmounted(() => {
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center space-x-8">
           <button
-            v-for="item in ['features', 'how-it-works', 'security', 'pricing', 'faq']"
+            v-for="item in ['product', 'pricing', 'resources', 'security']"
             :key="item"
             @click="navigateTo(item)"
             class="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors focus-ring"
           >
-            {{ item.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) }}
+            {{ item.charAt(0).toUpperCase() + item.slice(1) }}
           </button>
         </div>
 
@@ -84,12 +89,20 @@ onUnmounted(() => {
             </svg>
           </button>
 
-          <!-- Book Demo Button -->
+          <!-- Log In Button -->
           <button
-            @click="navigateTo('demo')"
+            @click="navigateToAuth('login')"
+            class="hidden md:inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface transition-colors focus-ring"
+          >
+            Log In
+          </button>
+
+          <!-- Create Free Account Button -->
+          <button
+            @click="navigateToAuth('signup')"
             class="hidden md:inline-flex items-center justify-center rounded-button bg-brand px-4 py-2 text-sm font-medium text-background hover:shadow-md transition-all focus-ring"
           >
-            Book Demo
+            Create Free Account
           </button>
 
           <!-- Mobile Menu Button -->
@@ -121,18 +134,24 @@ onUnmounted(() => {
           class="md:hidden py-4 space-y-2 border-t border-divider"
         >
           <button
-            v-for="item in ['features', 'how-it-works', 'security', 'pricing', 'faq']"
+            v-for="item in ['product', 'pricing', 'resources', 'security']"
             :key="item"
             @click="navigateTo(item)"
             class="block w-full px-3 py-2 text-left text-sm font-medium text-text-secondary hover:text-text-primary transition-colors focus-ring"
           >
-            {{ item.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) }}
+            {{ item.charAt(0).toUpperCase() + item.slice(1) }}
           </button>
           <button
-            @click="navigateTo('demo')"
+            @click="navigateToAuth('login')"
+            class="w-full mt-2 inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface transition-colors focus-ring"
+          >
+            Log In
+          </button>
+          <button
+            @click="navigateToAuth('signup')"
             class="w-full mt-2 inline-flex items-center justify-center rounded-button bg-brand px-4 py-2 text-sm font-medium text-background hover:shadow-md transition-all focus-ring"
           >
-            Book Demo
+            Create Free Account
           </button>
         </div>
       </transition>

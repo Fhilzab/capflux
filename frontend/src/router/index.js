@@ -123,10 +123,15 @@ const routes = [
     component: () => import('../views/SchoolProfileView.vue'),
     meta: { requiresAuth: true },
   },
+  // Auth route supports ?mode=register|login query parameter
   {
     path: '/auth',
     name: 'Auth',
     component: AuthView,
+    props: (route) => ({
+      initialMode: route.query.mode || 'login',
+      provider: route.query.provider || null,
+    }),
   },
   {
     path: '/setup',
@@ -134,11 +139,24 @@ const routes = [
     component: () => import('../features/setup/SchoolSetupView.vue'),
     meta: { requiresAuth: true },
   },
+  // Catch-all 404
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/NotFoundView.vue'),
+  },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    // Scroll to top on route change, except for hash navigation
+    if (to.hash) {
+      return { el: to.hash, behavior: 'smooth' };
+    }
+    return { top: 0 };
+  },
 });
 
 const SCHOOL_SETUP_REQUIRED_ROUTES = [

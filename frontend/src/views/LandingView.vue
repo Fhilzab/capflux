@@ -33,9 +33,19 @@ const featureIcons = {
   intelligence: 'M13 10V3L4 14h7v7l9-11h-7z',
 };
 
+// Feature list for trust section
+const trustFeatures = [
+  { id: 'offline', title: 'Built for Nigerian Private Schools', description: 'Designed specifically for African private school financial workflows.' },
+  { id: 'offline', title: 'Offline-First Architecture', description: 'Operates without internet. Changes sync automatically when connectivity returns.' },
+  { id: 'accounts', title: 'Dedicated Virtual Accounts', description: 'Unique account numbers for each student eliminate payment confusion.' },
+  { id: 'reconciliation', title: 'Automatic Payment Reconciliation', description: 'Bank payments match themselves with zero manual effort.' },
+  { id: 'security', title: 'Multi-Tenant Security', description: 'Bank-level isolation between schools and their financial data.' },
+  { id: 'offline', title: 'Works with Poor Internet', description: 'Continue operations during network outages.' },
+];
+
 // Feature list
 const features = [
-  { id: 'billing', title: 'Configuration-Driven Billing', description: 'Flexible fee structures that adapt to your school\'s needs, from tuition to one-time charges.' },
+  { id: 'billing', title: 'Configuration-Driven Billing', description: "Flexible fee structures that adapt to your school's needs, from tuition to one-time charges." },
   { id: 'accounts', title: 'Dedicated Virtual Accounts', description: 'Unique account numbers for each student, eliminating payment confusion and fraud.' },
   { id: 'reconciliation', title: 'Automatic Reconciliation', description: 'Payments match themselves. Every naira finds its ledger entry automatically.' },
   { id: 'guardians', title: 'Guardian Management', description: 'Keep parent contact information organized and accessible for all payment flows.' },
@@ -57,8 +67,12 @@ const toggleFaq = (index: number) => {
   faqItems.value[index].open = !faqItems.value[index].open;
 };
 
-const navigateToLogin = () => router.push({ name: 'Login' });
-const navigateToDashboard = () => router.push({ name: 'Home' });
+const navigateToAuth = (mode: 'login' | 'signup' = 'login', provider?: string) => {
+  const query: Record<string, string> = { mode };
+  if (provider) query.provider = provider;
+  router.push({ name: 'Auth', query });
+};
+
 const scrollToSection = (sectionId: string) => {
   const element = document.getElementById(sectionId);
   if (element) {
@@ -85,58 +99,64 @@ onMounted(() => {
       
       <div class="mx-auto max-w-4xl text-center">
         <CmBadge
-          variant="secondary"
+          variant="primary"
           label="Built for African Private Schools • Offline-First • Fee-First"
           class="mb-8 mx-auto"
         />
         
         <h1 class="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-text-primary mb-6">
-          Every Naira Accounted For.
+          Every Naira.<br>Accounted For.
         </h1>
         
         <p class="text-xl md:text-2xl text-text-secondary max-w-3xl mx-auto mb-12">
           Stop chasing school fees.<br>
-          Start controlling your cash flow.
-        </p>
-        
-        <p class="text-lg text-text-secondary max-w-2xl mx-auto mb-12">
-          Capstone is the Financial Operating System built for African private schools—helping you collect, reconcile, and understand tuition payments with dedicated virtual accounts, automated reconciliation, and offline-first reliability.
+          Capstone automatically tracks tuition, reconciles every bank payment, assigns each student a Dedicated Virtual Account, and gives your school complete financial visibility—built specifically for Nigerian private schools.
         </p>
         
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
           <CmButton
-            @click="navigateToLogin"
+            @click="navigateToAuth('signup')"
             variant="primary"
             size="lg"
-            class="px-8"
+            class="px-8 shadow-lg hover:shadow-xl transition-all duration-300"
           >
-            Request a Demo
+            Create Free Account
           </CmButton>
           <CmButton
-            @click="scrollToSection('how-it-works')"
+            @click="navigateToAuth('signup', 'google')"
             variant="secondary"
             size="lg"
             class="px-8"
           >
-            See How It Works
+            Continue with Google
           </CmButton>
         </div>
+        
+        <div class="mb-16">
+          <span class="text-text-secondary">Already have an account?</span>
+          <button
+            @click="navigateToAuth('login')"
+            class="ml-2 text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
+          >
+            Log In
+          </button>
+        </div>
 
-        <!-- Trust Indicators -->
-        <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-16 border-t border-border">
-          <div class="flex items-center gap-2 text-sm text-text-secondary">
+        <!-- Trust Section - Clean badges -->
+        <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-16 border-t border-divider">
+          <div class="flex items-center gap-2 text-sm text-text-muted">
             <div class="h-2 w-2 rounded-full bg-success"></div>
             <span class="font-mono">Offline-First</span>
           </div>
-          <div class="flex items-center gap-2 text-sm text-text-secondary">
+          <div class="flex items-center gap-2 text-sm text-text-muted">
             <div class="h-2 w-2 rounded-full bg-success"></div>
             <span class="font-mono">Dedicated Virtual Accounts</span>
           </div>
-          <div class="flex items-center gap-2 text-sm text-text-secondary">
+          <div class="flex items-center gap-2 text-sm text-text-muted">
             <div class="h-2 w-2 rounded-full bg-success"></div>
             <span class="font-mono">Automatic Reconciliation</span>
           </div>
-          <div class="flex items-center gap-2 text-sm text-text-secondary">
+          <div class="flex items-center gap-2 text-sm text-text-muted">
             <div class="h-2 w-2 rounded-full bg-success"></div>
             <span class="font-mono">Multi-Tenant Security</span>
           </div>
@@ -145,7 +165,7 @@ onMounted(() => {
     </section>
 
     <!-- TRUSTED BY SECTION -->
-    <section id="trusted-by" class="py-16 px-6 border-y border-border bg-surface/50">
+    <section id="trusted-by" class="py-16 px-6 border-y border-divider bg-surface/50">
       <div class="mx-auto max-w-6xl">
         <p class="text-center text-sm uppercase tracking-wider text-text-muted mb-8">Trusted by leading private schools</p>
         <div class="flex flex-wrap items-center justify-center gap-12 opacity-60">
@@ -204,8 +224,8 @@ onMounted(() => {
             class="opacity-0 animate-fade-in"
             :style="{ animationDelay: `${index * 150}ms` }"
           >
-            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mx-auto mb-4">
-              <svg class="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-4">
+              <svg class="h-8 w-8 text-brand" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
@@ -246,15 +266,15 @@ onMounted(() => {
         <!-- CEMDS Manifesto -->
         <div class="grid md:grid-cols-3 gap-8 text-left">
           <div>
-            <h3 class="text-2xl font-bold text-primary mb-3">Clarity</h3>
+            <h3 class="text-2xl font-bold text-brand mb-3">Clarity</h3>
             <p class="text-text-secondary">over Aesthetic.</p>
           </div>
           <div>
-            <h3 class="text-2xl font-bold text-primary mb-3">Confidence</h3>
+            <h3 class="text-2xl font-bold text-brand mb-3">Confidence</h3>
             <p class="text-text-secondary">over Color.</p>
           </div>
           <div>
-            <h3 class="text-2xl font-bold text-primary mb-3">Structure</h3>
+            <h3 class="text-2xl font-bold text-brand mb-3">Structure</h3>
             <p class="text-text-secondary">over Decoration.</p>
           </div>
         </div>
@@ -341,7 +361,7 @@ onMounted(() => {
         <div class="bg-card border border-border rounded-card p-8 shadow-card max-w-4xl mx-auto">
           <div class="grid grid-cols-3 gap-4 mb-6">
             <div class="h-4 bg-border rounded-full"></div>
-            <div class="h-4 bg-primary/30 rounded-full w-2/3"></div>
+            <div class="h-4 bg-brand/30 rounded-full w-2/3"></div>
             <div class="h-4 bg-border rounded-full"></div>
           </div>
           <div class="space-y-3">
@@ -441,27 +461,27 @@ onMounted(() => {
         
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
           <CmButton
-            @click="navigateToLogin"
+            @click="navigateToAuth('signup')"
             variant="primary"
             size="lg"
-            class="px-8"
+            class="px-8 shadow-lg hover:shadow-xl transition-all duration-300"
           >
-            Book a Demo
+            Create Free Account
           </CmButton>
           <CmButton
             variant="secondary"
             size="lg"
             class="px-8"
-            @click="router.push({ name: 'Onboarding' })"
+            @click="navigateToAuth('login')"
           >
-            Become a Pilot School
+            Log In
           </CmButton>
         </div>
       </div>
     </section>
 
     <!-- FOOTER SECTION -->
-    <footer class="border-t border-border py-20 px-6">
+    <footer class="border-t border-divider py-20 px-6">
       <div class="mx-auto max-w-6xl">
         <div class="grid md:grid-cols-4 gap-8 mb-16">
           <div>
@@ -470,7 +490,7 @@ onMounted(() => {
               <li><a href="#features" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Features</a></li>
               <li><a href="#pricing" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Pricing</a></li>
               <li><a href="#security" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Security</a></li>
-              <li><a href="#demo" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Book Demo</a></li>
+              <li><button @click="navigateToAuth('login')" class="text-text-secondary hover:text-brand transition-colors text-sm focus-ring">Log In</button></li>
             </ul>
           </div>
           
@@ -497,14 +517,14 @@ onMounted(() => {
           <div>
             <h3 class="text-sm font-semibold uppercase tracking-wider text-text-primary mb-4">Connect</h3>
             <div class="flex space-x-4">
-              <a href="#" class="text-text-secondary hover:text-primary transition-colors" aria-label="Twitter">
+              <a href="#" class="text-text-secondary hover:text-brand transition-colors" aria-label="Twitter">
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8.29 20.251c7.549-2.447 4.125-7.573 0-9.997C4.125 8.678 8.29 3.751 8.29 20.251z" />
                 </svg>
               </a>
-              <a href="#" class="text-text-secondary hover:text-primary transition-colors" aria-label="LinkedIn">
+              <a href="#" class="text-text-secondary hover:text-brand transition-colors" aria-label="LinkedIn">
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.784-1.75-1.75v0c0-.966.784-1.75 1.75-1.75s1.75.784 1.75 1.75c0 .966-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.5c0-1.338-.014-3.06-1.868-3.06-1.868 0-2.154 1.458-2.154 2.965v5.515h-3v-11h2.881v1.661h.039c.2-.325.751-1.039 2.154-1.039 2.251 0 2.772 1.37 2.772 3.125v5.725z" />
+                  <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.338-5-5-5zm-11 19h-3v-11h3v11zm0-15.5c-1.1 0-2 .9-2 2v2.5h-1v-2.5c0-1.66 1.34-3 3-3v3c0 .55-.45 1-1 1h-3v11h3v-11h2l.5.5v15.5h3v-15.5c0-.55-.45-1-1-1z" />
                 </svg>
               </a>
             </div>
@@ -512,7 +532,7 @@ onMounted(() => {
         </div>
 
         <!-- Closing statement -->
-        <div class="text-center pt-8 border-t border-border">
+        <div class="text-center pt-8 border-t border-divider">
           <p class="text-text-muted text-sm">
             Clarity over Aesthetic. Confidence over Color. Structure over Decoration.
           </p>

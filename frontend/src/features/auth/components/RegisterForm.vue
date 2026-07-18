@@ -169,7 +169,7 @@ window.addEventListener('offline', () => isOffline.value = true);
         <button
           type="button"
           @click="showPassword = !showPassword"
-          class="text-sm font-medium text-primary hover:text-primary-hover transition-colors focus-ring"
+          class="text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
           :disabled="isOffline"
           aria-label="Toggle password visibility"
         >
@@ -197,14 +197,14 @@ window.addEventListener('offline', () => isOffline.value = true);
         <input
           v-model="agreeToTerms"
           type="checkbox"
-          class="mt-0.5 w-4 h-4 rounded border-border text-primary focus:ring-primary focus-ring"
+          class="mt-0.5 w-4 h-4 rounded border-border text-brand focus:ring-brand focus-ring"
           :disabled="isOffline"
         />
         <span class="text-sm text-text-secondary">
           I agree to the
-          <a href="#" class="font-medium text-primary hover:text-primary-hover transition-colors">Terms of Service</a>
+          <a href="#" class="font-medium text-brand hover:text-brand/80 transition-colors">Terms of Service</a>
           and
-          <a href="#" class="font-medium text-primary hover:text-primary-hover transition-colors">Privacy Policy</a>
+          <a href="#" class="font-medium text-brand hover:text-brand/80 transition-colors">Privacy Policy</a>
         </span>
       </label>
 
@@ -216,7 +216,7 @@ window.addEventListener('offline', () => isOffline.value = true);
         :disabled="isOffline || !fullName || !email || !password || !agreeToTerms"
         class="w-full"
       >
-        Create Account
+        Create Free Account
       </CmButton>
     </form>
 
@@ -233,6 +233,7 @@ window.addEventListener('offline', () => isOffline.value = true);
       variant="secondary"
       :disabled="isOffline"
       class="w-full"
+      data-google-auth
     >
       Continue with Google
     </CmButton>
@@ -244,9 +245,9 @@ window.addEventListener('offline', () => isOffline.value = true);
     <button
       type="button"
       @click="$emit('switch-state', 'login')"
-      class="ml-2 text-sm font-medium text-primary hover:text-primary-hover transition-colors focus-ring"
+      class="ml-2 text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
     >
-      Sign in
+      Log In
     </button>
   </div>
 </template>
