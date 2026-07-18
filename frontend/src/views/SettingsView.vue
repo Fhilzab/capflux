@@ -129,10 +129,10 @@ const transferOwnership = async (adminId: string) => {
 </script>
 
 <template>
-  <div class="p-6 bg-slate-50 dark:bg-slate-950 min-h-screen">
+  <div class="p-6 bg-background text-text-primary min-h-screen">
     <div class="mb-6">
       <h1 class="text-headline">Settings</h1>
-      <p class="text-slate-500 dark:text-slate-400">Manage your school's preferences</p>
+      <p class="text-text-secondary">Manage your school's preferences</p>
     </div>
 
     <div class="max-w-2xl space-y-6">
@@ -141,28 +141,28 @@ const transferOwnership = async (adminId: string) => {
         <h2 class="text-title mb-4">Appearance</h2>
         <div class="space-y-4">
           <div>
-            <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Theme</p>
+            <p class="text-sm font-medium text-text-primary mb-2">Theme</p>
             <div class="flex gap-3">
               <button
                 @click="setTheme('light')"
-                class="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all"
+                class="flex-1 rounded-button px-4 py-3 text-sm font-medium transition-all"
                 :class="isDark 
-                  ? 'bg-slate-800/50 text-slate-300 hover:bg-slate-800' 
-                  : 'bg-cyan-500/10 text-cyan-600 border border-cyan-500/30'"
+                  ? 'bg-surface text-text-secondary hover:bg-surface/80' 
+                  : 'bg-brand/10 text-brand border border-brand/20'"
               >
                 Light Mode
               </button>
               <button
                 @click="setTheme('dark')"
-                class="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all"
+                class="flex-1 rounded-button px-4 py-3 text-sm font-medium transition-all"
                 :class="!isDark 
-                  ? 'bg-slate-800/50 text-slate-300 hover:bg-slate-800' 
-                  : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'"
+                  ? 'bg-surface text-text-secondary hover:bg-surface/80' 
+                  : 'bg-brand/10 text-brand border border-brand/20'"
               >
                 Dark Mode
               </button>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            <p class="text-xs text-text-muted mt-2">
               Choose your preferred theme. System preference will be used if not set.
             </p>
           </div>
@@ -174,12 +174,12 @@ const transferOwnership = async (adminId: string) => {
         <h2 class="text-title mb-4">School Information</h2>
         <div class="space-y-4">
           <div>
-            <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">School Name</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400">Capstone International School</p>
+            <p class="text-sm font-medium text-text-primary mb-2">School Name</p>
+            <p class="text-sm text-text-secondary">Capstone International School</p>
           </div>
           <div>
-            <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Currency</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400">₦ Naira (NGN)</p>
+            <p class="text-sm font-medium text-text-primary mb-2">Currency</p>
+            <p class="text-sm text-text-secondary">₦ Naira (NGN)</p>
           </div>
         </div>
       </div>
@@ -191,44 +191,44 @@ const transferOwnership = async (adminId: string) => {
         <!-- Invite Admin -->
         <div class="space-y-4">
           <div>
-            <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Invite New Admin</p>
+            <p class="text-sm font-medium text-text-primary mb-2">Invite New Admin</p>
             <div class="flex gap-2">
               <input
                 v-model="newAdminEmail"
                 type="email"
                 placeholder="admin@school.edu.ng"
-                class="flex-1 rounded-xl px-3 py-2 text-sm bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 focus-ring"
+                class="flex-1 rounded-input px-3 py-2.5 text-sm bg-surface text-text-primary border border-border focus:ring-2 focus:ring-brand transition-all"
               />
               <button
                 @click="inviteAdmin"
                 :disabled="loading || !newAdminEmail"
-                class="rounded-xl px-4 py-2 text-sm font-medium bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-colors disabled:opacity-50"
+                class="rounded-button px-4 py-2.5 text-sm font-medium bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 transition-colors disabled:opacity-50 focus-ring"
               >
                 Invite
               </button>
             </div>
-            <p v-if="error" class="text-xs text-rose-600 dark:text-rose-400 mt-2">{{ error }}</p>
-            <p v-if="success" class="text-xs text-emerald-600 dark:text-emerald-400 mt-2">{{ success }}</p>
+            <p v-if="error" class="text-xs text-danger mt-2">{{ error }}</p>
+            <p v-if="success" class="text-xs text-success mt-2">{{ success }}</p>
           </div>
 
           <!-- Admins List -->
           <div>
-            <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Current Admins</p>
-            <div v-if="loading && admins.length === 0" class="text-sm text-slate-500">Loading...</div>
+            <p class="text-sm font-medium text-text-primary mb-3">Current Admins</p>
+            <div v-if="loading && admins.length === 0" class="text-sm text-text-muted">Loading...</div>
             <div v-else class="space-y-2">
-              <div v-for="admin in admins" :key="admin.id" class="flex items-center justify-between rounded-xl bg-slate-100/50 dark:bg-slate-800/50 p-3">
+              <div v-for="admin in admins" :key="admin.id" class="flex items-center justify-between rounded-card bg-surface/50 p-3">
                 <div>
-                  <p class="font-medium text-slate-900 dark:text-white">{{ admin.email }}</p>
-                  <p class="text-xs text-slate-500 dark:text-slate-400">{{ admin.full_name || admin.id }}</p>
+                  <p class="font-medium text-text-primary">{{ admin.email }}</p>
+                  <p class="text-xs text-text-muted">{{ admin.full_name || admin.id }}</p>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs px-2 py-1 rounded" :class="admin.admin_status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'">
+                  <span class="text-xs px-2 py-1 rounded" :class="admin.admin_status === 'ACTIVE' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'">
                     {{ admin.admin_status }}
                   </span>
                   <button
                     v-if="admin.admin_status === 'ACTIVE'"
                     @click="suspendAdmin(admin.id)"
-                    class="text-xs px-2 py-1 rounded bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+                    class="text-xs px-2 py-1 rounded bg-warning/10 text-warning hover:bg-warning/20 focus-ring"
                     :disabled="loading"
                   >
                     Suspend
@@ -236,21 +236,21 @@ const transferOwnership = async (adminId: string) => {
                   <button
                     v-else
                     @click="reactivateAdmin(admin.id)"
-                    class="text-xs px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                    class="text-xs px-2 py-1 rounded bg-success/10 text-success hover:bg-success/20 focus-ring"
                     :disabled="loading"
                   >
                     Reactivate
                   </button>
                   <button
                     @click="transferOwnership(admin.id)"
-                    class="text-xs px-2 py-1 rounded bg-purple-500/10 text-purple-600 hover:bg-purple-500/20"
+                    class="text-xs px-2 py-1 rounded bg-info/10 text-info hover:bg-info/20 focus-ring"
                     :disabled="loading"
                   >
                     Make Owner
                   </button>
                   <button
                     @click="removeAdmin(admin.id)"
-                    class="text-xs px-2 py-1 rounded bg-rose-500/10 text-rose-600 hover:bg-rose-500/20"
+                    class="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 focus-ring"
                     :disabled="loading"
                   >
                     Remove
@@ -267,12 +267,12 @@ const transferOwnership = async (adminId: string) => {
         <h2 class="text-title mb-4">Notifications</h2>
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Payment Reminders</span>
-            <span class="text-sm text-emerald-600 dark:text-emerald-400">Enabled</span>
+            <span class="text-sm font-medium text-text-primary">Payment Reminders</span>
+            <span class="text-sm text-success">Enabled</span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Collection Alerts</span>
-            <span class="text-sm text-emerald-600 dark:text-emerald-400">Enabled</span>
+            <span class="text-sm font-medium text-text-primary">Collection Alerts</span>
+            <span class="text-sm text-success">Enabled</span>
           </div>
         </div>
       </div>

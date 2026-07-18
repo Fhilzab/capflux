@@ -22,12 +22,12 @@ const timeOfDay = computed(() => {
 });
 
 const briefingItems = computed(() => [
-  { color: 'text-cyan-400', value: props.todaysCollections || 0, label: 'collected today' },
+  { color: 'text-brand', value: props.todaysCollections || 0, label: 'collected today' },
   { color: 'text-amber-400', value: props.outstandingStudents || 0, label: 'students still owe fees' },
   { color: 'text-violet-400', value: props.pendingDVAs || 0, label: 'new students awaiting DVA' },
   { color: 'text-amber-400', value: props.pendingVerification || 0, label: 'payments awaiting verification' },
-  { color: props.offlineQueue === 0 ? 'text-emerald-400' : 'text-amber-400', value: props.offlineQueue === 0 ? 'empty' : `${props.offlineQueue} pending`, label: 'offline queue' },
-  { color: props.pendingNotifications === 0 ? 'text-emerald-400' : 'text-amber-400', value: props.pendingNotifications === 0 ? 'healthy' : 'needs attention', label: 'notifications' },
+  { color: props.offlineQueue === 0 ? 'text-success' : 'text-amber-400', value: props.offlineQueue === 0 ? 'empty' : `${props.offlineQueue} pending`, label: 'offline queue' },
+  { color: props.pendingNotifications === 0 ? 'text-success' : 'text-amber-400', value: props.pendingNotifications === 0 ? 'healthy' : 'needs attention', label: 'notifications' },
 ]);
 </script>
 
@@ -60,9 +60,9 @@ const briefingItems = computed(() => [
         <span class="text-slate-500">{{ item.label }}</span>
       </li>
       <li v-if="collectionTrend" class="flex items-center gap-2 text-slate-300">
-        <span class="text-emerald-400">•</span>
+        <span class="text-success">•</span>
         <span class="text-slate-500">Collection rate is</span>
-        <span class="text-emerald-400 font-medium">{{ collectionTrend > 0 ? '+' : '' }}{{ collectionTrend }}% higher than yesterday</span>
+        <span class="text-success font-medium">{{ collectionTrend > 0 ? '+' : '' }}{{ collectionTrend }}% higher than yesterday</span>
       </li>
     </ul>
   </div>

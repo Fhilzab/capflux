@@ -17,14 +17,14 @@ interface Props {
 defineProps<Props>();
 
 const eventIcons = {
-  student: 'text-cyan-400',
-  guardian: 'text-emerald-400',
-  dva: 'text-violet-400',
-  payment: 'text-amber-400',
-  reminder: 'text-rose-400',
-  sync: 'text-cyan-400',
-  webhook: 'text-emerald-400',
-  settlement: 'text-violet-400',
+  student: 'text-brand',
+  guardian: 'text-success',
+  dva: 'text-info',
+  payment: 'text-warning',
+  reminder: 'text-danger',
+  sync: 'text-brand',
+  webhook: 'text-success',
+  settlement: 'text-info',
 };
 </script>
 
@@ -32,14 +32,14 @@ const eventIcons = {
   <section>
     <div class="mb-4">
       <h2 class="text-headline">Recent System Events</h2>
-      <p class="text-sm text-slate-500">Timeline of operations</p>
+      <p class="text-sm text-text-muted">Timeline of operations</p>
     </div>
 
     <div v-if="!events || events.length === 0" class="premium-card p-6">
-      <p class="text-sm text-slate-400">No recent events to display.</p>
+      <p class="text-sm text-text-muted">No recent events to display.</p>
     </div>
 
-    <div v-else class="premium-card divide-y divide-slate-800/50">
+    <div v-else class="premium-card divide-y divide-divider">
       <div v-for="event in events.slice(0, 10)" :key="event.id" class="flex items-start gap-3 p-4">
         <div class="flex h-8 w-8 items-center justify-center rounded-xl" :class="eventIcons[event.type]">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -54,9 +54,9 @@ const eventIcons = {
           </svg>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-white">{{ event.title }}</p>
-          <p class="text-xs text-slate-400 mt-0.5">{{ event.description }}</p>
-          <p class="text-xs text-slate-500 mt-1">{{ event.timestamp }}</p>
+          <p class="text-sm font-medium text-text-primary">{{ event.title }}</p>
+          <p class="text-xs text-text-muted mt-0.5">{{ event.description }}</p>
+          <p class="text-xs text-text-muted mt-1">{{ event.timestamp }}</p>
         </div>
       </div>
     </div>

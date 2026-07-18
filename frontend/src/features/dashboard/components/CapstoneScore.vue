@@ -45,10 +45,10 @@ const score = computed(() => {
 
 const status = computed(() => {
   const s = score.value;
-  if (s >= 90) return { label: 'Excellent', color: 'text-emerald-400' };
-  if (s >= 75) return { label: 'Good', color: 'text-amber-400' };
-  if (s >= 60) return { label: 'Fair', color: 'text-cyan-400' };
-  return { label: 'Needs Attention', color: 'text-rose-400' };
+  if (s >= 90) return { label: 'Excellent', color: 'text-success' };
+  if (s >= 75) return { label: 'Good', color: 'text-warning' };
+  if (s >= 60) return { label: 'Fair', color: 'text-brand' };
+  return { label: 'Needs Attention', color: 'text-danger' };
 });
 
 const aiExplanation = computed(() => {
@@ -64,14 +64,14 @@ const aiExplanation = computed(() => {
   <section>
     <div class="mb-4">
       <h2 class="text-headline">Capstone Score</h2>
-      <p class="text-sm text-slate-500">Overall operational health score</p>
+      <p class="text-sm text-text-muted">Overall operational health score</p>
     </div>
 
     <div class="premium-card--glow p-6">
       <div class="flex items-center justify-between mb-4">
         <div>
           <p class="text-label">Score</p>
-          <p class="text-5xl font-bold font-mono text-white">{{ score }}<span class="text-lg text-slate-400">/100</span></p>
+          <p class="text-5xl font-bold font-mono text-text-primary">{{ score }}<span class="text-lg text-text-muted">/100</span></p>
         </div>
         <div class="text-right">
           <p class="text-label">Status</p>
@@ -79,11 +79,11 @@ const aiExplanation = computed(() => {
         </div>
       </div>
 
-      <div class="h-3 rounded-full bg-slate-800 overflow-hidden mb-4">
-        <div class="h-full rounded-full bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 transition-all duration-500" :style="{ width: `${score}%` }"></div>
+      <div class="h-3 rounded-full bg-surface overflow-hidden mb-4">
+        <div class="h-full rounded-full bg-gradient-to-r from-danger via-warning to-success transition-all duration-500" :style="{ width: `${score}%` }"></div>
       </div>
 
-      <p class="text-sm text-slate-300">{{ aiExplanation }}</p>
+      <p class="text-sm text-text-secondary">{{ aiExplanation }}</p>
     </div>
   </section>
 </template>

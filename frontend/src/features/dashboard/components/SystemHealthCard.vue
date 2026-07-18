@@ -20,9 +20,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const statusColor = (status: string | boolean) => {
-  if (status === true || status === 'online' || status === 'running') return 'bg-emerald-500';
-  if (status === false || status === 'offline') return 'bg-rose-500';
-  return 'bg-amber-500';
+  if (status === true || status === 'online' || status === 'running') return 'bg-success';
+  if (status === false || status === 'offline') return 'bg-danger';
+  return 'bg-warning';
 };
 
 const statusText = (status: string | boolean) => {
@@ -45,18 +45,18 @@ const healthItems = [
     <h3 class="text-headline mb-4">System Health</h3>
     <div class="space-y-3">
       <div v-for="item in healthItems" :key="item.key" class="flex items-center justify-between">
-        <span class="text-sm text-slate-500">{{ item.label }}</span>
+        <span class="text-sm text-text-muted">{{ item.label }}</span>
         <span class="flex items-center gap-2">
-          <span class="text-xs font-medium text-slate-700 dark:text-slate-300">
+          <span class="text-xs font-medium text-text-primary">
             {{ loading ? 'Loading...' : statusText(item.value) }}
           </span>
-          <span class="h-2 w-2 rounded-full" :class="loading ? 'bg-slate-400 animate-pulse' : statusColor(item.value)"></span>
+          <span class="h-2 w-2 rounded-full" :class="loading ? 'bg-text-muted animate-pulse' : statusColor(item.value)"></span>
         </span>
       </div>
-      <div class="border-t border-slate-200/50 dark:border-slate-700/50 pt-3 mt-3">
+      <div class="border-t border-divider pt-3 mt-3">
         <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-500">Notification Queue</span>
-          <span class="text-sm font-medium" :class="loading ? 'text-slate-400' : 'text-cyan-500'">
+          <span class="text-sm text-text-muted">Notification Queue</span>
+          <span class="text-sm font-medium" :class="loading ? 'text-text-muted' : 'text-brand'">
             {{ loading ? '-' : props.notificationQueue }} pending
           </span>
         </div>

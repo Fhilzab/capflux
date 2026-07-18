@@ -25,42 +25,42 @@ const netCollectionRate = computed(() => {
   <section>
     <div class="mb-4">
       <h2 class="text-headline">Revenue Scoreboard</h2>
-      <p class="text-sm text-slate-500">Financial snapshot of the school</p>
+      <p class="text-sm text-text-muted">Financial snapshot of the school</p>
     </div>
 
     <div class="premium-card--glow p-6">
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <p class="text-label mb-1">Expected Revenue</p>
-          <p class="text-2xl font-mono font-bold text-cyan-400">₦{{ (props.expectedRevenue || 0).toLocaleString() }}</p>
+          <p class="text-2xl font-mono font-bold text-brand">₦{{ (props.expectedRevenue || 0).toLocaleString() }}</p>
         </div>
         <div>
           <p class="text-label mb-1">Collected</p>
-          <p class="text-2xl font-mono font-bold text-emerald-400">₦{{ (props.collectedRevenue || 0).toLocaleString() }}</p>
+          <p class="text-2xl font-mono font-bold text-success">₦{{ (props.collectedRevenue || 0).toLocaleString() }}</p>
         </div>
         <div>
           <p class="text-label mb-1">Outstanding</p>
-          <p class="text-2xl font-mono font-bold text-amber-400">₦{{ (props.outstandingRevenue || 0).toLocaleString() }}</p>
+          <p class="text-2xl font-mono font-bold text-warning">₦{{ (props.outstandingRevenue || 0).toLocaleString() }}</p>
         </div>
         <div>
           <p class="text-label mb-1">Collection %</p>
-          <p class="text-2xl font-mono font-bold text-white">{{ netCollectionRate }}%</p>
+          <p class="text-2xl font-mono font-bold text-text-primary">{{ netCollectionRate }}%</p>
         </div>
       </div>
 
-      <div class="mt-6 border-t border-slate-800/50 pt-4">
+      <div class="mt-6 border-t border-divider pt-4">
         <div class="grid gap-4 sm:grid-cols-3">
           <div>
             <p class="text-label mb-1">Platform Revenue</p>
-            <p class="text-lg font-mono font-semibold text-violet-400">₦{{ (props.platformRevenue || 0).toLocaleString() }}</p>
+            <p class="text-lg font-mono font-semibold text-info">₦{{ (props.platformRevenue || 0).toLocaleString() }}</p>
           </div>
           <div>
             <p class="text-label mb-1">Gateway Fees</p>
-            <p class="text-lg font-mono font-semibold text-rose-400">₦{{ (props.gatewayFees || 0).toLocaleString() }}</p>
+            <p class="text-lg font-mono font-semibold text-danger">₦{{ (props.gatewayFees || 0).toLocaleString() }}</p>
           </div>
           <div>
             <p class="text-label mb-1">Net Settlement</p>
-            <p class="text-lg font-mono font-semibold text-emerald-400">₦{{ (props.netSettlement || 0).toLocaleString() }}</p>
+            <p class="text-lg font-mono font-semibold text-success">₦{{ (props.netSettlement || 0).toLocaleString() }}</p>
           </div>
         </div>
       </div>

@@ -32,10 +32,13 @@
   --color-text-secondary: #525252;
   --color-text-muted: #737373;
 
-  /* Brand Primary - Electric Cyan */
-  --color-brand: #06B6D4;
-  --color-brand-hover: #0891B2;
-  --color-brand-active: #0EA5E9;
+  /* Brand Primary - Emerald */
+  --color-brand: #059669;
+  --color-brand-hover: #047857;
+  --color-brand-active: #10B981;
+  /* Brand Subtle - for backgrounds and borders */
+  --color-brand-subtle: rgba(5, 150, 105, 0.1);
+  --color-brand-ring: rgba(5, 150, 105, 0.5);
 
   /* Semantic Status Colors */
   --color-success: #10B981;
@@ -74,10 +77,13 @@ html.dark {
   --color-text-secondary: #D4D4D8;
   --color-text-muted: #A1A1AA;
 
-  /* Brand Primary - Electric Cyan */
-  --color-brand: #06B6D4;
-  --color-brand-hover: #0891B2;
-  --color-brand-active: #0EA5E9;
+  /* Brand Primary - Emerald */
+  --color-brand: #059669;
+  --color-brand-hover: #047857;
+  --color-brand-active: #10B981;
+  /* Brand Subtle - for backgrounds and borders */
+  --color-brand-subtle: rgba(5, 150, 105, 0.1);
+  --color-brand-ring: rgba(5, 150, 105, 0.5);
 
   /* Semantic Status Colors */
   --color-success: #10B981;
@@ -143,8 +149,8 @@ html.dark {
   --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.06);
   --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.12);
   --shadow-topnav: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-button: 0 2px 8px rgba(6, 182, 212, 0.25);
-  --shadow-glow: 0 0 20px rgba(16, 185, 128, 0.1);
+  --shadow-button: 0 2px 8px rgba(5, 150, 105, 0.25);
+  --shadow-glow: 0 0 20px rgba(5, 150, 105, 0.15);
 }
 
 /* ==========================================================================

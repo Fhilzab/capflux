@@ -2,6 +2,9 @@
 import { ref, onMounted, computed } from 'vue';
 import { NotificationService } from '../shared/services/NotificationService';
 import { StudentService } from '../shared/services/StudentService';
+import CmButton from '../components/ui/CmButton.vue';
+import CmSelect from '../components/ui/CmSelect.vue';
+import CmInput from '../components/ui/CmInput.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const students = ref([]);
@@ -113,10 +116,10 @@ const retryNotification = async (id) => {
 
 const statusBadgeClass = (status) => {
   switch (status) {
-    case 'SENT': return 'bg-emerald-500/10 text-emerald-400';
-    case 'FAILED': return 'bg-rose-500/10 text-rose-400';
+    case 'SENT': return 'bg-success/10 text-success';
+    case 'FAILED': return 'bg-danger/10 text-danger';
     case 'PENDING':
-    default: return 'bg-amber-500/10 text-amber-400';
+    default: return 'bg-warning/10 text-warning';
   }
 };
 
@@ -127,89 +130,84 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white p-8">
+  <main class="min-h-screen bg-background text-text-primary p-8">
     <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <h1 class="text-4xl font-semibold mb-2">Notifications</h1>
-        <p class="text-slate-400">Create local notifications with provider delivery and track status.</p>
+      <section class="rounded-card bg-card p-8 shadow-card">
+        <h1 class="text-display mb-2">Notifications</h1>
+        <p class="text-text-secondary">Create local notifications with provider delivery and track status.</p>
       </section>
 
       <section class="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl space-y-6">
+        <div class="rounded-card bg-card p-8 shadow-card space-y-6">
           <div>
-            <h2 class="text-2xl font-semibold mb-4">New notification</h2>
-            <p class="text-slate-400">Record a notification to a guardian or family contact.</p>
+            <h2 class="text-headline mb-4">New notification</h2>
+            <p class="text-text-secondary">Record a notification to a guardian or family contact.</p>
           </div>
 
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block">
-              <span class="text-sm text-slate-400">Student</span>
-              <select
+              <span class="text-sm text-text-muted">Student</span>
+              <CmSelect
                 v-model="form.student_id"
                 @change="onStudentSelect"
-                class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-              >
-                <option value="" disabled>Select student</option>
-                <option v-for="student in students" :key="student.id" :value="student.id">
-                  {{ student.first_name }} {{ student.last_name }}
-                </option>
-              </select>
+                :options="students.map(s => ({ value: s.id, label: `${s.first_name} ${s.last_name}` }))"
+                placeholder="Select student"
+                class="mt-2"
+              />
             </label>
 
             <label class="block">
-              <span class="text-sm text-slate-400">Delivery method</span>
-              <select
+              <span class="text-sm text-text-muted">Delivery method</span>
+              <CmSelect
                 v-model="form.delivery_method"
-                class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-              >
-                <option value="SMS">SMS (Termii)</option>
-                <option value="WHATSAPP">WhatsApp (Termii)</option>
-                <option value="EMAIL">Email</option>
-              </select>
+                :options="[
+                  { value: 'SMS', label: 'SMS (Termii)' },
+                  { value: 'WHATSAPP', label: 'WhatsApp (Termii)' },
+                  { value: 'EMAIL', label: 'Email' },
+                ]"
+                class="mt-2"
+              />
             </label>
 
             <label class="block">
-              <span class="text-sm text-slate-400">Recipient phone</span>
-              <input v-model="form.recipient_phone" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+              <span class="text-sm text-text-muted">Recipient phone</span>
+              <CmInput v-model="form.recipient_phone" class="mt-2" />
             </label>
 
             <label class="block">
-              <span class="text-sm text-slate-400">Template (optional)</span>
-              <select
+              <span class="text-sm text-text-muted">Template (optional)</span>
+              <CmSelect
                 v-model="selectedTemplate"
                 @change="applyTemplate"
-                class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-              >
-                <option value="">Select a template</option>
-                <option v-for="(label, key) in templates" :key="key" :value="key">
-                  {{ label }}
-                </option>
-              </select>
+                :options="Object.entries(templates).map(([key, label]) => ({ value: key, label }))"
+                placeholder="Select a template"
+                class="mt-2"
+              />
             </label>
 
             <label class="block sm:col-span-2">
-              <span class="text-sm text-slate-400">Message</span>
-              <textarea v-model="form.message_body" rows="4" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"></textarea>
+              <span class="text-sm text-text-muted">Message</span>
+              <textarea v-model="form.message_body" rows="4" class="mt-2 w-full rounded-input border border-border bg-surface px-4 py-3.5 text-text-primary placeholder:text-text-muted/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand"></textarea>
             </label>
           </div>
 
-          <button @click="submitNotification" :disabled="sending" class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
+          <CmButton @click="submitNotification" :disabled="sending">
             {{ sending ? 'Saving...' : 'Save notification' }}
-          </button>
-          <p v-if="message" class="text-sm text-emerald-400">{{ message }}</p>
+          </CmButton>
+          <p v-if="message" class="text-sm text-success">{{ message }}</p>
         </div>
 
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-          <h2 class="text-2xl font-semibold mb-4">Notification count</h2>
-          <p class="text-5xl font-bold text-cyan-400">{{ notifications.length }}</p>
-          <p class="mt-4 text-slate-400">Notifications are stored locally and sent via provider when online.</p>
+        <div class="rounded-card bg-card p-8 shadow-card">
+          <h2 class="text-headline mb-4">Notification count</h2>
+          <p class="text-metric text-brand">{{ notifications.length }}</p>
+          <p class="mt-4 text-text-secondary">Notifications are stored locally and sent via provider when online.</p>
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
-        <h2 class="text-2xl font-semibold mb-4">Notification history</h2>
+      <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto">
+        <h2 class="text-headline mb-4">Notification history</h2>
         <div class="grid gap-3">
-          <div v-for="notification in notifications" :key="notification.id" class="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div v-for="notification in notifications" :key="notification.id" class="rounded-card border border-divider bg-surface p-4">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
@@ -217,27 +215,28 @@ onMounted(async () => {
                   <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="statusBadgeClass(notification.delivery_status)">
                     {{ notification.delivery_status }}
                   </span>
-                  <span class="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">
+                  <span class="rounded-full bg-surface px-3 py-1 text-xs text-text-muted">
                     {{ notification.delivery_method || 'SMS' }}
                   </span>
                 </div>
-                <p class="text-slate-400">{{ notification.message_body }}</p>
-                <div class="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                <p class="text-text-secondary">{{ notification.message_body }}</p>
+                <div class="mt-2 flex flex-wrap gap-3 text-xs text-text-muted">
                   <span>To: {{ notification.recipient_phone }}</span>
                   <span v-if="notification.provider_msg_id">Provider ID: {{ notification.provider_msg_id }}</span>
                   <span>{{ new Date(notification.created_at).toLocaleString() }}</span>
                 </div>
               </div>
-              <button
+              <CmButton
                 v-if="notification.delivery_status === 'FAILED'"
                 @click="retryNotification(notification.id)"
-                class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400"
+                variant="warning"
+                size="sm"
               >
                 Retry
-              </button>
+              </CmButton>
             </div>
           </div>
-          <p v-if="notifications.length === 0" class="text-slate-500">No notifications recorded yet.</p>
+          <p v-if="notifications.length === 0" class="text-text-muted">No notifications recorded yet.</p>
         </div>
       </section>
     </div>

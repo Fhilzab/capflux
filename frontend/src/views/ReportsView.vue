@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { ReportService } from '../shared/services/ReportService';
+import CmButton from '../components/ui/CmButton.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const loading = ref(false);
@@ -83,40 +84,46 @@ onMounted(loadReport);
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white p-8">
+  <main class="min-h-screen bg-background text-text-primary p-8">
     <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <section class="rounded-card bg-card p-8 shadow-card flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 class="text-4xl font-semibold mb-2">Reports</h1>
-          <p class="text-slate-400">Fee-first financial summaries and collections reporting.</p>
+          <h1 class="text-headline mb-2">Reports</h1>
+          <p class="text-text-secondary">Fee-first financial summaries and collections reporting.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <button @click="exportOutstanding" class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400">Export outstanding</button>
-          <button @click="exportPayments" class="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400">Export payments</button>
-          <button @click="exportSummary" class="rounded-2xl bg-amber-500 px-5 py-3 font-semibold text-slate-950 hover:bg-amber-400">Export summary</button>
+          <CmButton @click="exportOutstanding" variant="primary">
+            Export outstanding
+          </CmButton>
+          <CmButton @click="exportPayments" variant="success">
+            Export payments
+          </CmButton>
+          <CmButton @click="exportSummary" variant="warning">
+            Export summary
+          </CmButton>
         </div>
       </section>
 
       <section class="grid gap-6 lg:grid-cols-3">
-        <div class="rounded-3xl bg-slate-900 p-6 shadow-xl">
-          <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Total charges</p>
-          <p class="mt-4 text-4xl font-bold text-cyan-400">₦{{ report.totalCharges }}</p>
+        <div class="rounded-card bg-card p-6 shadow-card">
+          <p class="text-label">Total charges</p>
+          <p class="mt-4 text-metric text-brand">₦{{ report.totalCharges }}</p>
         </div>
-        <div class="rounded-3xl bg-slate-900 p-6 shadow-xl">
-          <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Total payments</p>
-          <p class="mt-4 text-4xl font-bold text-emerald-400">₦{{ report.totalPayments }}</p>
+        <div class="rounded-card bg-card p-6 shadow-card">
+          <p class="text-label">Total payments</p>
+          <p class="mt-4 text-metric text-success">₦{{ report.totalPayments }}</p>
         </div>
-        <div class="rounded-3xl bg-slate-900 p-6 shadow-xl">
-          <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Net balance</p>
-          <p class="mt-4 text-4xl font-bold text-amber-400">₦{{ report.netBalance }}</p>
+        <div class="rounded-card bg-card p-6 shadow-card">
+          <p class="text-label">Net balance</p>
+          <p class="mt-4 text-metric text-warning">₦{{ report.netBalance }}</p>
         </div>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
-        <h2 class="text-2xl font-semibold mb-4">Outstanding by student</h2>
-        <table class="w-full border-collapse text-left text-sm text-slate-200">
+      <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto">
+        <h2 class="text-headline mb-4">Outstanding by student</h2>
+        <table class="w-full border-collapse text-left text-sm text-text-primary">
           <thead>
-            <tr class="border-b border-slate-700 text-slate-400">
+            <tr class="border-b border-divider text-text-muted">
               <th class="py-3">Student</th>
               <th class="py-3">Class</th>
               <th class="py-3">Charges</th>
@@ -125,7 +132,7 @@ onMounted(loadReport);
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in report.outstandingByStudent" :key="item.student_id" class="border-b border-slate-800 hover:bg-slate-950/50">
+            <tr v-for="item in report.outstandingByStudent" :key="item.student_id" class="border-b border-divider hover:bg-surface/50">
               <td class="py-3">{{ item.student_name }}</td>
               <td class="py-3">{{ item.class_name }}</td>
               <td class="py-3">₦{{ item.totalCharges }}</td>
@@ -133,24 +140,24 @@ onMounted(loadReport);
               <td class="py-3">₦{{ item.outstanding }}</td>
             </tr>
             <tr v-if="report.outstandingByStudent.length === 0">
-              <td colspan="5" class="py-8 text-center text-slate-500">No outstanding student balances yet.</td>
+              <td colspan="5" class="py-8 text-center text-text-muted">No outstanding student balances yet.</td>
             </tr>
           </tbody>
         </table>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <h2 class="text-2xl font-semibold mb-4">Recent payments</h2>
+      <section class="rounded-card bg-card p-8 shadow-card">
+        <h2 class="text-headline mb-4">Recent payments</h2>
         <div class="grid gap-3">
-          <div v-for="payment in report.recentPayments" :key="payment.id" class="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div v-for="payment in report.recentPayments" :key="payment.id" class="rounded-card border border-divider bg-surface p-4">
             <div class="flex items-center justify-between gap-4">
               <p class="font-semibold">{{ payment.student_name }}</p>
-              <p class="text-cyan-400">₦{{ payment.amount }}</p>
+              <p class="text-brand">₦{{ payment.amount }}</p>
             </div>
-            <p class="mt-2 text-slate-400">{{ payment.entry_description || 'Payment recorded' }}</p>
-            <p class="mt-2 text-xs text-slate-500">{{ new Date(payment.created_at).toLocaleString() }}</p>
+            <p class="mt-2 text-text-secondary">{{ payment.entry_description || 'Payment recorded' }}</p>
+            <p class="mt-2 text-xs text-text-muted">{{ new Date(payment.created_at).toLocaleString() }}</p>
           </div>
-          <p v-if="report.recentPayments.length === 0" class="text-slate-500">No payments recorded yet.</p>
+          <p v-if="report.recentPayments.length === 0" class="text-text-muted">No payments recorded yet.</p>
         </div>
       </section>
     </div>

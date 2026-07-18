@@ -2,6 +2,9 @@
 import { ref, onMounted } from 'vue';
 import { BillingService } from '../shared/services/BillingService';
 import { StudentService } from '../shared/services/StudentService';
+import CmButton from '../components/ui/CmButton.vue';
+import CmInput from '../components/ui/CmInput.vue';
+import CmSelect from '../components/ui/CmSelect.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const items = ref([]);
@@ -85,117 +88,116 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-white p-8">
+  <main class="min-h-screen bg-background text-text-primary p-8">
     <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-        <h1 class="text-4xl font-semibold mb-2">Billing</h1>
-        <p class="text-slate-400">Local billing summary, payment history, and ledger reconciliation.</p>
+      <section class="rounded-card bg-card p-8 shadow-card">
+        <h1 class="text-headline mb-2">Billing</h1>
+        <p class="text-text-secondary">Local billing summary, payment history, and ledger reconciliation.</p>
       </section>
 
-      <section class="rounded-3xl bg-slate-900 p-8 shadow-xl space-y-6">
+      <section class="premium-card p-8 space-y-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 class="text-2xl font-semibold mb-2">Billing</h2>
-            <p class="text-slate-400">Filter charges by student and review local reconciliation.</p>
+            <h2 class="text-headline mb-2">Billing</h2>
+            <p class="text-text-secondary">Filter charges by student and review local reconciliation.</p>
           </div>
           <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <input
-              v-model="searchQuery"
-              @keyup.enter="searchBilling"
-              placeholder="Search students"
-              class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-            />
-            <button @click="searchBilling" class="rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-400">
-              Filter
-            </button>
+            <CmInput v-model="searchQuery" placeholder="Search students" class="mt-0" />
+            <CmButton @click="searchBilling" size="md">Filter</CmButton>
           </div>
         </div>
 
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl space-y-6">
+        <div class="premium-card space-y-6">
           <div>
-            <h2 class="text-2xl font-semibold mb-4">New charge</h2>
-            <p class="text-slate-400">Record a billing charge or payment locally for a student.</p>
+            <h2 class="text-headline mb-4">New charge</h2>
+            <p class="text-text-secondary">Record a billing charge or payment locally for a student.</p>
           </div>
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block">
-              <span class="text-sm text-slate-400">Student</span>
-              <select v-model="form.student_id" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white">
-                <option value="" disabled>Select student</option>
-                <option v-for="student in students" :key="student.id" :value="student.id">
-                  {{ student.first_name }} {{ student.last_name }}
-                </option>
-              </select>
+              <span class="text-sm text-text-muted">Student</span>
+              <CmSelect
+                v-model="form.student_id"
+                :options="students.map(s => ({ value: s.id, label: `${s.first_name} ${s.last_name}` }))"
+                placeholder="Select student"
+                class="mt-2"
+              />
             </label>
             <label class="block">
-              <span class="text-sm text-slate-400">Amount</span>
-              <input v-model="form.amount" type="number" min="0" step="0.01" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+              <span class="text-sm text-text-muted">Amount</span>
+              <CmInput v-model="form.amount" type="number" min="0" step="0.01" class="mt-2" />
             </label>
             <label class="block">
-              <span class="text-sm text-slate-400">Type</span>
-              <select v-model="form.entry_type" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white">
-                <option value="DEBIT">Charge</option>
-                <option value="CREDIT">Payment</option>
-              </select>
+              <span class="text-sm text-text-muted">Type</span>
+              <CmSelect
+                v-model="form.entry_type"
+                :options="[
+                  { value: 'DEBIT', label: 'Charge (Debit)' },
+                  { value: 'CREDIT', label: 'Payment (Credit)' },
+                ]"
+                class="mt-2"
+              />
             </label>
             <label class="block sm:col-span-2">
-              <span class="text-sm text-slate-400">Description</span>
-              <input v-model="form.entry_description" class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" />
+              <span class="text-sm text-text-muted">Description</span>
+              <CmInput v-model="form.entry_description" class="mt-2" />
             </label>
           </div>
-          <button @click="submitCharge" :disabled="saving" class="rounded-2xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
+          <CmButton @click="submitCharge" :disabled="saving">
             {{ saving ? 'Saving...' : 'Save charge' }}
-          </button>
-          <p v-if="message" class="text-sm text-emerald-400">{{ message }}</p>
+          </CmButton>
+          <p v-if="message" class="text-sm text-success">{{ message }}</p>
         </div>
 
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl">
-          <h2 class="text-2xl font-semibold mb-4">Outstanding balance</h2>
-          <p class="text-5xl font-bold text-cyan-400">₦{{ balance }}</p>
-          <div class="mt-6 space-y-3 text-slate-400">
-            <p>Total charges: ₦{{ reconciliation.totalCharges }}</p>
-            <p>Total payments: ₦{{ reconciliation.totalCredits }}</p>
+        <div class="premium-card">
+          <h2 class="text-headline mb-4">Outstanding balance</h2>
+          <p class="text-5xl font-bold text-brand">₦{{ balance.toLocaleString() }}</p>
+          <div class="mt-6 space-y-3 text-text-secondary">
+            <p>Total charges: ₦{{ reconciliation.totalCharges.toLocaleString() }}</p>
+            <p>Total payments: ₦{{ reconciliation.totalCredits.toLocaleString() }}</p>
             <p class="text-sm">Reconciliation is computed from local ledger entries.</p>
           </div>
         </div>
       </section>
 
       <section class="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
-          <h2 class="text-2xl font-semibold mb-4">Charges</h2>
-          <table class="w-full border-collapse text-left text-sm text-slate-200">
-            <thead>
-              <tr class="border-b border-slate-700 text-slate-400">
-                <th class="py-3">Student</th>
-                <th class="py-3">Amount</th>
-                <th class="py-3">Type</th>
-                <th class="py-3">Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in items" :key="item.id" class="border-b border-slate-800 hover:bg-slate-950/50">
-                <td class="py-3">{{ item.student_name }}</td>
-                <td class="py-3">₦{{ item.amount }}</td>
-                <td class="py-3">{{ item.entry_type }}</td>
-                <td class="py-3">{{ item.entry_description || '-' }}</td>
-              </tr>
-              <tr v-if="items.length === 0">
-                <td colspan="4" class="py-8 text-center text-slate-500">No billing items available.</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="premium-card overflow-x-auto">
+          <h2 class="text-headline mb-4">Charges</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-left text-sm">
+              <thead>
+                <tr class="border-b border-divider text-text-muted">
+                  <th class="py-3">Student</th>
+                  <th class="py-3">Amount</th>
+                  <th class="py-3">Type</th>
+                  <th class="py-3">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in items" :key="item.id" class="border-b border-divider hover:bg-surface/50">
+                  <td class="py-3">{{ item.student_name }}</td>
+                  <td class="py-3">₦{{ item.amount }}</td>
+                  <td class="py-3">{{ item.entry_type }}</td>
+                  <td class="py-3">{{ item.entry_description || '-' }}</td>
+                </tr>
+                <tr v-if="items.length === 0">
+                  <td colspan="4" class="py-8 text-center text-text-muted">No billing items available.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="rounded-3xl bg-slate-900 p-8 shadow-xl overflow-x-auto">
-          <h2 class="text-2xl font-semibold mb-4">Payment history</h2>
+        <div class="premium-card">
+          <h2 class="text-headline mb-4">Payment history</h2>
           <div class="grid gap-3">
-            <div v-for="entry in items.filter((entry) => entry.entry_type === 'CREDIT')" :key="entry.id" class="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div v-for="entry in items.filter((entry) => entry.entry_type === 'CREDIT')" :key="entry.id" class="rounded-card border border-divider bg-surface p-4">
               <div class="flex items-center justify-between gap-4">
                 <p class="font-semibold">{{ entry.student_name }}</p>
-                <p class="text-cyan-400">₦{{ entry.amount }}</p>
+                <p class="text-brand">₦{{ entry.amount }}</p>
               </div>
-              <p class="text-slate-400">{{ entry.entry_description || 'Payment received' }}</p>
+              <p class="text-text-secondary">{{ entry.entry_description || 'Payment received' }}</p>
             </div>
-            <p v-if="items.filter((entry) => entry.entry_type === 'CREDIT').length === 0" class="text-slate-500">No payment history yet.</p>
+            <p v-if="items.filter((entry) => entry.entry_type === 'CREDIT').length === 0" class="text-text-muted">No payment history yet.</p>
           </div>
         </div>
       </section>

@@ -109,7 +109,7 @@ const searchPlaceholder = computed(() => {
         <input
           type="text"
           :placeholder="searchPlaceholder"
-          class="w-full pl-10 pr-4 py-2.5 rounded-search bg-surface border border-border text-text-primary placeholder:text-text-muted/60 focus:border-success focus:outline-none focus:ring-2 focus:ring-success shadow-float transition-all duration-200 premium-search"
+          class="w-full pl-10 pr-4 py-2.5 rounded-search bg-surface border border-border text-text-primary placeholder:text-text-muted/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand shadow-float transition-all duration-200 premium-search"
         />
       </div>
     </div>
