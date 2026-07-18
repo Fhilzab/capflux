@@ -36,3 +36,10 @@ Rules:
 - Keep code modular.
 - Write production-ready code.
 - Ask before making destructive changes.
+
+## CEMDS Button System Rule
+
+❌ Never use `<button>` directly in application code.
+✅ Always use `<CmButton>`.
+
+The only place where native `<button>` should exist is inside `CmButton.vue` itself. This ensures that every future button automatically inherits your CEMDS theme, light mode, dark mode, spacing, focus rings, accessibility, and branding without requiring manual styling.

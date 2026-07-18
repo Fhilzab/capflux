@@ -166,15 +166,15 @@ window.addEventListener('offline', () => isOffline.value = true);
           required
           :disabled="isOffline"
         />
-        <button
+        <CmButton
+          variant="link"
           type="button"
           @click="showPassword = !showPassword"
-          class="text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
           :disabled="isOffline"
           aria-label="Toggle password visibility"
         >
           {{ showPassword ? 'Hide' : 'Show' }} password
-        </button>
+        </CmButton>
       </div>
 
       <!-- Password Strength -->
@@ -242,12 +242,12 @@ window.addEventListener('offline', () => isOffline.value = true);
   <!-- Footer Links -->
   <div class="mt-6 pt-6 border-t border-divider text-center">
     <span class="text-text-secondary">Already have an account?</span>
-    <button
+    <CmButton
+      variant="link"
       type="button"
       @click="$emit('switch-state', 'login')"
-      class="ml-2 text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
     >
       Log In
-    </button>
+    </CmButton>
   </div>
 </template>

@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useThemeStore } from '../../stores/themeStore';
+import CmButton from '../../components/ui/CmButton.vue';
 
 const router = useRouter();
 const themeStore = useThemeStore();
@@ -63,14 +64,14 @@ onUnmounted(() => {
 
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center space-x-8">
-          <button
+          <CmButton
             v-for="item in ['product', 'pricing', 'resources', 'security']"
             :key="item"
             @click="navigateTo(item)"
-            class="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors focus-ring"
+            variant="link"
           >
             {{ item.charAt(0).toUpperCase() + item.slice(1) }}
-          </button>
+          </CmButton>
         </div>
 
         <!-- Actions -->
@@ -90,20 +91,22 @@ onUnmounted(() => {
           </button>
 
           <!-- Log In Button -->
-          <button
+          <CmButton
             @click="navigateToAuth('login')"
-            class="hidden md:inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface transition-colors focus-ring"
+            variant="black"
+            class="hidden md:inline-flex"
           >
             Log In
-          </button>
+          </CmButton>
 
           <!-- Create Free Account Button -->
-          <button
+          <CmButton
             @click="navigateToAuth('signup')"
-            class="hidden md:inline-flex items-center justify-center rounded-button bg-brand px-4 py-2 text-sm font-medium text-background hover:shadow-md transition-all focus-ring"
+            variant="primary"
+            class="hidden md:inline-flex"
           >
             Create Free Account
-          </button>
+          </CmButton>
 
           <!-- Mobile Menu Button -->
           <button
@@ -133,26 +136,29 @@ onUnmounted(() => {
           v-show="isMobileMenuOpen"
           class="md:hidden py-4 space-y-2 border-t border-divider"
         >
-          <button
+          <CmButton
             v-for="item in ['product', 'pricing', 'resources', 'security']"
             :key="item"
             @click="navigateTo(item)"
-            class="block w-full px-3 py-2 text-left text-sm font-medium text-text-secondary hover:text-text-primary transition-colors focus-ring"
+            variant="link"
+            class="w-full block text-left"
           >
             {{ item.charAt(0).toUpperCase() + item.slice(1) }}
-          </button>
-          <button
+          </CmButton>
+          <CmButton
             @click="navigateToAuth('login')"
-            class="w-full mt-2 inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface transition-colors focus-ring"
+            variant="black"
+            class="w-full mt-2 inline-flex"
           >
             Log In
-          </button>
-          <button
+          </CmButton>
+          <CmButton
             @click="navigateToAuth('signup')"
-            class="w-full mt-2 inline-flex items-center justify-center rounded-button bg-brand px-4 py-2 text-sm font-medium text-background hover:shadow-md transition-all focus-ring"
+            variant="primary"
+            class="w-full mt-2 inline-flex"
           >
             Create Free Account
-          </button>
+          </CmButton>
         </div>
       </transition>
     </nav>

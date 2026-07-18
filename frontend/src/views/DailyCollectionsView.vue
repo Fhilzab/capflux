@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { ReportService } from '../shared/services/ReportService';
+import CmButton from '../components/ui/CmButton.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const loading = ref(false);
@@ -70,13 +71,13 @@ onMounted(loadCollections);
             <h1 class="text-4xl font-semibold mb-2 text-text-primary">Daily Collections</h1>
             <p class="text-text-muted">View payments collected per day with date range filtering.</p>
           </div>
-          <button
+          <CmButton
             @click="downloadCsv"
             :disabled="collections.length === 0"
-            class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150"
+            variant="primary"
           >
             Export CSV
-          </button>
+          </CmButton>
         </div>
       </section>
 
@@ -100,12 +101,9 @@ onMounted(loadCollections);
               />
             </label>
           </div>
-          <button
-            @click="loadCollections"
-            class="rounded-button bg-primary px-4 py-3 text-sm font-medium text-background hover:bg-primary-hover transition-colors duration-150"
-          >
+          <CmButton @click="loadCollections" variant="primary">
             Filter
-          </button>
+          </CmButton>
         </div>
       </section>
 

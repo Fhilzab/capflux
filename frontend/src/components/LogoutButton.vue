@@ -1,6 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+import CmButton from '../components/ui/CmButton.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -12,10 +13,7 @@ const logout = async () => {
 </script>
 
 <template>
-  <button
-    @click="logout"
-    class="rounded-button bg-danger px-4 py-2 text-sm font-medium text-background hover:bg-danger-hover transition-colors duration-150"
-  >
+  <CmButton @click="logout" variant="danger">
     Logout
-  </button>
+  </CmButton>
 </template>

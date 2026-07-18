@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { useSyncStore } from '../stores/syncStore';
+import CmButton from '../components/ui/CmButton.vue';
 
 const syncStore = useSyncStore();
 const online = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -59,21 +60,21 @@ onMounted(async () => {
         </p>
       </div>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <button
+        <CmButton
           @click="refresh"
-          class="rounded-button bg-brand px-4 py-2 text-sm font-medium text-background transition hover:shadow-md focus-ring"
+          variant="primary"
           :disabled="syncStore.isSyncing"
         >
           {{ syncStore.isSyncing ? 'Refreshing...' : 'Refresh' }}
-        </button>
-        <button
+        </CmButton>
+        <CmButton
           v-if="syncStore.failedItems.length"
           @click="retryAll"
-          class="rounded-button bg-warning/10 px-4 py-2 text-sm font-medium text-warning border border-warning/20 transition hover:bg-warning/20 focus-ring"
+          variant="link"
           :disabled="syncStore.isSyncing"
         >
           Retry all failed
-        </button>
+        </CmButton>
       </div>
     </div>
     <p v-if="syncStore.error" class="mt-3 text-sm text-danger">{{ syncStore.error }}</p>
@@ -87,13 +88,13 @@ onMounted(async () => {
               <p class="font-semibold text-text-primary">{{ item.entity_type }} / {{ item.entity_id }}</p>
               <p class="text-sm text-text-muted">{{ item.operation }} • Retry count: {{ item.retry_count }}</p>
             </div>
-            <button
+            <CmButton
               @click="retryItem(item.id)"
-              class="rounded-button bg-success/10 px-4 py-2 text-sm font-medium text-success border border-success/20 transition hover:bg-success/20 focus-ring"
+              variant="link"
               :disabled="syncStore.isSyncing"
             >
               Retry
-            </button>
+            </CmButton>
           </div>
           <p class="mt-3 text-sm text-danger">{{ item.error_message }}</p>
           <p class="mt-2 text-xs text-text-muted">Created: {{ new Date(item.created_at).toLocaleString() }}</p>

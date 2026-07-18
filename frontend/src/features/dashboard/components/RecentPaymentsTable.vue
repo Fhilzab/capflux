@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import EmptyState from '../../../components/ui/EmptyState.vue';
 import SkeletonLoader from '../../../components/ui/SkeletonLoader.vue';
 import StatusBadge from '../../../components/ui/StatusBadge.vue';
+import CmButton from '../../../components/ui/CmButton.vue';
 
 interface Payment {
   id: string;
@@ -91,15 +92,15 @@ const copyReference = (ref?: string) => {
                 <span class="font-mono text-xs text-text-muted truncate max-w-24" :title="payment.reference">
                   {{ payment.reference || '-' }}
                 </span>
-                <button 
+                <CmButton 
                   v-if="payment.reference"
                   @click="copyReference(payment.reference)"
-                  class="text-text-muted hover:text-text-primary"
+                  variant="link"
                 >
                   <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 0V9m0 3l3 3m6-3V9m0 3l-3-3" />
                   </svg>
-                </button>
+                </CmButton>
               </div>
             </td>
             <td class="px-5 py-3.5 text-center">

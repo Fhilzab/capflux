@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useThemeStore } from '../stores/themeStore';
 import { useAuthStore } from '../stores/authStore';
 import { AuthorizationService } from '../shared/services/AuthorizationService';
+import CmButton from '../components/ui/CmButton.vue';
 
 const themeStore = useThemeStore();
 const authStore = useAuthStore();
@@ -199,13 +200,13 @@ const transferOwnership = async (adminId: string) => {
                 placeholder="admin@school.edu.ng"
                 class="flex-1 rounded-input px-3 py-2.5 text-sm bg-surface text-text-primary border border-border focus:ring-2 focus:ring-brand transition-all"
               />
-              <button
+              <CmButton
                 @click="inviteAdmin"
                 :disabled="loading || !newAdminEmail"
-                class="rounded-button px-4 py-2.5 text-sm font-medium bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 transition-colors disabled:opacity-50 focus-ring"
+                variant="link"
               >
                 Invite
-              </button>
+              </CmButton>
             </div>
             <p v-if="error" class="text-xs text-danger mt-2">{{ error }}</p>
             <p v-if="success" class="text-xs text-success mt-2">{{ success }}</p>
@@ -225,36 +226,36 @@ const transferOwnership = async (adminId: string) => {
                   <span class="text-xs px-2 py-1 rounded" :class="admin.admin_status === 'ACTIVE' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'">
                     {{ admin.admin_status }}
                   </span>
-                  <button
+                  <CmButton
                     v-if="admin.admin_status === 'ACTIVE'"
                     @click="suspendAdmin(admin.id)"
-                    class="text-xs px-2 py-1 rounded bg-warning/10 text-warning hover:bg-warning/20 focus-ring"
                     :disabled="loading"
+                    variant="link"
                   >
                     Suspend
-                  </button>
-                  <button
+                  </CmButton>
+                  <CmButton
                     v-else
                     @click="reactivateAdmin(admin.id)"
-                    class="text-xs px-2 py-1 rounded bg-success/10 text-success hover:bg-success/20 focus-ring"
                     :disabled="loading"
+                    variant="link"
                   >
                     Reactivate
-                  </button>
-                  <button
+                  </CmButton>
+                  <CmButton
                     @click="transferOwnership(admin.id)"
-                    class="text-xs px-2 py-1 rounded bg-info/10 text-info hover:bg-info/20 focus-ring"
                     :disabled="loading"
+                    variant="link"
                   >
                     Make Owner
-                  </button>
-                  <button
+                  </CmButton>
+                  <CmButton
                     @click="removeAdmin(admin.id)"
-                    class="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 focus-ring"
                     :disabled="loading"
+                    variant="link"
                   >
                     Remove
-                  </button>
+                  </CmButton>
                 </div>
               </div>
             </div>

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 import { useSyncStore } from '../stores/syncStore';
 import { SyncService } from '../shared/services/SyncService';
+import CmButton from '../components/ui/CmButton.vue';
 
 const syncStore = useSyncStore();
 const loading = ref(false);
@@ -69,21 +70,21 @@ onMounted(async () => {
             <p class="text-text-muted">Monitor local sync status and resolve failed queue items.</p>
           </div>
           <div class="flex flex-wrap gap-3">
-            <button
+            <CmButton
               @click="processQueue"
               :disabled="loading || syncStore.isSyncing"
-              class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150"
+              variant="primary"
             >
               {{ loading ? 'Processing...' : 'Process queue' }}
-            </button>
-            <button
+            </CmButton>
+            <CmButton
               v-if="syncStore.failedCount > 0"
               @click="retryAllFailed"
               :disabled="loading || syncStore.isSyncing"
-              class="rounded-button bg-warning px-5 py-3 font-medium text-background hover:bg-warning-hover disabled:opacity-50 transition-colors duration-150"
+              variant="warning"
             >
               Retry all failed
-            </button>
+            </CmButton>
           </div>
         </div>
       </section>
@@ -127,13 +128,13 @@ onMounted(async () => {
                 <p class="mt-2 text-lg font-semibold text-text-primary">{{ item.operation }}</p>
                 <p class="mt-1 text-sm text-text-muted">Retry count: {{ item.retry_count }}</p>
               </div>
-              <button
+              <CmButton
                 @click="retryFailedItem(item.id)"
                 :disabled="loading || syncStore.isSyncing"
-                class="rounded-button bg-success px-5 py-3 font-medium text-background hover:bg-success-hover disabled:opacity-50 transition-colors duration-150"
+                variant="success"
               >
                 Retry
-              </button>
+              </CmButton>
             </div>
             <p class="mt-4 text-sm text-danger">Error: {{ item.error_message }}</p>
             <p class="mt-2 text-xs text-text-muted">Created at: {{ new Date(item.created_at).toLocaleString() }}</p>

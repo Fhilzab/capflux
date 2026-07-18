@@ -1,6 +1,6 @@
 <script setup lang="ts">
 interface Props {
-  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'black';
+  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'black' | 'link';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
@@ -12,6 +12,8 @@ withDefaults(defineProps<Props>(), {
   size: 'md',
   type: 'button',
 });
+
+const isLinkVariant = (variant: Props['variant']) => variant === 'link';
 
 const emit = defineEmits<{
   click: [event: MouseEvent];
@@ -25,6 +27,7 @@ const variantClasses = {
   danger: 'bg-danger text-background border-transparent hover:bg-danger-hover focus:ring-danger transition-all duration-200',
   warning: 'bg-warning text-background border-transparent hover:bg-warning-hover focus:ring-warning transition-all duration-200',
   info: 'bg-info text-background border-transparent hover:bg-info-hover focus:ring-info transition-all duration-200',
+  link: 'text-brand hover:text-brand-hover transition-colors duration-150',
 };
 
 const sizeClasses = {
@@ -39,16 +42,16 @@ const sizeClasses = {
     :type="type"
     :disabled="disabled || loading"
     @click="emit('click', $event)"
-    class="rounded-button font-medium inline-flex items-center justify-center gap-2 focus-ring disabled:cursor-not-allowed disabled:opacity-50"
     :class="[
+      isLinkVariant(variant) ? 'font-medium focus-ring disabled:cursor-not-allowed disabled:opacity-50' : 'rounded-button font-medium inline-flex items-center justify-center gap-2 focus-ring disabled:cursor-not-allowed disabled:opacity-50',
       variantClasses[variant],
-      sizeClasses[size],
+      isLinkVariant(variant) ? '' : sizeClasses[size],
       variant === 'primary' ? 'shadow-button hover:shadow-lg hover:-translate-y-0.5' : '',
       variant === 'success' || variant === 'danger' || variant === 'warning' || variant === 'info' ? 'shadow-sm hover:shadow-md hover:-translate-y-0.5' : '',
     ]"
   >
     <svg
-      v-if="loading"
+      v-if="loading && !isLinkVariant(variant)"
       class="animate-spin h-4 w-4"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"

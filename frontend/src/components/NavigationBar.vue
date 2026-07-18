@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { useRoute, useRouter } from 'vue-router';
+import CmButton from '../components/ui/CmButton.vue';
 
 const authStore = useAuthStore();
 const route = useRoute();
@@ -23,14 +24,30 @@ const logout = async () => {
     </div>
 
     <div class="flex flex-wrap items-center gap-4">
-      <button class="rounded-button px-4 py-2 transition hover:bg-sidebar" :class="activeClass('Home')" @click="router.push({ name: 'Home' })">Dashboard</button>
-      <button class="rounded-button px-4 py-2 transition hover:bg-sidebar" :class="activeClass('Students')" @click="router.push({ name: 'Students' })">Students</button>
-      <button class="rounded-button px-4 py-2 transition hover:bg-sidebar" :class="activeClass('Billing')" @click="router.push({ name: 'Billing' })">Billing</button>
-      <button class="rounded-button px-4 py-2 transition hover:bg-sidebar" :class="activeClass('Payments')" @click="router.push({ name: 'Payments' })">Payments</button>
-      <button class="rounded-button px-4 py-2 transition hover:bg-sidebar" :class="activeClass('Notifications')" @click="router.push({ name: 'Notifications' })">Notifications</button>
-      <button class="rounded-button px-4 py-2 transition hover:bg-sidebar" :class="activeClass('Reports')" @click="router.push({ name: 'Reports' })">Reports</button>
-      <button class="rounded-button px-4 py-2 transition hover:bg-sidebar" :class="activeClass('Sync')" @click="router.push({ name: 'Sync' })">Sync</button>
-      <button class="rounded-button bg-danger px-4 py-2 text-sm font-medium text-background hover:bg-danger-hover transition-colors duration-150" @click="logout">Logout</button>
+      <CmButton :class="activeClass('Home')" @click="router.push({ name: 'Home' })" variant="link">
+        Dashboard
+      </CmButton>
+      <CmButton :class="activeClass('Students')" @click="router.push({ name: 'Students' })" variant="link">
+        Students
+      </CmButton>
+      <CmButton :class="activeClass('Billing')" @click="router.push({ name: 'Billing' })" variant="link">
+        Billing
+      </CmButton>
+      <CmButton :class="activeClass('Payments')" @click="router.push({ name: 'Payments' })" variant="link">
+        Payments
+      </CmButton>
+      <CmButton :class="activeClass('Notifications')" @click="router.push({ name: 'Notifications' })" variant="link">
+        Notifications
+      </CmButton>
+      <CmButton :class="activeClass('Reports')" @click="router.push({ name: 'Reports' })" variant="link">
+        Reports
+      </CmButton>
+      <CmButton :class="activeClass('Sync')" @click="router.push({ name: 'Sync' })" variant="link">
+        Sync
+      </CmButton>
+      <CmButton @click="logout" variant="danger">
+        Logout
+      </CmButton>
     </div>
   </header>
 </template>

@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ReportService } from '../shared/services/ReportService';
+import CmButton from '../components/ui/CmButton.vue';
 
 const router = useRouter();
 const DEFAULT_SCHOOL_ID = 'demo-school';
@@ -79,13 +80,13 @@ onMounted(loadOutstanding);
             <h1 class="text-4xl font-semibold mb-2 text-text-primary">Outstanding Fees</h1>
             <p class="text-text-muted">Drill down by class and student to see outstanding balances.</p>
           </div>
-          <button
+          <CmButton
             @click="downloadCsv"
             :disabled="filteredData.length === 0"
-            class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150"
+            variant="primary"
           >
             Export CSV
-          </button>
+          </CmButton>
         </div>
       </section>
 

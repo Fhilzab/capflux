@@ -80,20 +80,20 @@ window.addEventListener('offline', () => isOffline.value = true);
 
     <!-- Links -->
     <div class="mt-6 pt-6 border-t border-divider space-y-3">
-      <button
+      <CmButton
+        variant="link"
         @click="$emit('switch-state', 'signup')"
-        class="text-sm font-medium text-primary hover:text-primary-hover transition-colors focus-ring"
       >
         Change Email
-      </button>
+      </CmButton>
 
       <div class="text-center">
-        <button
+        <CmButton
+          variant="link"
           @click="$emit('switch-state', 'login')"
-          class="text-sm font-medium text-text-muted hover:text-text-primary transition-colors focus-ring"
         >
           Back to Login
-        </button>
+        </CmButton>
       </div>
     </div>
   </div>

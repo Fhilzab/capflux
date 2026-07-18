@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { StudentService } from '../shared/services/StudentService';
 import { BillingService } from '../shared/services/BillingService';
 import db from '../offline/localDb';
+import CmButton from '../components/ui/CmButton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -175,12 +176,12 @@ onMounted(loadStudent);
             <h1 class="text-4xl font-semibold text-text-primary">Student details</h1>
             <p class="text-text-muted">Review selected student and local billing ledger.</p>
           </div>
-          <button
+          <CmButton
             @click="router.push({ name: 'Students' })"
-            class="rounded-button bg-surface px-4 py-2 text-sm font-medium text-text-secondary border border-border hover:bg-sidebar transition-colors duration-150"
+            variant="secondary"
           >
             &larr; Back to students
-          </button>
+          </CmButton>
         </div>
       </section>
 
@@ -198,29 +199,29 @@ onMounted(loadStudent);
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-semibold text-text-primary">Student Information</h2>
             <div class="flex gap-2">
-              <button
+              <CmButton
                 v-if="!editing"
                 @click="startEditing"
-                class="rounded-button bg-primary px-4 py-2 text-sm font-medium text-background hover:bg-primary-hover transition-colors duration-150"
+                variant="primary"
               >
                 Edit
-              </button>
-              <button
+              </CmButton>
+              <CmButton
                 v-if="student.status === 'ACTIVE'"
                 @click="archiveStudent('LEFT')"
                 :disabled="archiving"
-                class="rounded-button bg-danger px-4 py-2 text-sm font-medium text-background hover:bg-danger-hover disabled:opacity-50 transition-colors duration-150"
+                variant="danger"
               >
                 {{ archiving ? 'Archiving...' : 'Archive' }}
-              </button>
-              <button
+              </CmButton>
+              <CmButton
                 v-if="student.status !== 'ACTIVE'"
                 @click="archiveStudent('ACTIVE')"
                 :disabled="archiving"
-                class="rounded-button bg-success px-4 py-2 text-sm font-medium text-background hover:bg-success-hover disabled:opacity-50 transition-colors duration-150"
+                variant="success"
               >
                 {{ archiving ? 'Restoring...' : 'Restore' }}
-              </button>
+              </CmButton>
             </div>
           </div>
 
@@ -239,12 +240,12 @@ onMounted(loadStudent);
               <input v-model="editForm.class_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
             </label>
             <div class="sm:col-span-2 flex gap-3">
-              <button @click="saveEdit" :disabled="savingEdit" class="rounded-button bg-success px-5 py-3 font-medium text-background hover:bg-success-hover disabled:opacity-50 transition-colors duration-150">
+              <CmButton @click="saveEdit" :disabled="savingEdit" variant="success">
                 {{ savingEdit ? 'Saving...' : 'Save changes' }}
-              </button>
-              <button @click="cancelEditing" class="rounded-button bg-surface px-5 py-3 font-medium text-text-secondary border border-border hover:bg-sidebar transition-colors duration-150">
+              </CmButton>
+              <CmButton @click="cancelEditing" variant="secondary">
                 Cancel
-              </button>
+              </CmButton>
             </div>
           </div>
 
@@ -326,9 +327,9 @@ onMounted(loadStudent);
             </label>
           </div>
           <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <button @click="submitEntry" :disabled="saving" class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150">
+            <CmButton @click="submitEntry" :disabled="saving" variant="primary">
               {{ saving ? 'Saving...' : 'Record transaction' }}
-            </button>
+            </CmButton>
             <p v-if="message" class="text-sm text-success">{{ message }}</p>
           </div>
         </div>

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { StudentService } from '../shared/services/StudentService';
+import CmButton from '../components/ui/CmButton.vue';
 
 const router = useRouter();
 const DEFAULT_SCHOOL_ID = 'demo-school';
@@ -94,7 +95,9 @@ onMounted(loadStudents);
               placeholder="Search students"
               class="rounded-button border border-border bg-surface px-4 py-3 text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow"
             />
-            <button @click="() => loadStudents(search)" class="rounded-button bg-primary px-4 py-3 text-sm font-medium text-background hover:bg-primary-hover transition-colors duration-150">Search</button>
+            <CmButton @click="() => loadStudents(search)" variant="primary">
+              Search
+            </CmButton>
           </div>
         </div>
         <div class="mt-6 space-y-4">
@@ -135,9 +138,9 @@ onMounted(loadStudents);
               <option value="OTHER">Other</option>
             </select>
           </label>
-          <button @click="saveStudent" :disabled="saving" class="rounded-button bg-primary px-5 py-3 font-medium text-background hover:bg-primary-hover disabled:opacity-50 transition-colors duration-150">
+          <CmButton @click="saveStudent" :disabled="saving" variant="primary">
             {{ saving ? 'Saving...' : 'Register student' }}
-          </button>
+          </CmButton>
           <p v-if="message" class="text-sm text-success">{{ message }}</p>
         </div>
       </section>

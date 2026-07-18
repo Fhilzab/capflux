@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import EmptyState from '../../../components/ui/EmptyState.vue';
 import SkeletonLoader from '../../../components/ui/SkeletonLoader.vue';
+import CmButton from '../../../components/ui/CmButton.vue';
 
 interface Student {
   student_id: string;
@@ -88,21 +89,21 @@ const urgencyClass = (percentage: number) => {
             </td>
             <td class="px-5 py-3.5">
               <div class="flex justify-end gap-1.5">
-                <button class="flex h-7 w-7 items-center justify-center rounded-card bg-card/50 text-text-muted hover:bg-card transition-colors" title="WhatsApp">
+                <CmButton variant="link" class="flex h-7 w-7 items-center justify-center rounded-card transition-colors" title="WhatsApp">
                   <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12.001 2.002c5.523 0 10 4.477 10 10s-4.477 10-10 10c-1.71 0-3.313-.436-4.688-1.18l-2.689.78.78-2.563A9.96 9.96 0 012 12.002c0-5.523 4.477-10 10-10zm0 2c-4.411 0-8 3.589-8 8 0 1.486.447 2.868 1.216 4.047l.224.355.55-.17c.418-.14.863-.21 1.306-.21h.292l.5-.5c.73-.73 1.72-1.125 2.787-1.125s2.058.395 2.787 1.125l.5.5h.292c.444 0 .888-.07 1.306-.21l.55-.17.224-.355A7.96 7.96 0 0020 12.002c0-4.411-3.589-8-8-8z" />
                   </svg>
-                </button>
-                <button class="flex h-7 w-7 items-center justify-center rounded-card bg-card/50 text-text-muted hover:bg-card transition-colors" title="SMS">
+                </CmButton>
+                <CmButton variant="link" class="flex h-7 w-7 items-center justify-center rounded-card transition-colors" title="SMS">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l1.5 1.5 3-3m0 0l3 3-3 3m3-3V3.75M19.5 12l-1.5 1.5-3-3m0 0l-3 3 3 3M4.5 19.5h15a2.25 2.25 0 002.25-2.25v-15a2.25 2.25 0 00-2.25-2.25H4.5a2.25 2.25 0 00-2.25 2.25v15A2.25 2.25 0 004.5 19.5z" />
                   </svg>
-                </button>
-                <button class="flex h-7 w-7 items-center justify-center rounded-card bg-card/50 text-text-muted hover:bg-card transition-colors" title="Call">
+                </CmButton>
+                <CmButton variant="link" class="flex h-7 w-7 items-center justify-center rounded-card transition-colors" title="Call">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.25 6.25 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-2.25c0-.621-.504-1.125-1.125-1.125H18V9.75a2.25 2.25 0 00-2.25-2.25h-2.25a2.25 2.25 0 00-2.25 2.25v2.25H6.75a2.25 2.25 0 00-2.25 2.25v2.25c0 .621.504 1.125 1.125 1.125H6" />
                   </svg>
-                </button>
+                </CmButton>
               </div>
             </td>
           </tr>

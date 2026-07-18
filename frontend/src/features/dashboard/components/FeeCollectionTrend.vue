@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import ChartCard from '../../../components/ui/ChartCard.vue';
+import CmButton from '../../../components/ui/CmButton.vue';
 
 interface Props {
   data?: Array<{ date: string; total: number; count: number }>;
@@ -24,15 +25,16 @@ const padding = { top: 10, right: 10, bottom: 30, left: 40 };
     <div class="flex flex-col h-full">
       <!-- Time range tabs -->
       <div class="flex items-center gap-1 mb-4">
-        <button
+        <CmButton
           v-for="range in ['daily', 'weekly', 'monthly', 'term', 'session'] as const"
           :key="range"
           @click="timeRange = range"
-          class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors focus-ring"
+          variant="link"
+          class="px-3 py-1.5 text-xs font-medium rounded-lg focus-ring"
           :class="timeRange === range ? 'bg-brand/20 text-brand' : 'text-text-muted hover:bg-surface'"
         >
           {{ range.charAt(0).toUpperCase() + range.slice(1) }}
-        </button>
+        </CmButton>
       </div>
       
       <!-- SVG Chart -->

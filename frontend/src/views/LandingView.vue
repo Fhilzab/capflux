@@ -134,12 +134,12 @@ onMounted(() => {
         
         <div class="mb-16">
           <span class="text-text-secondary">Already have an account?</span>
-          <button
+          <CmButton
             @click="navigateToAuth('login')"
-            class="ml-2 text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
+            variant="link"
           >
             Log In
-          </button>
+          </CmButton>
         </div>
 
         <!-- Trust Section - Clean badges -->
@@ -490,7 +490,7 @@ onMounted(() => {
               <li><a href="#features" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Features</a></li>
               <li><a href="#pricing" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Pricing</a></li>
               <li><a href="#security" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Security</a></li>
-              <li><button @click="navigateToAuth('login')" class="text-text-secondary hover:text-brand transition-colors text-sm focus-ring">Log In</button></li>
+              <li><CmButton @click="navigateToAuth('login')" variant="link" class="text-sm">Log In</CmButton></li>
             </ul>
           </div>
           

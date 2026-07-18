@@ -84,13 +84,13 @@ window.addEventListener('offline', () => isOffline.value = true);
 
     <!-- Back to Login -->
     <div class="mt-6 pt-6 border-t border-divider text-center">
-      <button
+      <CmButton
+        variant="link"
         type="button"
         @click="$emit('switch-state', 'login')"
-        class="text-sm font-medium text-primary hover:text-primary-hover transition-colors focus-ring"
       >
         Back to Login
-      </button>
+      </CmButton>
     </div>
   </div>
 </template>
