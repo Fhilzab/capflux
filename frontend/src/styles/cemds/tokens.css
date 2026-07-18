@@ -36,26 +36,31 @@
   --color-brand: #059669;
   --color-brand-hover: #047857;
   --color-brand-active: #10B981;
-  /* Brand Subtle - for backgrounds and borders */
   --color-brand-subtle: rgba(5, 150, 105, 0.1);
   --color-brand-ring: rgba(5, 150, 105, 0.5);
+  --color-brand-soft: rgba(5, 150, 105, 0.08);
 
   /* Semantic Status Colors */
   --color-success: #10B981;
   --color-success-hover: #059669;
+  --color-success-soft: rgba(16, 185, 129, 0.1);
 
   --color-warning: #F59E0B;
   --color-warning-hover: #D97706;
+  --color-warning-soft: rgba(245, 158, 11, 0.1);
 
   --color-danger: #EF4444;
   --color-danger-hover: #DC2626;
+  --color-danger-soft: rgba(239, 68, 68, 0.1);
 
   --color-info: #6366F1;
   --color-info-hover: #4F46E5;
+  --color-info-soft: rgba(99, 102, 225, 0.1);
 
   /* AI Accent (preserved for existing AI components) */
   --color-ai: #8B5CF6;
   --color-ai-hover: #7C3AED;
+  --color-ai-soft: rgba(139, 92, 246, 0.1);
 }
 
 /* ==========================================================================
@@ -81,26 +86,31 @@ html.dark {
   --color-brand: #059669;
   --color-brand-hover: #047857;
   --color-brand-active: #10B981;
-  /* Brand Subtle - for backgrounds and borders */
   --color-brand-subtle: rgba(5, 150, 105, 0.1);
   --color-brand-ring: rgba(5, 150, 105, 0.5);
+  --color-brand-soft: rgba(5, 150, 105, 0.15);
 
   /* Semantic Status Colors */
   --color-success: #10B981;
   --color-success-hover: #059669;
+  --color-success-soft: rgba(16, 185, 129, 0.15);
 
   --color-warning: #F59E0B;
   --color-warning-hover: #D97706;
+  --color-warning-soft: rgba(245, 158, 11, 0.15);
 
   --color-danger: #EF4444;
   --color-danger-hover: #DC2626;
+  --color-danger-soft: rgba(239, 68, 68, 0.15);
 
   --color-info: #6366F1;
   --color-info-hover: #4F46E5;
+  --color-info-soft: rgba(99, 102, 225, 0.15);
 
   /* AI Accent (preserved for existing AI components) */
   --color-ai: #8B5CF6;
   --color-ai-hover: #7C3AED;
+  --color-ai-soft: rgba(139, 92, 246, 0.15);
 }
 
 /* ==========================================================================

@@ -18,9 +18,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const statusColor = (status: string) => {
-  if (status === 'online' || status === 'settled') return 'text-emerald-500';
-  if (status === 'offline' || status === 'failed') return 'text-rose-500';
-  return 'text-amber-500';
+  if (status === 'online' || status === 'settled') return 'text-success';
+  if (status === 'offline' || status === 'failed') return 'text-danger';
+  return 'text-warning';
 };
 </script>
 
@@ -29,33 +29,33 @@ const statusColor = (status: string) => {
     <h3 class="text-headline mb-4">Payment Gateway</h3>
     <div class="space-y-3">
       <div class="flex items-center justify-between">
-        <span class="text-sm text-slate-500">Provider</span>
-        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <span class="text-sm text-text-muted">Provider</span>
+        <span class="text-sm font-medium text-text-primary">
           {{ loading ? 'Loading...' : provider }}
         </span>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-slate-500">Gateway Status</span>
-        <span class="text-sm font-medium" :class="loading ? 'text-slate-400' : statusColor(gatewayStatus)">
+        <span class="text-sm text-text-muted">Gateway Status</span>
+        <span class="text-sm font-medium" :class="loading ? 'text-text-muted' : statusColor(gatewayStatus)">
           {{ loading ? '-' : gatewayStatus }}
         </span>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-slate-500">Webhook Status</span>
-        <span class="text-sm font-medium" :class="loading ? 'text-slate-400' : statusColor(webhookStatus)">
+        <span class="text-sm text-text-muted">Webhook Status</span>
+        <span class="text-sm font-medium" :class="loading ? 'text-text-muted' : statusColor(webhookStatus)">
           {{ loading ? '-' : webhookStatus }}
         </span>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-slate-500">Last Payment</span>
-        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <span class="text-sm text-text-muted">Last Payment</span>
+        <span class="text-sm font-medium text-text-primary">
           {{ loading ? '-' : lastPayment }}
         </span>
       </div>
-      <div class="border-t border-slate-200/50 dark:border-slate-700/50 pt-3 mt-3">
+      <div class="border-t border-border pt-3 mt-3">
         <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-500">Settlement Status</span>
-          <span class="text-sm font-medium" :class="loading ? 'text-slate-400' : statusColor(settlementStatus)">
+          <span class="text-sm text-text-muted">Settlement Status</span>
+          <span class="text-sm font-medium" :class="loading ? 'text-text-muted' : statusColor(settlementStatus)">
             {{ loading ? '-' : settlementStatus }}
           </span>
         </div>

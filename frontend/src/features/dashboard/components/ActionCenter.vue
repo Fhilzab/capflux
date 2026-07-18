@@ -75,7 +75,7 @@ const activeActions = computed(() => actions.value.filter(a => a.count > 0));
   <section>
     <div class="mb-4">
       <h2 class="text-headline">Action Center</h2>
-      <p class="text-sm text-slate-500">Operational tasks requiring attention</p>
+      <p class="text-sm text-text-secondary">Operational tasks requiring attention</p>
     </div>
 
     <SkeletonLoader v-if="loading" type="card" :count="3" />

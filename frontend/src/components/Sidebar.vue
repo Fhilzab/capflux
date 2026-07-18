@@ -55,7 +55,7 @@ const navigate = (name: string) => {
 
 const logout = async () => {
   await authStore.signOut();
-  router.push({ name: 'Login' });
+  router.push({ name: 'Auth' });
 };
 </script>
 
@@ -125,7 +125,7 @@ const logout = async () => {
                 : 'text-text-secondary hover:bg-surface hover:text-text-primary'
             ]"
           >
-            <!-- Active accent bar - Brand Cyan -->
+            <!-- Active accent bar - Brand -->
             <span
               v-if="isActive(item.name) && !collapsed"
               class="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-brand transition-all duration-200"

@@ -18,7 +18,7 @@ defineProps<Props>();
   <section>
     <div class="mb-4">
       <h2 class="text-headline">Guardian Insights</h2>
-      <p class="text-sm text-slate-500">Parent payment behavior analysis</p>
+      <p class="text-sm text-text-secondary">Parent payment behavior analysis</p>
     </div>
     
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

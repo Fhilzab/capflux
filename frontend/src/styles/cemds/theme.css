@@ -29,11 +29,11 @@
   --color-success: var(--color-success);
   --color-success-hover: var(--color-success-hover);
 
-  --color-danger: var(--color-danger);
-  --color-danger-hover: var(--color-danger-hover);
-
   --color-warning: var(--color-warning);
   --color-warning-hover: var(--color-warning-hover);
+
+  --color-danger: var(--color-danger);
+  --color-danger-hover: var(--color-danger-hover);
 
   --color-info: var(--color-info);
   --color-info-hover: var(--color-info-hover);
@@ -116,4 +116,32 @@
   --spacing-20: var(--space-20);
   --spacing-24: var(--space-24);
   --spacing-32: var(--space-32);
+}
+
+/* ==========================================================================
+    Soft Background Variants (for templates)
+    These are custom CSS classes that use the soft opacity variants
+    ========================================================================== */
+.bg-success-soft {
+  background-color: var(--color-success-soft);
+}
+
+.bg-warning-soft {
+  background-color: var(--color-warning-soft);
+}
+
+.bg-danger-soft {
+  background-color: var(--color-danger-soft);
+}
+
+.bg-info-soft {
+  background-color: var(--color-info-soft);
+}
+
+.bg-ai-soft {
+  background-color: var(--color-ai-soft);
+}
+
+.bg-brand-soft {
+  background-color: var(--color-brand-soft);
 }

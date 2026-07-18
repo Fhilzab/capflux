@@ -1,5 +1,15 @@
 import { supabase, hasSupabaseConfig } from './api/supabase';
 
+// Helper to clear all Supabase-related localStorage items
+const clearSupabaseLocalStorage = () => {
+  if (typeof localStorage === 'undefined') return;
+  
+  // Clear Supabase auth keys - these are prefixed with 'sb-' and include auth tokens
+  Object.keys(localStorage)
+    .filter(key => key.startsWith('sb-') || key.startsWith('supabase'))
+    .forEach(key => localStorage.removeItem(key));
+};
+
 export const AuthService = {
   async initialize() {
     if (!hasSupabaseConfig) {
@@ -64,13 +74,18 @@ export const AuthService = {
   },
 
   async signOut() {
-    if (!hasSupabaseConfig) {
-      this._clearTokenRefresh();
-      return { data: null, error: null };
-    }
-
     this._clearTokenRefresh();
-    return supabase.auth.signOut();
+    
+    if (hasSupabaseConfig) {
+      const result = await supabase.auth.signOut();
+      // Clear all Supabase auth data from localStorage
+      clearSupabaseLocalStorage();
+      return result;
+    }
+    
+    // Clear any local storage for dev mode
+    clearSupabaseLocalStorage();
+    return { data: null, error: null };
   },
 
   async refreshSession() {

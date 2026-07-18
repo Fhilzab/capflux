@@ -6,7 +6,7 @@ import EmptyState from '../components/ui/EmptyState.vue';
   <div class="p-6">
     <div class="mb-6">
       <h1 class="text-headline">Support</h1>
-      <p class="text-slate-500">Get help with Capstone</p>
+      <p class="text-text-secondary">Get help with Capstone</p>
     </div>
     
     <EmptyState

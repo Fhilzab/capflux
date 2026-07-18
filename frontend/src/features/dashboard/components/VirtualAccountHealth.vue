@@ -21,7 +21,7 @@ defineProps<Props>();
   <section>
     <div class="mb-4">
       <h2 class="text-headline">Virtual Account Health</h2>
-      <p class="text-sm text-slate-500">DVA status and provider health</p>
+      <p class="text-sm text-text-secondary">DVA status and provider health</p>
     </div>
 
     <SkeletonLoader v-if="loading" type="card" :count="4" />
@@ -55,14 +55,14 @@ defineProps<Props>();
 
     <!-- Provider Health -->
     <div class="mt-4 premium-card p-5">
-      <h3 class="text-sm font-semibold text-white mb-3">Provider Health</h3>
+      <h3 class="text-sm font-semibold text-text-primary mb-3">Provider Health</h3>
       <div class="grid gap-3 sm:grid-cols-2">
         <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-400">Monnify</span>
+          <span class="text-sm text-text-muted">Monnify</span>
           <StatusBadge status="success" label="Operational" />
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-sm text-slate-400">Webhook</span>
+          <span class="text-sm text-text-muted">Webhook</span>
           <StatusBadge :status="webhookStatus === 'online' ? 'success' : 'error'" :label="webhookStatus === 'online' ? 'Listening' : 'Offline'" />
         </div>
       </div>
