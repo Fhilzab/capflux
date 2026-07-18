@@ -98,7 +98,7 @@ const handleGoogleSignIn = () => {
         <button
           type="button"
           @click="showPassword = !showPassword"
-          class="text-sm font-medium text-primary hover:text-primary-hover transition-colors focus-ring"
+          class="text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
           :disabled="isOffline"
           aria-label="Toggle password visibility"
         >
@@ -111,7 +111,7 @@ const handleGoogleSignIn = () => {
         <label class="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
-            class="w-4 h-4 rounded border-border text-primary focus:ring-primary focus-ring"
+            class="w-4 h-4 rounded border-border text-brand focus:ring-brand focus-ring"
             :disabled="isOffline"
           />
           <span class="text-sm text-text-secondary">Remember me</span>
@@ -119,7 +119,7 @@ const handleGoogleSignIn = () => {
         <button
           type="button"
           @click="$emit('switch-state', 'forgot-password')"
-          class="text-sm font-medium text-primary hover:text-primary-hover transition-colors focus-ring"
+          class="text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
           :disabled="isOffline"
         >
           Forgot password?
@@ -162,7 +162,7 @@ const handleGoogleSignIn = () => {
     <button
       type="button"
       @click="$emit('switch-state', 'signup')"
-      class="ml-2 text-sm font-medium text-primary hover:text-primary-hover transition-colors focus-ring"
+      class="ml-2 text-sm font-medium text-brand hover:text-brand/80 transition-colors focus-ring"
     >
       Create Account
     </button>

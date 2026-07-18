@@ -140,9 +140,16 @@ export const useAuthStore = defineStore('auth', {
 
     async signOut() {
       await AuthService.signOut();
+      // Clear all auth state
       this.user = null;
       this.session = null;
       this.schoolId = null;
+      this.role = null;
+      this.profile = null;
+      this.schoolSetupComplete = false;
+      this.emailVerified = false;
+      this.error = null;
+      this.loading = false;
     },
   },
 });

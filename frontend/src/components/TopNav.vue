@@ -65,6 +65,7 @@ const toggleAppearance = () => {
 const logout = async () => {
   await authStore.signOut();
   closeDropdown();
+  router.push({ name: 'Auth' });
 };
 
 // Search placeholder based on current route
@@ -79,7 +80,7 @@ const searchPlaceholder = computed(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-divider bg-background/80 backdrop-blur-xl px-6 transition-colors duration-200 shadow-topnav">
+  <header class="sticky top-4 z-30 mx-4 mt-2 flex h-14 items-center justify-between rounded-xl bg-card/90 backdrop-blur-xl px-4 transition-all duration-200 shadow-card border border-border">
     <!-- Left: Greeting with Contextual Status -->
     <div class="flex items-center gap-3 transition-colors duration-200">
       <span class="text-sm font-medium text-text-primary">

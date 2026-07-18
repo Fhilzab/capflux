@@ -132,9 +132,9 @@ html.dark {
 :root {
   --radius-input: 0.625rem;    /* 10px */
   --radius-button: 0.75rem;    /* 12px */
-  --radius-card: 1rem;         /* 16px */
-  --radius-dialog: 1.25rem;    /* 20px */
-  --radius-search: 0.875rem;   /* 14px */
+  --radius-card: 0.875rem;     /* 14px */
+  --radius-dialog: 1.125rem;   /* 18px */
+  --radius-search: 0.75rem;    /* 12px */
 }
 
 /* ==========================================================================

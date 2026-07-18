@@ -9,41 +9,27 @@ export type TransitionDirection = 'forward' | 'backward';
 const state = ref<AuthState>('login');
 const direction = ref<TransitionDirection>('forward');
 
-// State history for back navigation
-const stateHistory = ref<AuthState[]>(['login']);
-
 export function useAuthState() {
   const current = computed(() => state.value);
 
   const transition = (newState: AuthState) => {
-    // Determine animation direction
-    const currentIndex = stateHistory.value.indexOf(state.value);
-    const newIndex = stateHistory.value.indexOf(newState);
-
-    if (newIndex === -1) {
-      // New state, add to history
-      stateHistory.value.push(newState);
-      direction.value = 'forward';
-    } else if (newIndex < currentIndex) {
-      // Going back
-      direction.value = 'backward';
-      stateHistory.value = stateHistory.value.slice(0, newIndex + 1);
+    // Determine animation direction based on whether we're going forward or back
+    // Login <-> Signup: switch without animation
+    // All other transitions: forward
+    if (newState === 'login' || newState === 'signup') {
+      // Toggle between login/signup - no direction animation needed
+      state.value = newState;
     } else {
-      // Going forward to existing state
+      // Forward transitions for other states (verify-email, forgot-password, reset-password)
       direction.value = 'forward';
-      stateHistory.value = stateHistory.value.slice(0, currentIndex + 1);
-      stateHistory.value.push(newState);
+      state.value = newState;
     }
-
-    state.value = newState;
   };
 
   const goBack = () => {
-    if (stateHistory.value.length > 1) {
-      stateHistory.value.pop();
-      state.value = stateHistory.value[stateHistory.value.length - 1];
-      direction.value = 'backward';
-    }
+    // Default back behavior: go to login
+    state.value = 'login';
+    direction.value = 'backward';
   };
 
   return {
