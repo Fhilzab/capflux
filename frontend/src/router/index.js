@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+import { useSchoolStore } from '../stores/schoolStore';
 import AuthView from '../features/auth/AuthView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../features/dashboard/views/HomeView.vue';
@@ -166,9 +167,15 @@ const SCHOOL_SETUP_REQUIRED_ROUTES = [
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
+  const schoolStore = useSchoolStore();
 
   if (!authStore.session) {
     await authStore.initialize();
+  }
+
+  // Initialize school context if authenticated
+  if (authStore.isAuthenticated && !schoolStore.initialized) {
+    await schoolStore.initialize();
   }
 
   // Guest-only routes (landing, auth)
@@ -196,12 +203,12 @@ router.beforeEach(async (to) => {
     return { name: 'Home' };
   }
 
-  // Feature gate for school setup
+  // Feature gate for school setup - use schoolStore for readiness
   if (authStore.isAuthenticated && SCHOOL_SETUP_REQUIRED_ROUTES.includes(to.name)) {
-    const schoolSetupComplete = authStore.isSchoolSetupComplete;
+    const isSchoolReady = schoolStore.isReady;
 
     // Redirect to school setup if workspace not ready
-    if (!schoolSetupComplete) {
+    if (!isSchoolReady) {
       return { name: 'SchoolSetup' };
     }
   }

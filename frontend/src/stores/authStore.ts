@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { supabase, hasSupabaseConfig } from '../shared/services/api/supabase';
 import { AuthService } from '../shared/services/AuthService';
 import { sanitizeAuthError } from '../utils/error-handler';
+import { useSchoolStore } from './schoolStore';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -14,19 +15,10 @@ export const useAuthStore = defineStore('auth', {
     },
     loading: false,
     error: null as string | null,
-    schoolId: null as string | null,
-    role: null as string | null,
-    adminStatus: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED',
-    profile: null as Record<string, unknown> | null,
-    schoolSetupComplete: false,
     emailVerified: false,
   }),
   getters: {
     isAuthenticated: (state) => !!state.user,
-    currentSchoolId: (state) => state.schoolId,
-    isOwner: (state) => state.role === 'PROPRIETOR',
-    isAdmin: (state) => state.role === 'ADMIN',
-    isSchoolSetupComplete: (state) => state.schoolSetupComplete && !!state.schoolId,
   },
   actions: {
     async initialize() {
@@ -44,7 +36,6 @@ export const useAuthStore = defineStore('auth', {
         const user = session.user as { email_confirmed_at?: string };
         this.emailVerified = !!user.email_confirmed_at;
       }
-      this.schoolId = null;
 
       supabase.auth.onAuthStateChange((_, sessionUpdate) => {
         this.session = sessionUpdate;
@@ -57,17 +48,12 @@ export const useAuthStore = defineStore('auth', {
         } else {
           this.emailVerified = false;
         }
-        
-        if (!sessionUpdate) {
-          this.schoolId = null;
-          this.role = null;
-          this.adminStatus = 'ACTIVE';
-        }
       });
 
-      // Fetch school setup status if authenticated
+      // Initialize school context if authenticated
       if (session) {
-        this.schoolSetupComplete = false;
+        const schoolStore = useSchoolStore();
+        await schoolStore.initialize();
       }
     },
 
@@ -142,10 +128,6 @@ export const useAuthStore = defineStore('auth', {
       // Clear all auth state
       this.user = null;
       this.session = null;
-      this.schoolId = null;
-      this.role = null;
-      this.profile = null;
-      this.schoolSetupComplete = false;
       this.emailVerified = false;
       this.error = null;
       this.loading = false;
@@ -154,6 +136,10 @@ export const useAuthStore = defineStore('auth', {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('capstone_device_id');
       }
+      
+      // Clear school context
+      const schoolStore = useSchoolStore();
+      schoolStore.clear();
       
       // Emit event for session manager
       window.dispatchEvent(new CustomEvent('auth:session-end'));

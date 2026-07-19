@@ -1,10 +1,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/authStore';
+import { useSchoolStore } from '../stores/schoolStore';
 import { sanitizeAuthError } from '../utils/error-handler';
 
 /**
  * Central auth composable for Capstone
- * Provides offline detection, typed auth wrappers, and error sanitization
+ * Provides offline detection, typed auth wrappers, and school context
  */
 
 // Shared offline state (singleton pattern)
@@ -14,6 +15,7 @@ let offlineHandler: (() => void) | null = null;
 
 export function useAuth() {
   const authStore = useAuthStore();
+  const schoolStore = useSchoolStore();
 
   // Set up global offline listeners once
   if (!onlineHandler || !offlineHandler) {
@@ -71,17 +73,30 @@ export function useAuth() {
     isOffline: computed(() => isOfflineState.value),
     isOnline: computed(() => !isOfflineState.value),
     
-    // Auth state from store
+    // Auth state from authStore
     user: computed(() => authStore.user),
     session: computed(() => authStore.session),
     isAuthenticated: computed(() => authStore.isAuthenticated),
     loading: computed(() => authStore.loading),
     error: computed(() => authStore.error),
-    schoolId: computed(() => authStore.schoolId),
-    role: computed(() => authStore.role),
-    adminStatus: computed(() => authStore.adminStatus),
-    isSchoolSetupComplete: computed(() => authStore.isSchoolSetupComplete),
     emailVerified: computed(() => authStore.emailVerified),
+    
+    // School context from schoolStore
+    currentSchool: computed(() => schoolStore.school),
+    schoolName: computed(() => schoolStore.schoolName),
+    operationalStatus: computed(() => schoolStore.operationalStatus),
+    schoolId: computed(() => schoolStore.schoolId),
+    role: computed(() => schoolStore.role),
+    adminStatus: computed(() => schoolStore.adminStatus),
+    isProprietor: computed(() => schoolStore.isProprietor),
+    isAdmin: computed(() => schoolStore.isAdmin),
+    currentSession: computed(() => schoolStore.currentSession),
+    currentTerm: computed(() => schoolStore.currentTerm),
+    sessions: computed(() => schoolStore.sessions),
+    terms: computed(() => schoolStore.terms),
+    onboardingProgress: computed(() => schoolStore.onboardingProgress),
+    isSchoolReady: computed(() => schoolStore.isReady),
+    schoolLoading: computed(() => schoolStore.loading),
     
     // Auth actions
     signIn,

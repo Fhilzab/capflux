@@ -1,19 +1,91 @@
-import { SchoolRepository } from '../repositories/SchoolRepository';
+import { supabase } from './api/supabase';
+import type { School, AcademicSession, AcademicTerm, OnboardingProgress } from '@/features/school/types';
 
-export const SchoolService = {
-  async getSchool(school_id: string) {
-    return SchoolRepository.getSchool(school_id);
-  },
+/**
+ * SchoolService - Handles school data only
+ */
+export class SchoolService {
+  async getSchool(schoolId: string): Promise<School | null> {
+    const { data, error } = await supabase
+      .from('schools')
+      .select('*')
+      .eq('id', schoolId)
+      .single();
 
-  async saveSchool(school: Record<string, any>) {
-    return SchoolRepository.saveSchool(school);
-  },
+    if (error) {
+      console.error('SchoolService.getSchool error:', error);
+      return null;
+    }
 
-  async getAppSettings(school_id: string) {
-    return SchoolRepository.getAppSettings(school_id);
-  },
+    return data as School;
+  }
 
-  async updateAppSettings(school_id: string, settings: Record<string, any>) {
-    return SchoolRepository.updateAppSettings(school_id, settings);
-  },
-};
+  async updateSchool(schoolId: string, data: Partial<School>): Promise<void> {
+    const { error } = await supabase
+      .from('schools')
+      .update(data)
+      .eq('id', schoolId);
+
+    if (error) throw error;
+  }
+
+  async getOnboardingProgress(schoolId: string): Promise<OnboardingProgress | null> {
+    const { data, error } = await supabase
+      .from('onboarding_progress')
+      .select('*')
+      .eq('school_id', schoolId)
+      .single();
+
+    if (error) {
+      console.error('SchoolService.getOnboardingProgress error:', error);
+      return null;
+    }
+
+    return data as OnboardingProgress;
+  }
+
+  async getSessions(schoolId: string): Promise<AcademicSession[]> {
+    const { data, error } = await supabase
+      .from('academic_sessions')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('start_date', { ascending: false });
+
+    if (error) {
+      console.error('SchoolService.getSessions error:', error);
+      return [];
+    }
+
+    return data as AcademicSession[];
+  }
+
+  async getTerms(schoolId: string, sessionId?: string): Promise<AcademicTerm[]> {
+    let query = supabase
+      .from('academic_terms')
+      .select('*')
+      .eq('school_id', schoolId);
+    
+    if (sessionId) {
+      query = query.eq('session_id', sessionId);
+    }
+    
+    const { data, error } = await query.order('start_date', { ascending: false });
+
+    if (error) {
+      console.error('SchoolService.getTerms error:', error);
+      return [];
+    }
+
+    return data as AcademicTerm[];
+  }
+
+  async isReady(schoolId: string): Promise<boolean> {
+    try {
+      const { data } = await supabase.rpc('school_is_ready', { p_school_id: schoolId });
+      return data ?? false;
+    } catch (err) {
+      console.error('SchoolService.isReady error:', err);
+      return false;
+    }
+  }
+}
