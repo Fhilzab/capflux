@@ -89,7 +89,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-text-primary font-sans antialiased">
+  <div
+  class="min-h-screen"
+  style="
+    background: var(--color-background);
+    color: var(--color-text-primary);
+  ">
+<!-- class="min-h-screen bg-background text-text-primary font-sans antialiased" -->
     <!-- Navigation -->
     <LandingNav />
 

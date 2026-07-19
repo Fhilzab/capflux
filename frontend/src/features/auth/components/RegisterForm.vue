@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../../stores/authStore';
+import { validatePassword, calculatePasswordStrength, isPasswordRecommended } from '../../../utils/validation';
 import CmInput from '../../../components/ui/CmInput.vue';
 import CmButton from '../../../components/ui/CmButton.vue';
 import CmAlert from '../../../components/ui/CmAlert.vue';
@@ -12,41 +11,32 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
-const authStore = useAuthStore();
-const router = useRouter();
+// Offline state - using shared composable pattern
+const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 
+// Form data
 const fullName = ref('');
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
 const agreeToTerms = ref(false);
-const isOffline = ref(!navigator.onLine);
 
-// Password strength calculation
+// Password strength calculation (5-criteria: length, uppercase, lowercase, number, special)
 const passwordStrength = computed(() => {
-  const pwd = password.value;
-  if (!pwd) return 0;
-
-  let strength = 0;
-  if (pwd.length >= 8) strength += 1;
-  if (/[A-Z]/.test(pwd)) strength += 1;
-  if (/[0-9]/.test(pwd)) strength += 1;
-  if (/[^A-Za-z0-9]/.test(pwd)) strength += 1;
-
-  return strength;
+  return calculatePasswordStrength(password.value);
 });
 
 const strengthLabel = computed(() => {
-  const labels = ['Weak', 'Fair', 'Good', 'Strong'];
+  const labels = ['Too Short', 'Weak', 'Fair', 'Good', 'Strong'];
   return labels[passwordStrength.value - 1] || '';
 });
 
 const strengthColor = computed(() => {
-  const colors = ['bg-danger', 'bg-warning', 'bg-info', 'bg-success'];
+  const colors = ['bg-border', 'bg-danger', 'bg-warning', 'bg-info', 'bg-success'];
   return colors[passwordStrength.value - 1] || 'bg-border';
 });
 
-// Validation
+// Validation error
 const error = ref<string | null>(null);
 
 const validate = (): boolean => {
@@ -66,14 +56,19 @@ const validate = (): boolean => {
     error.value = 'Password is required';
     return false;
   }
-  if (password.value.length < 8) {
-    error.value = 'Password must be at least 8 characters';
+  
+  // Use centralized password validation
+  const validation = validatePassword(password.value);
+  if (!validation.valid) {
+    error.value = validation.error || 'Password does not meet requirements';
     return false;
   }
+  
   if (!agreeToTerms.value) {
     error.value = 'Please accept the Terms of Service and Privacy Policy';
     return false;
   }
+  
   error.value = null;
   return true;
 };
@@ -83,13 +78,23 @@ const handleSignUp = async () => {
 
   if (isOffline.value) return;
 
+  // Import auth store directly (works with Vite's module resolution)
+  const { useAuthStore } = await import('../../../stores/authStore');
+  const authStore = useAuthStore();
+  
   const response = await authStore.signUp({
     email: email.value,
     password: password.value,
   });
 
+  // Auth store handles error sanitization
   if (response?.error) {
-    error.value = response.error.message || 'Failed to create account';
+    error.value = response.error;
+    return;
+  }
+
+  if (!response?.data) {
+    error.value = 'Failed to create account. Please try again.';
     return;
   }
 
@@ -102,8 +107,10 @@ const handleGoogleSignIn = () => {
 };
 
 // Handle offline/online status
-window.addEventListener('online', () => isOffline.value = false);
-window.addEventListener('offline', () => isOffline.value = true);
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => isOffline.value = false);
+  window.addEventListener('offline', () => isOffline.value = true);
+}
 </script>
 
 <template>
@@ -181,7 +188,7 @@ window.addEventListener('offline', () => isOffline.value = true);
       <div v-if="password" class="space-y-1">
         <div class="flex gap-1">
           <div
-            v-for="i in 4"
+            v-for="i in 5"
             :key="i"
             class="flex-1 h-1 rounded-full transition-colors"
             :class="i <= passwordStrength ? strengthColor : 'bg-border'"
@@ -189,6 +196,10 @@ window.addEventListener('offline', () => isOffline.value = true);
         </div>
         <p class="text-xs text-text-muted">
           Password strength: <span class="font-medium">{{ strengthLabel }}</span>
+          <span v-if="isPasswordRecommended(password)" class="text-success ml-2">(Recommended)</span>
+        </p>
+        <p class="text-xs text-text-muted">
+          Password must be 8-64 characters with uppercase, lowercase, and special character
         </p>
       </div>
 
@@ -212,7 +223,7 @@ window.addEventListener('offline', () => isOffline.value = true);
       <CmButton
         type="submit"
         variant="primary"
-        :loading="authStore.loading"
+        :loading="false"
         :disabled="isOffline || !fullName || !email || !password || !agreeToTerms"
         class="w-full"
       >

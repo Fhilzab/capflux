@@ -60,10 +60,7 @@ if (props.provider === 'google') {
 
     <!-- Right Panel - Forms -->
     <template #form>
-      <Transition
-        name="auth"
-        mode="out-in"
-      >
+      <div>
         <LoginForm
           v-if="state === 'login'"
           @switch-state="transition"
@@ -93,7 +90,7 @@ if (props.provider === 'google') {
           @switch-state="transition"
           :key="'reset-password'"
         />
-      </Transition>
+      </div>
     </template>
 
     <!-- Footer -->

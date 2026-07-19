@@ -10,7 +10,7 @@ interface Emits {
   (e: 'switch-state', state: 'signup' | 'forgot-password'): void;
 }
 
-defineEmits<Emits>();
+const emit = defineEmits<Emits>();
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -18,11 +18,13 @@ const router = useRouter();
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
-const isOffline = ref(!navigator.onLine);
+const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 
 // Handle offline/online status
-window.addEventListener('online', () => isOffline.value = false);
-window.addEventListener('offline', () => isOffline.value = true);
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => isOffline.value = false);
+  window.addEventListener('offline', () => isOffline.value = true);
+}
 
 const handleSignIn = async () => {
   if (isOffline.value) {
@@ -39,9 +41,17 @@ const handleSignIn = async () => {
   }
 };
 
-const handleGoogleSignIn = () => {
-  // Placeholder for Google OAuth integration
-  // Would integrate with Supabase OAuth
+const handleGoogleSignIn = async () => {
+  // Google OAuth integration using Supabase
+  if (isOffline.value) return;
+  
+  const { supabase } = await import('../../../shared/services/api/supabase');
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth`,
+    },
+  });
 };
 </script>
 

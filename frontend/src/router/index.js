@@ -171,14 +171,27 @@ router.beforeEach(async (to) => {
     await authStore.initialize();
   }
 
+  // Guest-only routes (landing, auth)
+  if (to.meta.guest && authStore.isAuthenticated) {
+    return { name: 'Home' };
+  }
+
+  // Protected routes - require authentication
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { name: 'Auth' };
   }
 
-  if (to.name === 'Auth' && authStore.isAuthenticated) {
+  // Email verification required for protected routes
+  if (to.meta.requiresAuth && authStore.isAuthenticated && !authStore.emailVerified) {
+    return { name: 'Auth', query: { mode: 'verify-email' } };
+  }
+
+  // Redirect authenticated users from auth page
+  if (to.name === 'Auth' && authStore.isAuthenticated && authStore.emailVerified) {
     return { name: 'Home' };
   }
 
+  // Redirect authenticated users from landing page
   if (to.name === 'Landing' && authStore.isAuthenticated) {
     return { name: 'Home' };
   }

@@ -12,7 +12,7 @@ interface Emits {
 const emit = defineEmits<Emits>();
 
 const email = ref('');
-const isOffline = ref(!navigator.onLine);
+const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
@@ -21,16 +21,27 @@ const handleSubmit = async () => {
   loading.value = true;
   error.value = null;
 
-  // Supabase password reset logic would go here
-  // For now, simulate success
-
-  loading.value = false;
-  emit('submitted');
+  try {
+    const { AuthService } = await import('../../../shared/services/AuthService');
+    const { error: resetError } = await AuthService.sendPasswordResetEmail(email.value);
+    
+    if (resetError) {
+      error.value = resetError.message;
+    } else {
+      emit('submitted');
+    }
+  } catch (err) {
+    error.value = 'Failed to send reset email. Please try again.';
+  } finally {
+    loading.value = false;
+  }
 };
 
 // Handle offline/online status
-window.addEventListener('online', () => isOffline.value = false);
-window.addEventListener('offline', () => isOffline.value = true);
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => isOffline.value = false);
+  window.addEventListener('offline', () => isOffline.value = true);
+}
 </script>
 
 <template>

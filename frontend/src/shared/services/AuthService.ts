@@ -1,4 +1,6 @@
 import { supabase, hasSupabaseConfig } from './api/supabase';
+import { validatePassword } from '../../utils/validation';
+import { getDeviceId } from '../../utils/device';
 
 // Helper to clear all Supabase-related localStorage items
 const clearSupabaseLocalStorage = () => {
@@ -27,21 +29,33 @@ export const AuthService = {
   },
 
   async signIn(email: string, password: string) {
+    // Validate password before sending to Supabase
+    const validation = validatePassword(password);
+    if (!validation.valid) {
+      return {
+        data: null,
+        error: new Error(validation.error || 'Invalid password')
+      };
+    }
+
+    // Development mode fallback
     if (!hasSupabaseConfig) {
       return {
         data: {
           session: {
             access_token: 'local-dev-token',
             refresh_token: 'local-dev-refresh',
-            expires_at: Date.now() + 3600000,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
             user: {
               id: 'local-user',
               email,
+              email_confirmed_at: new Date().toISOString(),
             },
           },
           user: {
             id: 'local-user',
             email,
+            email_confirmed_at: new Date().toISOString(),
           },
         },
         error: null,
@@ -58,6 +72,15 @@ export const AuthService = {
   },
 
   async signUp(email: string, password: string) {
+    // Validate password before sending to Supabase
+    const validation = validatePassword(password);
+    if (!validation.valid) {
+      return {
+        data: null,
+        error: new Error(validation.error || 'Invalid password')
+      };
+    }
+
     if (!hasSupabaseConfig) {
       return {
         data: {
@@ -107,6 +130,101 @@ export const AuthService = {
 
     const { data, error } = await supabase.auth.getSession();
     return { session: data?.session ?? null, error };
+  },
+
+  /**
+   * Check if user email is verified
+   */
+  async hasVerifiedEmail(): Promise<boolean> {
+    if (!hasSupabaseConfig) {
+      return true; // Dev mode - assume verified
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    return !!user?.email_confirmed_at;
+  },
+
+  /**
+   * Resend email verification
+   */
+  async resendVerificationEmail(): Promise<{ error: Error | null }> {
+    if (!hasSupabaseConfig) {
+      return { error: null };
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) {
+      return { error: new Error('No email address found') };
+    }
+
+    // Use verifyOtp for email verification resend
+    const { error } = await supabase.auth.signInWithOtp({
+      email: user.email,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: `${window.location.origin}/auth?mode=login`,
+      },
+    });
+
+    return { error: error as Error | null };
+  },
+
+  /**
+   * Send password reset email
+   */
+  async sendPasswordResetEmail(email: string): Promise<{ error: Error | null }> {
+    if (!hasSupabaseConfig) {
+      return { error: null };
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth?mode=reset-password`,
+    });
+
+    return { error: error as Error | null };
+  },
+
+  /**
+   * Update user password
+   */
+  async updatePassword(password: string): Promise<{ error: Error | null }> {
+    if (!hasSupabaseConfig) {
+      return { error: null };
+    }
+
+    // Validate password before sending to Supabase
+    const validation = validatePassword(password);
+    if (!validation.valid) {
+      return {
+        error: new Error(validation.error || 'Invalid password')
+      };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password });
+    return { error: error as Error | null };
+  },
+
+  /**
+   * Verify OTP (for email verification or password reset)
+   */
+  async verifyOtp(token: string, type: 'email' | 'recovery' = 'email'): Promise<{ error: Error | null }> {
+    if (!hasSupabaseConfig) {
+      return { error: null };
+    }
+
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: token,
+      type,
+    });
+
+    return { error: error as Error | null };
+  },
+
+  /**
+   * Get device ID for auth tracking
+   */
+  getDeviceId(): string {
+    return getDeviceId();
   },
 
   // Private: Set up automatic token refresh before expiry

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 
 export const useThemeStore = defineStore('theme', () => {
-  const mode = ref('dark'); // 'dark' or 'light'
+  const mode = ref('light'); // 'dark' or 'light'
   const initialized = ref(false);
 
   // Initialize theme from localStorage or system preference

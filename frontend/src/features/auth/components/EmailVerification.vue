@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../../stores/authStore';
 import CmButton from '../../../components/ui/CmButton.vue';
 import CmAlert from '../../../components/ui/CmAlert.vue';
 
@@ -11,17 +9,31 @@ interface Emits {
 
 defineEmits<Emits>();
 
-const authStore = useAuthStore();
-const router = useRouter();
-
-const isOffline = ref(!navigator.onLine);
+const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 const loading = ref(false);
+const error = ref<string | null>(null);
+const success = ref(false);
 
 const handleResendEmail = async () => {
   if (isOffline.value) return;
+  
   loading.value = true;
-  // Supabase resend logic would go here
-  loading.value = false;
+  error.value = null;
+  
+  try {
+    const { AuthService } = await import('../../../shared/services/AuthService');
+    const { error: resendError } = await AuthService.resendVerificationEmail();
+    
+    if (resendError) {
+      error.value = resendError.message;
+    } else {
+      success.value = true;
+    }
+  } catch (err) {
+    error.value = 'Failed to resend verification email';
+  } finally {
+    loading.value = false;
+  }
 };
 
 const handleOpenEmailApp = () => {
@@ -29,8 +41,10 @@ const handleOpenEmailApp = () => {
 };
 
 // Handle offline/online status
-window.addEventListener('online', () => isOffline.value = false);
-window.addEventListener('offline', () => isOffline.value = true);
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => isOffline.value = false);
+  window.addEventListener('offline', () => isOffline.value = true);
+}
 </script>
 
 <template>
@@ -54,6 +68,24 @@ window.addEventListener('offline', () => isOffline.value = true);
       variant="warning"
       title="Offline"
       description="Internet access is required to verify your email."
+      class="mb-6"
+    />
+
+    <!-- Success Message -->
+    <CmAlert
+      v-if="success"
+      variant="success"
+      title="Email Sent"
+      description="Verification email has been resent. Please check your inbox."
+      class="mb-6"
+    />
+
+    <!-- Error Alert -->
+    <CmAlert
+      v-if="error"
+      variant="danger"
+      title="Resend Failed"
+      :description="error"
       class="mb-6"
     />
 

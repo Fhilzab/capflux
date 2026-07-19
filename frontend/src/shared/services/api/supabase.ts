@@ -67,7 +67,22 @@ const createFallbackClient = () => ({
       callback('SIGNED_OUT', null);
       return { unsubscribe() {} };
     },
-  },
+    async signInWithOtp() {
+      return { data: { user: null }, error: null };
+    },
+    async resetPasswordForEmail() {
+      return { data: null, error: null };
+    },
+    async updateUser() {
+      return { data: { user: null }, error: null };
+    },
+    async verifyOtp() {
+      return { data: null, error: null };
+    },
+    async signInWithOAuth() {
+      return { data: null, error: null };
+    },
+   },
   from() {
     const errorResponse = async () => ({ data: null, error: new Error('Supabase is not configured in local dev') });
     const builder = {
