@@ -279,6 +279,48 @@
 
 ---
 
+## Security Gates (Pull Request Checklist)
+
+Every PR must pass these gates before merge:
+
+### Authentication & Authorization Gates
+- [ ] Authentication changes reviewed for session security
+- [ ] Authorization changes tested with different roles
+- [ ] No direct database access bypassing services
+- [ ] RBAC enforced on all new endpoints
+
+### Database Gates
+- [ ] All queries use parameterized statements
+- [ ] RLS policies tested for tenant isolation
+- [ ] No UPDATE/DELETE on ledger_entries
+- [ ] Audit events generated for all mutations
+
+### Financial Gates
+- [ ] Financial operations have idempotency protection
+- [ ] Payment state transitions validated
+- [ ] Reversal entries used instead of deletes
+- [ ] Balance calculations verified
+
+### Offline Security Gates
+- [ ] PII fields encrypted in IndexedDB
+- [ ] Sync queue items signed
+- [ ] Replay protection implemented
+- [ ] Conflict detection tested
+
+### Code Quality Gates
+- [ ] No secrets in diff
+- [ ] No `:any` in security types
+- [ ] Input validation on all external data
+- [ ] Error messages sanitized
+
+### Testing Gates
+- [ ] Security unit tests pass
+- [ ] Integration tests pass
+- [ ] RLS tests pass
+- [ ] Rate limiting tests pass
+
+---
+
 ## Document Status Legend
 
 | Symbol | Meaning |
