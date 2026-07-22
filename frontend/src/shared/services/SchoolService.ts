@@ -10,7 +10,7 @@ export class SchoolService {
       .from('schools')
       .select('*')
       .eq('id', schoolId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('SchoolService.getSchool error:', error);
@@ -34,7 +34,7 @@ export class SchoolService {
       .from('onboarding_progress')
       .select('*')
       .eq('school_id', schoolId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('SchoolService.getOnboardingProgress error:', error);
@@ -49,7 +49,7 @@ export class SchoolService {
       .from('academic_sessions')
       .select('*')
       .eq('school_id', schoolId)
-      .order('start_date', { ascending: false });
+      .order('start_date', { ascending: true });
 
     if (error) {
       console.error('SchoolService.getSessions error:', error);
@@ -69,7 +69,7 @@ export class SchoolService {
       query = query.eq('session_id', sessionId);
     }
     
-    const { data, error } = await query.order('start_date', { ascending: false });
+    const { data, error } = await query.order('start_date', { ascending: true });
 
     if (error) {
       console.error('SchoolService.getTerms error:', error);

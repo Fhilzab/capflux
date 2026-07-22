@@ -14,7 +14,7 @@ export class ProfileService {
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('ProfileService.getProfile error:', error);
