@@ -169,6 +169,14 @@ router.beforeEach(async (to) => {
   const authStore = useAuthStore();
   const schoolStore = useSchoolStore();
 
+  // Debug logging - will be removed after verification
+  console.log('[AUTH DEBUG] router guard', {
+    route: to.fullPath,
+    authenticated: authStore.isAuthenticated,
+    emailVerified: authStore.emailVerified,
+    hasSession: !!authStore.session,
+  });
+
   // Protected routes - require authentication (initialization happens in bootstrap)
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { name: 'Auth' };

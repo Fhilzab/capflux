@@ -79,9 +79,12 @@ const createFallbackClient = () => ({
     async verifyOtp() {
       return { data: null, error: null };
     },
-    async signInWithOAuth() {
-      return { data: null, error: null };
-    },
+     async signInWithOAuth() {
+       return { data: null, error: null };
+     },
+     async exchangeCodeForSession() {
+       return { data: { session: null }, error: null };
+     },
    },
   from() {
     const errorResponse = async () => ({ data: null, error: new Error('Supabase is not configured in local dev') });

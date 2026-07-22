@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { watch, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useAuthStore } from '../../stores/authStore';
+import { AuthService } from '../../shared/services/AuthService';
 import { useAuthState } from './useAuthState';
+import { supabase, hasSupabaseConfig } from '../../shared/services/api/supabase';
 import AuthLayout from './components/AuthLayout.vue';
 import AuthIllustration from './components/AuthIllustration.vue';
 import LoginForm from './components/LoginForm.vue';
@@ -17,14 +20,63 @@ interface Props {
 
 const props = defineProps<Props>();
 const route = useRoute();
+const router = useRouter();
 
 const { state, transition } = useAuthState();
+const authStore = useAuthStore();
 
 // Helper to normalize query param (can be string or string[])
 const getQueryParam = (param: string | string[] | undefined): string => {
   if (Array.isArray(param)) return param[0] || '';
   return param || '';
 };
+
+// Handle email verification callback on mount
+// Supports both PKCE (code) and legacy (token_hash) flows
+onMounted(async () => {
+  const code = getQueryParam(route.query.code);
+  const tokenHash = getQueryParam(route.query.token_hash);
+
+  // Flow 1: PKCE code exchange
+  if (code && hasSupabaseConfig) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    if (!error && data?.session) {
+      // Update auth store with the session
+      authStore.session = data.session;
+      authStore.user = data.session.user;
+      
+      // Check email verification status
+      const userEmailConfirmed = !!data.session.user?.email_confirmed_at;
+      authStore.emailVerified = userEmailConfirmed;
+      
+      // Clean URL and redirect to dashboard
+      router.replace({ name: 'Home' });
+      return;
+    }
+    
+    // Log error but don't block - user can retry login
+    console.error('[AUTH DEBUG] code exchange failed:', error);
+  }
+
+  // Flow 2: Legacy token_hash
+  if (tokenHash && hasSupabaseConfig && !code) {
+    const { error } = await AuthService.verifyOtp(tokenHash, 'email');
+    
+    if (!error) {
+      // Refresh auth state after verification
+      await authStore.initialize();
+      
+      if (authStore.isAuthenticated) {
+        // Clean URL and redirect to dashboard
+        router.replace({ name: 'Home' });
+        return;
+      }
+    }
+    
+    console.error('[AUTH DEBUG] token_hash verification failed:', error);
+  }
+});
 
 // Set initial state from URL query params on mount
 watch(() => route.query, (query) => {

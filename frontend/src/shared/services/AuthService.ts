@@ -64,11 +64,29 @@ export const AuthService = {
 
     const result = await supabase.auth.signInWithPassword({ email, password });
 
+    // Fetch authoritative user after successful sign-in
+    // Newer Supabase SDKs may not include email_confirmed_at in session.user
+    let verifiedUser = null;
+    if (!result.error && hasSupabaseConfig) {
+      const { data: userData } = await supabase.auth.getUser();
+      verifiedUser = userData.user;
+      console.log('[AUTH DEBUG] signIn success', {
+        sessionUserConfirmedAt: (result.data?.session?.user as any)?.email_confirmed_at,
+        verifiedUserConfirmedAt: (verifiedUser as any)?.email_confirmed_at,
+      });
+    }
+
     if (result.data?.session) {
       this._setupTokenRefresh(result.data.session);
     }
 
-    return result;
+    return {
+      data: {
+        ...result.data,
+        verifiedUser,
+      },
+      error: result.error,
+    };
   },
 
   async signUp(email: string, password: string) {

@@ -70,14 +70,19 @@ export const useAuthStore = defineStore('auth', {
         return false;
       }
 
-      this.session = data?.session ?? null;
-      this.user = data?.user ?? null;
+       const anyData = data as any;
+       this.session = anyData?.session ?? null;
+       this.user = anyData?.verifiedUser ?? anyData?.session?.user ?? null;
 
-      // Check email verification status
-      if (data?.session?.user) {
-        const user = data.session.user as { email_confirmed_at?: string };
-        this.emailVerified = !!user.email_confirmed_at;
-      }
+      // Check email verification status from authoritative user
+      const verifiedUserEmailConfirmed = anyData?.verifiedUser?.email_confirmed_at;
+      this.emailVerified = !!verifiedUserEmailConfirmed;
+      console.log('[AUTH DEBUG] authStore signIn state', {
+        session: !!this.session,
+        emailVerified: this.emailVerified,
+        verifiedUserConfirmedAt: verifiedUserEmailConfirmed,
+        user: this.user?.email,
+      });
 
       // If email is not verified, show verification required message
       if (data?.session && !this.emailVerified) {
