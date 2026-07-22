@@ -88,7 +88,7 @@ export function useAuth() {
     schoolId: computed(() => schoolStore.schoolId),
     role: computed(() => schoolStore.role),
     adminStatus: computed(() => schoolStore.adminStatus),
-    isProprietor: computed(() => schoolStore.isProprietor),
+    isOwner: computed(() => schoolStore.isOwner),
     isAdmin: computed(() => schoolStore.isAdmin),
     currentSession: computed(() => schoolStore.currentSession),
     currentTerm: computed(() => schoolStore.currentTerm),

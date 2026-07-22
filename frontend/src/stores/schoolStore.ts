@@ -42,7 +42,7 @@ export const useSchoolStore = defineStore('school', {
   }),
 
   getters: {
-    isProprietor: (state): boolean => state.role === 'PROPRIETOR',
+    isOwner: (state): boolean => state.role === 'OWNER',
     isAdmin: (state): boolean => state.role === 'ADMIN',
     isOnboarding: (state): boolean => state.operationalStatus === 'ONBOARDING',
     isActive: (state): boolean => state.operationalStatus === 'ACTIVE',
