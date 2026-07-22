@@ -5,7 +5,7 @@
 export type SchoolStatus = 'ONBOARDING' | 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'ARCHIVED';
 export type SchoolLevel = 'NURSERY' | 'PRIMARY' | 'SECONDARY' | 'NURSERY_PRIMARY' | 'PRIMARY_SECONDARY' | 'NURSERY_PRIMARY_SECONDARY';
 export type GenderType = 'MIXED' | 'BOYS' | 'GIRLS';
-export type ProfileRole = 'PROPRIETOR' | 'ADMIN';
+export type ProfileRole = 'OWNER' | 'ADMIN';
 export type AdminStatus = 'ACTIVE' | 'SUSPENDED';
 
 export interface School {

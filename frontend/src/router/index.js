@@ -169,21 +169,7 @@ router.beforeEach(async (to) => {
   const authStore = useAuthStore();
   const schoolStore = useSchoolStore();
 
-  if (!authStore.session) {
-    await authStore.initialize();
-  }
-
-  // Initialize school context if authenticated
-  if (authStore.isAuthenticated && !schoolStore.initialized) {
-    await schoolStore.initialize();
-  }
-
-  // Guest-only routes (landing, auth)
-  if (to.meta.guest && authStore.isAuthenticated) {
-    return { name: 'Home' };
-  }
-
-  // Protected routes - require authentication
+  // Protected routes - require authentication (initialization happens in bootstrap)
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { name: 'Auth' };
   }
@@ -204,6 +190,7 @@ router.beforeEach(async (to) => {
   }
 
   // Feature gate for school setup - use schoolStore for readiness
+  // School context is initialized during bootstrap in main.js
   if (authStore.isAuthenticated && SCHOOL_SETUP_REQUIRED_ROUTES.includes(to.name)) {
     const isSchoolReady = schoolStore.isReady;
 

@@ -42,7 +42,7 @@ export const useSchoolStore = defineStore('school', {
   }),
 
   getters: {
-    isProprietor: (state): boolean => state.role === 'PROPRIETOR',
+    isOwner: (state): boolean => state.role === 'OWNER',
     isAdmin: (state): boolean => state.role === 'ADMIN',
     isOnboarding: (state): boolean => state.operationalStatus === 'ONBOARDING',
     isActive: (state): boolean => state.operationalStatus === 'ACTIVE',
@@ -56,54 +56,75 @@ export const useSchoolStore = defineStore('school', {
       this.loading = true;
       this.error = null;
 
-      try {
-        // 1. Load profile first
-        const profile = await profileService.getProfile();
-        if (!profile) {
-          this.initialized = true;
-          this.loading = false;
-          return; // Not authenticated or no profile exists
-        }
-
-        this.profile = profile;
-        this.role = profile.role;
-        this.adminStatus = profile.admin_status;
-
-        // 2. Load school using profile.school_id
-        if (profile.school_id) {
-          this.schoolId = profile.school_id;
-          const school = await schoolService.getSchool(profile.school_id);
-          if (school) {
-            this.school = school;
-            this.schoolName = school.name;
-            this.operationalStatus = school.operational_status;
-            this.schoolLevel = school.school_level;
-            this.genderType = school.gender_type;
-
-            // 3. Load academic context (sessions & terms)
-            this.sessions = await schoolService.getSessions(profile.school_id);
-            this.currentSession = this.sessions.find(s => s.is_current) ?? null;
-            
-            if (this.currentSession) {
-              this.terms = await schoolService.getTerms(profile.school_id, this.currentSession.id);
-              this.currentTerm = this.terms.find(t => t.is_current) ?? null;
-            }
-
-            // 4. Load onboarding progress
-            this.onboardingProgress = await schoolService.getOnboardingProgress(profile.school_id);
-            
-            // 5. Check readiness
-            this.isReady = await schoolService.isReady(profile.school_id);
-          }
-        }
-
+      // 1. Load profile first (required)
+      const profile = await profileService.getProfile();
+      if (!profile) {
+        // No profile - user may not be authenticated or profile not set up yet
         this.initialized = true;
-      } catch (err) {
-        this.error = err instanceof Error ? err.message : 'Failed to load school context';
-        console.error('SchoolStore initialization failed:', err);
-      } finally {
         this.loading = false;
+        return;
       }
+
+      this.profile = profile;
+      this.role = profile.role;
+      this.adminStatus = profile.admin_status;
+
+      // 2. Load school using profile.school_id (required for school context)
+      if (profile.school_id) {
+        this.schoolId = profile.school_id;
+        const school = await schoolService.getSchool(profile.school_id);
+        
+        if (school) {
+          this.school = school;
+          this.schoolName = school.name;
+          this.operationalStatus = school.operational_status;
+          this.schoolLevel = school.school_level;
+          this.genderType = school.gender_type;
+        }
+      }
+
+      // 3. Load academic context (sessions) - optional, don't fail if missing
+      if (this.schoolId) {
+        try {
+          this.sessions = await schoolService.getSessions(this.schoolId);
+          this.currentSession = this.sessions.find(s => s.is_current) ?? null;
+        } catch (err) {
+          console.warn('SchoolStore: Failed to load sessions', err);
+        }
+      }
+
+      // 4. Load terms - optional, don't fail if missing
+      if (this.currentSession?.id) {
+        try {
+          this.terms = await schoolService.getTerms(this.schoolId!, this.currentSession.id);
+          this.currentTerm = this.terms.find(t => t.is_current) ?? null;
+        } catch (err) {
+          console.warn('SchoolStore: Failed to load terms', err);
+        }
+      }
+
+      // 5. Load onboarding progress - optional, don't fail if missing
+      if (this.schoolId) {
+        try {
+          this.onboardingProgress = await schoolService.getOnboardingProgress(this.schoolId);
+        } catch (err) {
+          console.warn('SchoolStore: Failed to load onboarding progress', err);
+        }
+      }
+
+      // 6. Check readiness - optional, don't fail if RPC missing
+      if (this.schoolId) {
+        try {
+          this.isReady = await schoolService.isReady(this.schoolId);
+        } catch (err) {
+          console.warn('SchoolStore: Failed to check school readiness', err);
+          this.isReady = false;
+        }
+      }
+
+      // Always mark as initialized to prevent re-initialization loops
+      this.initialized = true;
+      this.loading = false;
     },
 
     async refresh() {
@@ -116,4 +137,5 @@ export const useSchoolStore = defineStore('school', {
       this.$reset();
     },
   },
+
 });
