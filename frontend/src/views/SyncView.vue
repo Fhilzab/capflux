@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useSyncStore } from '../stores/syncStore';
 import { SyncService } from '../shared/services/SyncService';

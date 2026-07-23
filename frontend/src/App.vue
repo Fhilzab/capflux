@@ -11,7 +11,7 @@
   <router-view v-else />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useThemeStore } from './stores/themeStore';

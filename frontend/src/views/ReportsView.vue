@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ReportService } from '../shared/services/ReportService';
 import CmButton from '../components/ui/CmButton.vue';

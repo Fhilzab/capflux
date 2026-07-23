@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { SchoolService } from '../shared/services/SchoolService';
 import CmButton from '../components/ui/CmButton.vue';

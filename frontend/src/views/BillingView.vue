@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { BillingService } from '../shared/services/BillingService';
 import { StudentService } from '../shared/services/StudentService';

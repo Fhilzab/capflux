@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useSyncStore } from '../stores/syncStore';
 import CmButton from '../components/ui/CmButton.vue';
