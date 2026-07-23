@@ -17,6 +17,7 @@ import SettingsView from '../views/SettingsView.vue';
 
 interface RouteMeta {
   requiresAuth?: boolean;
+  requiresOrganization?: boolean;
 }
 
 const routes: RouteRecordRaw[] = [
@@ -186,6 +187,17 @@ router.beforeEach(async (to) => {
 
   if (to.name === 'Landing' && authStore.isAuthenticated) {
     return { name: 'Home' };
+  }
+
+  // Guard for organization requirement
+  if (to.meta.requiresAuth && to.meta.requiresOrganization && authStore.isAuthenticated) {
+    // Organization must be initialized (attempted loading)
+    if (!authStore.organizationInitialized) {
+      // Organization loading will happen on navigation, but for future use:
+      // TODO: Future redirect when organization setup flow is implemented
+    }
+    // If logged in but no organization, page will render with empty state
+    // No blocking redirect for now
   }
 
   // Feature gate for school setup

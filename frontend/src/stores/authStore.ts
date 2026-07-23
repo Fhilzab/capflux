@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { AuthService } from '../shared/services/AuthService';
-import { hasSupabaseConfig, supabase } from '../shared/services/api/supabase';
+import { organizationService } from '../shared/organization/OrganizationService';
+import type { Organization, OrganizationMembership, OrganizationRole } from '../shared/organization/types';
 
 export interface User {
   id: string;
@@ -28,13 +29,23 @@ export const useAuthStore = defineStore('auth', {
     schoolSetupComplete: false as boolean,
     emailVerified: false as boolean,
     initialized: false as boolean,
+    // Organization state
+    organization: null as Organization | null,
+    membership: null as OrganizationMembership | null,
+    organizationInitialized: false as boolean,
   }),
   getters: {
     isAuthenticated: (state): boolean => !!state.user,
-    currentSchoolId: (state): string | null => state.schoolId,
-    isOwner: (state): boolean => state.role === 'OWNER',
-    isAdmin: (state): boolean => state.role === 'ADMIN',
+    // Backward compatibility - derived from organization
+    currentSchoolId: (state): string | null => state.organization?.id ?? state.schoolId,
+    // Backward compatibility - derived from membership
+    currentRole: (state): 'OWNER' | 'ADMIN' | null => state.membership?.role ?? state.role,
+    isOwner: (state): boolean => (state.membership?.role ?? state.role) === 'OWNER',
+    isAdmin: (state): boolean => (state.membership?.role ?? state.role) === 'ADMIN',
     isSchoolSetupComplete: (state): boolean => state.schoolSetupComplete && !!state.schoolId,
+    // New organization-aware getters
+    currentOrganization: (state): Organization | null => state.organization,
+    currentOrganizationId: (state): string | null => state.organization?.id ?? null,
   },
   actions: {
     async initialize() {
@@ -52,57 +63,63 @@ export const useAuthStore = defineStore('auth', {
         this.session = sessionUpdate;
         this.user = sessionUpdate?.user ?? null;
         if (sessionUpdate) {
-          this.fetchSchoolFromProfile();
+          this.loadOrganization();
         } else {
           this.schoolId = null;
+          this.organization = null;
+          this.membership = null;
+          this.organizationInitialized = false;
         }
       });
 
-      // Fetch school from profile if authenticated
+      // Load organization if authenticated (non-blocking)
       if (session) {
-        await this.fetchSchoolFromProfile();
+        await this.loadOrganization();
       }
     },
 
-    async fetchSchoolFromProfile() {
-      if (!hasSupabaseConfig) {
-        // Local dev fallback: use demo-school
-        this.schoolId = 'demo-school';
-        this.role = 'OWNER';
+    async loadOrganization() {
+      const result = await organizationService.loadOrganization();
+      
+      this.organization = result.data?.organization ?? null;
+      this.membership = result.data?.membership ?? null;
+      this.organizationInitialized = true;
+      
+      // Backward compatibility - populate legacy fields
+      if (this.organization) {
+        this.schoolId = this.organization.id;
+        this.role = this.membership?.role ?? null;
+        this.adminStatus = this.membership?.status ?? 'ACTIVE';
+      } else {
+        this.schoolId = null;
+        this.role = null;
         this.adminStatus = 'ACTIVE';
-        return;
       }
+    },
 
-      // Note: In production, school_id comes from JWT claims via Supabase
-      // The profile's school_id is determined by the JWT token at login
-      // For now, we read it from the profile table on first access
-      try {
-        const { data } = await supabase.auth.getUser();
-        const user = data?.user as User | undefined;
-        if (user) {
-          // Use RPC to get profile with role info
-          const { data: profile, error } = await supabase.rpc('get_profile', { user_id: user.id });
-          if (!error && profile) {
-            this.schoolId = profile.school_id ?? null;
-            this.role = profile.role ?? null;
-            this.adminStatus = profile.admin_status ?? 'ACTIVE';
-          } else {
-            // Fallback to direct query
-            const result = await supabase
-              .from('profiles')
-              .select('school_id, role, admin_status')
-              .eq('id', user.id)
-              .single();
-            if (result.data) {
-              this.schoolId = result.data.school_id ?? null;
-              this.role = result.data.role ?? null;
-              this.adminStatus = result.data.admin_status ?? 'ACTIVE';
-            }
-          }
-        }
-      } catch {
-        // Failed to fetch school - will be handled by RLS
+    async refreshOrganization() {
+      const result = await organizationService.refreshOrganization();
+      
+      this.organization = result.data?.organization ?? null;
+      this.membership = result.data?.membership ?? null;
+      this.organizationInitialized = true;
+      
+      // Backward compatibility
+      if (this.organization) {
+        this.schoolId = this.organization.id;
+        this.role = this.membership?.role ?? null;
+        this.adminStatus = this.membership?.status ?? 'ACTIVE';
       }
+    },
+
+    async clearOrganization() {
+      await organizationService.clearOrganization();
+      this.organization = null;
+      this.membership = null;
+      this.organizationInitialized = false;
+      this.schoolId = null;
+      this.role = null;
+      this.adminStatus = 'ACTIVE';
     },
 
     async signIn({ email, password }: { email: string; password: string }) {
@@ -122,7 +139,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = data?.user ?? null;
 
       if (data?.session) {
-        await this.fetchSchoolFromProfile();
+        await this.loadOrganization();
       }
 
       return true;
@@ -149,7 +166,7 @@ export const useAuthStore = defineStore('auth', {
       this.session = session;
       this.user = session?.user ?? null;
       if (session) {
-        await this.fetchSchoolFromProfile();
+        await this.loadOrganization();
       }
       return { session };
     },
@@ -167,6 +184,11 @@ export const useAuthStore = defineStore('auth', {
       this.error = null;
       this.loading = false;
       this.initialized = false;
+      // Clear organization state
+      this.organization = null;
+      this.membership = null;
+      this.organizationInitialized = false;
+      this.adminStatus = 'ACTIVE';
     },
   },
 });
