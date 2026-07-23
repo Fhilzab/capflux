@@ -167,7 +167,8 @@ const SCHOOL_SETUP_REQUIRED_ROUTES = [
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
-  if (!authStore.session) {
+  // Wait for initialization (happens in bootstrap, but guard against race conditions)
+  if (!authStore.initialized) {
     await authStore.initialize();
   }
 

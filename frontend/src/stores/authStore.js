@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { supabase, hasSupabaseConfig } from '../shared/services/api/supabase';
 import { AuthService } from '../shared/services/AuthService.ts';
+import { hasSupabaseConfig, supabase } from '../shared/services/api/supabase';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -14,6 +14,7 @@ export const useAuthStore = defineStore('auth', {
     profile: null,
     schoolSetupComplete: false,
     emailVerified: false,
+    initialized: false,
   }),
   getters: {
     isAuthenticated: (state) => !!state.user,
@@ -32,8 +33,9 @@ export const useAuthStore = defineStore('auth', {
       this.session = session;
       this.user = session?.user ?? null;
       this.schoolId = null;
+      this.initialized = true;
 
-      supabase.auth.onAuthStateChange((_, sessionUpdate) => {
+      AuthService.onAuthStateChange((_event, sessionUpdate) => {
         this.session = sessionUpdate;
         this.user = sessionUpdate?.user ?? null;
         if (sessionUpdate) {
@@ -150,6 +152,7 @@ export const useAuthStore = defineStore('auth', {
       this.emailVerified = false;
       this.error = null;
       this.loading = false;
+      this.initialized = false;
     },
   },
 });
