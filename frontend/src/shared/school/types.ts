@@ -25,6 +25,8 @@ export interface SchoolAdmissionSettings {
   currentSequence: number;
 }
 
+export type AcademicCalendarType = 'TERM' | 'SEMESTER' | 'QUARTER';
+
 // Result wrapper for school operations
 export interface SchoolResult<T> {
   data: T | null;
