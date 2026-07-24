@@ -10,6 +10,7 @@ export type {
   BillingErrorCode,
 } from './types';
 export { BillingProvider } from './BillingProvider';
+export { SupabaseBillingProvider } from './SupabaseBillingProvider';
 export { BillingSnapshotBuilder, type CreateSnapshotInput } from './BillingSnapshot';
 export { BillingService, billingService } from './BillingService';
 export { BillingEngine } from './BillingEngine';
