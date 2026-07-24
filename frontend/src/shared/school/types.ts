@@ -17,6 +17,14 @@ export interface School {
   updatedAt: string;
 }
 
+export type AdmissionNumberMode = 'MANUAL' | 'AUTO';
+
+export interface SchoolAdmissionSettings {
+  mode: AdmissionNumberMode;
+  prefix?: string;
+  currentSequence: number;
+}
+
 // Result wrapper for school operations
 export interface SchoolResult<T> {
   data: T | null;
