@@ -3,11 +3,58 @@ import { FeeProvider } from './FeeProvider';
 import { FeeValidator } from './FeeValidator';
 import type { Fee, FeeResult } from './types';
 
+export interface ApplicableFees {
+  mandatory: Fee[];
+  optional: Fee[];
+  platform: Fee[];
+}
+
 export class FeeService {
   private provider: FeeProvider;
 
   constructor(provider: FeeProvider = new SupabaseFeeProvider()) {
     this.provider = provider;
+  }
+
+  async getMandatoryFees(schoolId: string, divisionId: string): Promise<FeeResult<Fee[]>> {
+    const result = await this.provider.listSchoolFees(schoolId);
+    if (result.error || !result.data) {
+      return result;
+    }
+
+    const filtered = result.data.filter(fee => fee.isMandatory && fee.divisionId === divisionId && fee.isActive);
+    return { data: filtered, error: null };
+  }
+
+  async getOptionalFees(schoolId: string, divisionId: string): Promise<FeeResult<Fee[]>> {
+    const result = await this.provider.listSchoolFees(schoolId);
+    if (result.error || !result.data) {
+      return result;
+    }
+
+    const filtered = result.data.filter(fee => !fee.isMandatory && fee.divisionId === divisionId && fee.isActive);
+    return { data: filtered, error: null };
+  }
+
+  async getPlatformFees(): Promise<FeeResult<Fee[]>> {
+    return this.provider.listPlatformFees();
+  }
+
+  async getApplicableFees(schoolId: string, divisionId: string): Promise<FeeResult<ApplicableFees>> {
+    const [mandatoryResult, optionalResult, platformResult] = await Promise.all([
+      this.getMandatoryFees(schoolId, divisionId),
+      this.getOptionalFees(schoolId, divisionId),
+      this.getPlatformFees(),
+    ]);
+
+    return {
+      data: {
+        mandatory: mandatoryResult.data || [],
+        optional: optionalResult.data || [],
+        platform: platformResult.data || [],
+      },
+      error: mandatoryResult.error || optionalResult.error || platformResult.error || null,
+    };
   }
 
   async loadSchoolFees(schoolId: string): Promise<FeeResult<Fee[]>> {
