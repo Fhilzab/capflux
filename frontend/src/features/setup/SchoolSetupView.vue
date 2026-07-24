@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
-import { supabase, hasSupabaseConfig } from '../../shared/services/api/supabase';
+import { useSchoolStore } from '../../stores/schoolStore';
 import CmInput from '../../components/ui/CmInput.vue';
 import CmSelect from '../../components/ui/CmSelect.vue';
 import CmButton from '../../components/ui/CmButton.vue';
@@ -10,6 +10,7 @@ import CmAlert from '../../components/ui/CmAlert.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const schoolStore = useSchoolStore();
 
 const form = ref({
   schoolName: '',
@@ -63,32 +64,22 @@ const handleSubmit = async () => {
   errors.value = {};
 
   try {
-    // In demo mode, just mark setup as complete
-    if (!hasSupabaseConfig) {
-      // Demo: simulate successful setup
-      authStore.schoolSetupComplete = true;
-      router.push({ name: 'Home' });
+    const created = await schoolStore.createSchool({
+      schoolName: form.value.schoolName,
+      proprietorName: form.value.adminName,
+      email: form.value.email,
+      phone: form.value.phone,
+      address: form.value.address || undefined,
+      schoolType: form.value.schoolType,
+      academicSession: form.value.academicSession || undefined,
+      currentTerm: form.value.currentTerm || undefined,
+    });
+
+    if (!created) {
+      errors.value.submit = schoolStore.error || 'Failed to save school information';
       return;
     }
 
-    // Production: Create school via RPC
-    const { data, error } = await supabase.rpc('create_school_with_owner', {
-      p_school_name: form.value.schoolName,
-      p_proprietor_name: form.value.adminName,
-      p_email: form.value.email,
-      p_phone: form.value.phone,
-      p_address: form.value.address,
-      p_school_type: form.value.schoolType,
-      p_academic_session: form.value.academicSession,
-      p_current_term: form.value.currentTerm,
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    // Mark onboarding as complete in auth store
-    authStore.schoolSetupComplete = true;
     router.push({ name: 'Home' });
   } catch (e: any) {
     errors.value.submit = e.message || 'Failed to save school information';

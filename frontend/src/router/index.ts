@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw, RouteLocationNormalized } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+import { useSchoolStore } from '../stores/schoolStore';
 import AuthView from '../features/auth/AuthView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../features/dashboard/views/HomeView.vue';
@@ -18,6 +19,7 @@ import SettingsView from '../views/SettingsView.vue';
 interface RouteMeta {
   requiresAuth?: boolean;
   requiresOrganization?: boolean;
+  requiresSchoolContext?: boolean;
 }
 
 const routes: RouteRecordRaw[] = [
@@ -171,10 +173,15 @@ const SCHOOL_SETUP_REQUIRED_ROUTES = [
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
+  const schoolStore = useSchoolStore();
 
   // Wait for initialization (happens in bootstrap, but guard against race conditions)
   if (!authStore.initialized) {
     await authStore.initialize();
+  }
+
+  if (!schoolStore.initialized && authStore.isAuthenticated) {
+    await schoolStore.initialize();
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
@@ -200,9 +207,16 @@ router.beforeEach(async (to) => {
     // No blocking redirect for now
   }
 
+  // Guard for school context requirement
+  if (to.meta.requiresSchoolContext && authStore.isAuthenticated) {
+    if (!schoolStore.schoolSetupComplete) {
+      return { name: 'SchoolSetup' };
+    }
+  }
+
   // Feature gate for school setup
   if (authStore.isAuthenticated && SCHOOL_SETUP_REQUIRED_ROUTES.includes(to.name as string)) {
-    const schoolSetupComplete = authStore.isSchoolSetupComplete;
+    const schoolSetupComplete = schoolStore.schoolSetupComplete;
 
     // Redirect to school setup if workspace not ready
     if (!schoolSetupComplete) {

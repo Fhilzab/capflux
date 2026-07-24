@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution":"Bundler",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,11 +12,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["vite/client"]
+    "types": ["vite/client","node"]
   },
   "include": ["src", "env.d.ts"],
   "exclude": ["node_modules", "dist"]

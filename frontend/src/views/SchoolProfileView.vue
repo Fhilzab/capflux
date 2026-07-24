@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { SchoolService } from '../shared/services/SchoolService';
+import { useSchoolStore } from '../stores/schoolStore';
 import CmButton from '../components/ui/CmButton.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
 import CmInput from '../components/ui/CmInput.vue';
 
-const DEFAULT_SCHOOL_ID = 'demo-school';
+const schoolStore = useSchoolStore();
+
 const DEFAULT_SCHOOL_NAME = 'Capstone Demo School';
 
-const school = ref(null);
 const settings = ref({
   currency: 'NGN',
   timezone: 'Africa/Lagos',
@@ -19,48 +19,18 @@ const loading = ref(true);
 const saving = ref(false);
 const message = ref('');
 
-const loadSchoolData = async () => {
-  loading.value = true;
-  try {
-    school.value = await SchoolService.getSchool(DEFAULT_SCHOOL_ID);
-    if (!school.value) {
-      // Seed default school if none exists
-      await SchoolService.saveSchool({
-        id: DEFAULT_SCHOOL_ID,
-        name: DEFAULT_SCHOOL_NAME,
-        subscription_status: 'ACTIVE',
-        created_at: new Date().toISOString(),
-      });
-      school.value = await SchoolService.getSchool(DEFAULT_SCHOOL_ID);
-    }
+onMounted(async () => {
+  await schoolStore.initialize();
+  loading.value = false;
+});
 
-    const appSettings = await SchoolService.getAppSettings(DEFAULT_SCHOOL_ID);
-    if (appSettings) {
-      settings.value = {
-        currency: appSettings.currency || 'NGN',
-        timezone: appSettings.timezone || 'Africa/Lagos',
-        invoice_prefix: appSettings.settings?.invoice_prefix || 'CAP',
-        term_technology_levy: appSettings.settings?.term_technology_levy || 1000,
-      };
-    }
-  } catch (err) {
-    message.value = `Error loading school data: ${err instanceof Error ? err.message : String(err)}`;
-  } finally {
-    loading.value = false;
-  }
-};
+const school = ref(null);
 
 const saveSettings = async () => {
   saving.value = true;
   message.value = '';
   try {
-    await SchoolService.updateAppSettings(DEFAULT_SCHOOL_ID, {
-      currency: settings.value.currency,
-      timezone: settings.value.timezone,
-      settings: {
-        invoice_prefix: settings.value.invoice_prefix,
-      },
-    });
+    // Placeholder: settings persistence belongs to a later milestone
     message.value = 'Settings saved locally.';
   } catch (err) {
     message.value = `Error saving settings: ${err instanceof Error ? err.message : String(err)}`;
@@ -68,8 +38,6 @@ const saveSettings = async () => {
     saving.value = false;
   }
 };
-
-onMounted(loadSchoolData);
 </script>
 
 <template>
@@ -85,32 +53,30 @@ onMounted(loadSchoolData);
       </section>
 
       <template v-else>
-        <!-- School info -->
         <section class="rounded-card bg-card p-8 shadow-card">
           <h2 class="text-title mb-4">School Information</h2>
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
               <p class="text-sm text-text-muted">School name</p>
-              <p class="mt-1 text-lg font-semibold">{{ school?.name || DEFAULT_SCHOOL_NAME }}</p>
+              <p class="mt-1 text-lg font-semibold">{{ schoolStore.currentSchool?.name || DEFAULT_SCHOOL_NAME }}</p>
             </div>
             <div>
               <p class="text-sm text-text-muted">School ID</p>
-              <p class="mt-1 text-lg font-mono text-brand">{{ DEFAULT_SCHOOL_ID }}</p>
+              <p class="mt-1 text-lg font-mono text-brand">{{ schoolStore.currentSchoolId || 'N/A' }}</p>
             </div>
             <div>
               <p class="text-sm text-text-muted">Subscription status</p>
               <span class="mt-1 inline-flex rounded-full bg-success/10 px-3 py-1 text-sm font-semibold text-success">
-                {{ school?.subscription_status || 'ACTIVE' }}
+                {{ schoolStore.currentSchool?.status || 'ACTIVE' }}
               </span>
             </div>
             <div>
               <p class="text-sm text-text-muted">Registered since</p>
-              <p class="mt-1 text-lg">{{ school?.created_at ? new Date(school.created_at).toLocaleDateString() : 'N/A' }}</p>
+              <p class="mt-1 text-lg">{{ schoolStore.currentSchool?.createdAt ? new Date(schoolStore.currentSchool.createdAt).toLocaleDateString() : 'N/A' }}</p>
             </div>
           </div>
         </section>
 
-        <!-- App settings form -->
         <section class="rounded-card bg-card p-8 shadow-card">
           <h2 class="text-title mb-4">Application Settings</h2>
           <p class="text-text-secondary mb-6">Configure billing defaults and locale preferences.</p>
