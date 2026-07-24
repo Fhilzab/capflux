@@ -127,7 +127,7 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
         student_id: verified.student_id,
         guardian_id: student.guardian_id,
         recipient_phone: guardianPhone,
-        message_body: `Payment of ₦${verified.amount.toLocaleString()} received for ${student.first_name} ${student.last_name}. Thank you. - Capstone`,
+        message_body: `Payment of ₦${verified.amount.toLocaleString()} received for ${student.first_name} ${student.last_name}. Thank you. - CAPFLUX`,
         delivery_status: 'PENDING',
         client_sequence: Date.now(),
         device_id: 'webhook-handler',

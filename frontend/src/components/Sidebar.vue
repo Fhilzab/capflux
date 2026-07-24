@@ -77,7 +77,7 @@ const logout = async () => {
         </div>
         
         <div v-if="!collapsed" class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-text-primary truncate">Capstone</p>
+          <p class="text-sm font-semibold text-text-primary truncate">CAPFLUX</p>
           <p class="text-xs text-text-muted">Fee-First ERP</p>
         </div>
       </div>

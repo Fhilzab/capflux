@@ -135,7 +135,7 @@ alerts:
 ```bash
 # Forward logs to centralized system
 supabase functions logs --follow | \
-    tee -a /var/log/capstone/functions.log | \
+    tee -a /var/log/capflux/functions.log | \
     log-shipper --destination papertrail
 ```
 

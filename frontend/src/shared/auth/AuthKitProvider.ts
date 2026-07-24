@@ -166,7 +166,7 @@ export class AuthKitProvider extends AuthProvider {
             expiresAt: Math.floor(Date.now() / 1000) + 3600,
             user: {
               id: 'local-user',
-              email: 'demo@capstone.local',
+              email: 'demo@capflux.local',
             },
           },
         },

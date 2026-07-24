@@ -21,7 +21,7 @@ const handleCompleteSetup = () => {
   >
     <div class="flex-1">
       <p class="text-sm font-medium text-text-primary">
-        Welcome to Capstone. Complete your school profile to activate fee collection.
+        Welcome to CAPFLUX. Complete your school profile to activate fee collection.
       </p>
     </div>
     <CmButton

@@ -162,5 +162,5 @@ app.post('/api/log-error', express.json({ limit: '100kb' }), (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Capstone backend server running on http://localhost:${port}`);
+  console.log(`CAPFLUX backend server running on http://localhost:${port}`);
 });

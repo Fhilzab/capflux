@@ -115,7 +115,7 @@ window.addEventListener('offline', () => isOffline.value = true);
           <CmInput
             v-model="form.schoolName"
             label="School Name"
-            placeholder="Capstone International School"
+            placeholder="CAPFLUX International School"
             required
             autofocus
             :error="errors.schoolName"

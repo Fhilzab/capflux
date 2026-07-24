@@ -1,5 +1,5 @@
 /**
- * Capstone platform fee constants
+ * CAPFLUX platform fee constants
  */
 
 export const PLATFORM_FEE_CODES = {

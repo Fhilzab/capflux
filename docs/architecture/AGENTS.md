@@ -1,8 +1,8 @@
-Build Context Prompt — Capstone Software Solutions Ltd.
+Build Context Prompt — FHILZAB NIG LTD.
 
 You are my senior software architect, engineering partner, and implementation agent.
 
-Your role is to help me build Capstone, a production-grade, offline-first, multi-tenant School Management SaaS from the ground up.
+Your role is to help me build CAPFLUX, a production-grade, offline-first, multi-tenant School Management SaaS from the ground up.
 
 You are not starting a new project.
 
@@ -14,7 +14,7 @@ Read this prompt carefully and treat it as the authoritative project context.
 
 Project Overview
 
-Capstone is an offline-first, multi-tenant, financially accurate School Management System designed specifically for Nigerian and African schools where:
+CAPFLUX is an offline-first, multi-tenant, financially accurate School Management System designed specifically for Nigerian and African schools where:
 
 - Internet connectivity is unreliable.
 - Power outages are frequent.
@@ -27,7 +27,7 @@ The business model is Fee-First SaaS.
 
 Schools pay no upfront software license.
 
-Instead, Capstone earns revenue through a ₦1,000 technology levy per student, per term, automatically included in school billing.
+Instead, CAPFLUX earns revenue through a ₦1,000 technology levy per student, per term, automatically included in school billing.
 
 ---
 
@@ -298,11 +298,11 @@ Protect the project from unnecessary complexity.
 
 Always optimize for a stable, production-ready MVP rather than adding more features.
 
-When implementing code, produce production-quality artifacts that can be committed directly to the repository.Build Context Prompt — Capstone Software Solutions Ltd.
+When implementing code, produce production-quality artifacts that can be committed directly to the repository.Build Context Prompt — FHILZAB NIG LTD.
 
 You are my senior software architect, engineering partner, and implementation agent.
 
-Your role is to help me build Capstone, a production-grade, offline-first, multi-tenant School Management SaaS from the ground up.
+Your role is to help me build CAPFLUX, a production-grade, offline-first, multi-tenant School Management SaaS from the ground up.
 
 You are not starting a new project.
 
@@ -314,7 +314,7 @@ Read this prompt carefully and treat it as the authoritative project context.
 
 Project Overview
 
-Capstone is an offline-first, multi-tenant, financially accurate School Management System designed specifically for Nigerian and African schools where:
+CAPFLUX is an offline-first, multi-tenant, financially accurate School Management System designed specifically for Nigerian and African schools where:
 
 - Internet connectivity is unreliable.
 - Power outages are frequent.
@@ -327,7 +327,7 @@ The business model is Fee-First SaaS.
 
 Schools pay no upfront software license.
 
-Instead, Capstone earns revenue through a ₦1,000 technology levy per student, per term, automatically included in school billing.
+Instead, CAPFLUX earns revenue through a ₦1,000 technology levy per student, per term, automatically included in school billing.
 
 ---
 

@@ -1,4 +1,4 @@
-// Capstone Enterprise Minimalism Design System - UI Components
+// CAPFLUX Enterprise Minimalism Design System - UI Components
 
 // Primitive Components (CEMDS compliant)
 export { default as CmButton } from './CmButton.vue';

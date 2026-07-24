@@ -63,7 +63,7 @@ const aiExplanation = computed(() => {
 <template>
   <section>
     <div class="mb-4">
-      <h2 class="text-headline">Capstone Score</h2>
+      <h2 class="text-headline">CAPFLUX Score</h2>
       <p class="text-sm text-text-muted">Overall operational health score</p>
     </div>
 

@@ -16,12 +16,12 @@ const createFallbackClient = () => ({
             expires_at: Math.floor(Date.now() / 1000) + 3600,
             user: {
               id: 'local-user',
-              email: 'demo@capstone.local',
+              email: 'demo@capflux.local',
             },
           },
           user: {
             id: 'local-user',
-            email: 'demo@capstone.local',
+            email: 'demo@capflux.local',
           },
         },
         error: null,
@@ -32,7 +32,7 @@ const createFallbackClient = () => ({
         data: {
           user: {
             id: 'local-user',
-            email: 'demo@capstone.local',
+            email: 'demo@capflux.local',
           },
         },
         error: null,
@@ -53,7 +53,7 @@ const createFallbackClient = () => ({
             expires_at: Math.floor(Date.now() / 1000) + 3600,
             user: {
               id: 'local-user',
-              email: 'demo@capstone.local',
+              email: 'demo@capflux.local',
             },
           },
         },

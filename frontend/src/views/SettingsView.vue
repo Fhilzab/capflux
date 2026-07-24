@@ -176,7 +176,7 @@ const transferOwnership = async (adminId: string) => {
         <div class="space-y-4">
           <div>
             <p class="text-sm font-medium text-text-primary mb-2">School Name</p>
-            <p class="text-sm text-text-secondary">Capstone International School</p>
+            <p class="text-sm text-text-secondary">CAPFLUX International School</p>
           </div>
           <div>
             <p class="text-sm font-medium text-text-primary mb-2">Currency</p>

@@ -1,6 +1,6 @@
-Capstone Database Schema v1.0
+CAPFLUX Database Schema v1.0
 Purpose
-Canonical database schema for the Capstone MVP.
+Canonical database schema for the CAPFLUX MVP.
 Principles
 Offline-first
 Multi-tenant

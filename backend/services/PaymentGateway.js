@@ -1,7 +1,7 @@
 /**
  * PaymentGateway - Abstract interface for payment gateway implementations
  * 
- * This abstraction allows Capstone to support multiple payment providers
+ * This abstraction allows CAPFLUX to support multiple payment providers
  * (Monnify, Flutterwave, Remita) without changing the billing engine.
  * 
  * All providers must support Dedicated Virtual Accounts (DVA) and split settlements.

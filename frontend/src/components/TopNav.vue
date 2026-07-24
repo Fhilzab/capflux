@@ -15,7 +15,7 @@ const themeStore = useThemeStore();
 
 const online = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
-const userEmail = computed(() => authStore.user?.email || 'admin@capstone.local');
+const userEmail = computed(() => authStore.user?.email || 'admin@capflux.local');
 const displayName = computed(() => {
   const email = userEmail.value;
   return email.split('@')[0] || 'Admin';

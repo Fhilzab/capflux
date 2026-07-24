@@ -3,7 +3,7 @@
 ## Date: 2026-07-14
 
 ## Objective
-Refactor Capstone's synchronization architecture to distinguish between operational (school-generated) data and financial (bank-generated) data.
+Refactor CAPFLUX's synchronization architecture to distinguish between operational (school-generated) data and financial (bank-generated) data.
 
 ## Changes Summary
 

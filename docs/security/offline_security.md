@@ -89,11 +89,11 @@ interface EncryptedStudent extends Student {
 }
 
 // Dexie schema with encryption
-class EncryptedCapstoneDB extends Dexie {
+class EncryptedCapfluxDB extends Dexie {
   students!: Table<EncryptedStudent, string>;
   
   constructor(encryptionKey: string) {
-    super('capstone_local_db');
+    super('capflux_local_db');
     
     // Apply encryption middleware
     this.use({

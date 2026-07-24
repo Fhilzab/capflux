@@ -110,13 +110,13 @@ start-forensic-investigation $INCIDENT_ID
 terraform apply -var="region=us-west-2"
 
 # Step 2: Update DNS
-cloudflare-dns update --service capstone.ng --target $DR_ENDPOINT
+cloudflare-dns update --service capflux.ng --target $DR_ENDPOINT
 
 # Step 3: Monitor failover
 until curl -sf $DR_ENDPOINT/health; do sleep 5; done
 
 # Step 4: Notify customers
-send-sms-bulk "Capstone service temporarily moved. No action required."
+send-sms-bulk "CAPFLUX service temporarily moved. No action required."
 ```
 
 ---
@@ -133,7 +133,7 @@ send-sms-bulk "Capstone service temporarily moved. No action required."
 RESTORE_TIME=$(date -d "$RECOVERY_POINT" +%s)
 
 # 2. Create new instance
-supabase projects create capstone-restore-$TIMESTAMP \
+supabase projects create capflux-restore-$TIMESTAMP \
     --region $BACKUP_REGION
 
 # 3. Wait for provisioning
@@ -141,7 +141,7 @@ sleep 600  # 10 minutes
 
 # 4. Restore from backup
 supabase db restore \
-    --project-ref capstone-restore-$TIMESTAMP \
+    --project-ref capflux-restore-$TIMESTAMP \
     --point-in-time $RECOVERY_POINT
 
 # 5. Verify restoration
@@ -150,7 +150,7 @@ psql $RESTORE_DB -c "SELECT COUNT(*) FROM ledger_entries;" \
     || exit 1
 
 # 6. Apply RLS policies
-supabase db push --project-ref capstone-restore-$TIMESTAMP \
+supabase db push --project-ref capflux-restore-$TIMESTAMP \
     --file ./supabase/policies/rls_hardening.sql
 
 # 7. Update application config

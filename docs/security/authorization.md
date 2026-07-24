@@ -8,7 +8,7 @@
 
 ## RBAC Model Overview
 
-Capstone implements **Role-Based Access Control (RBAC)** with permissions at the entity-operation level. This ensures users can only perform actions within their role scope.
+CAPFLUX implements **Role-Based Access Control (RBAC)** with permissions at the entity-operation level. This ensures users can only perform actions within their role scope.
 
 ### Why It Is Necessary
 
@@ -43,7 +43,7 @@ graph TB
 
 | Role | Description | MFA Required | Permissions Scope |
 |------|-------------|--------------|-----------------|
-| **Platform Admin** | Capstone internal staff managing the platform | ✅ Yes | All schools, all entities |
+| **Platform Admin** | CAPFLUX internal staff managing the platform | ✅ Yes | All schools, all entities |
 | **School Owner** | School proprietor/director | ✅ Yes | Own school, all entities |
 | **Accountant** | Handles financial records and reporting | ✅ Yes | Ledgers, reports, invoices (read/write) |
 | **Cashier** | Records payments, issues receipts | ✅ Yes | Payments, receipts, basic student view |

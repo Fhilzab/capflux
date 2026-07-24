@@ -1,4 +1,4 @@
-# Capstone Development Roadmap
+# CAPFLUX Development Roadmap
 
 ## Vision
 

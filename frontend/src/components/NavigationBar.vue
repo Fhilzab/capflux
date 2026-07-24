@@ -19,7 +19,7 @@ const logout = async () => {
 <template>
   <header class="flex flex-col gap-4 rounded-card bg-card p-6 shadow-card md:flex-row md:items-center md:justify-between transition-colors duration-200">
     <div>
-      <p class="text-sm uppercase tracking-[0.24em] text-text-muted">Capstone</p>
+      <p class="text-sm uppercase tracking-[0.24em] text-text-muted">CAPFLUX</p>
       <p class="text-2xl font-semibold text-text-primary">School Finance</p>
     </div>
 

@@ -220,7 +220,7 @@ Running application may expose vulnerabilities not visible in code.
 ```bash
 # OWASP ZAP scan (staging environment)
 docker run -t owasp/zap2docker-stable zap-baseline.py \
-    -t https://staging.capstone.ng \
+    -t https://staging.capflux.ng \
     -r zap-report.html
 
 # Include in CI after deploy to staging

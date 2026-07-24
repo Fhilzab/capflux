@@ -1,8 +1,8 @@
-# Capstone Production Readiness Checklist
+# CAPFLUX Production Readiness Checklist
 
 ## Overview
 
-This document covers the steps required to deploy Capstone to production. Complete each section before going live.
+This document covers the steps required to deploy CAPFLUX to production. Complete each section before going live.
 
 ---
 
@@ -58,7 +58,7 @@ This document covers the steps required to deploy Capstone to production. Comple
 - [ ] Configure rate limiting (included in backend/index.js)
 - [ ] Set up process manager (PM2 or systemd):
   ```bash
-  pm2 start backend/index.js --name capstone-api
+  pm2 start backend/index.js --name capflux-api
   pm2 save
   pm2 startup
   ```

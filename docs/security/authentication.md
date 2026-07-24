@@ -8,7 +8,7 @@
 
 ## Authentication Model
 
-Capstone uses **email/password authentication** as the primary mechanism, with **MFA enforcement** planned for all admin roles. The system follows a JWT-based session model with automatic refresh.
+CAPFLUX uses **email/password authentication** as the primary mechanism, with **MFA enforcement** planned for all admin roles. The system follows a JWT-based session model with automatic refresh.
 
 ### Why This Matters
 
@@ -113,7 +113,7 @@ export const MFAService = {
   async enroll() {
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: 'totp',
-      friendlyName: 'Capstone Account',
+      friendlyName: 'CAPFLUX Account',
     });
     
     if (error) throw error;
@@ -182,14 +182,14 @@ stateDiagram-v2
 ### JWT Claims Structure
 
 ```typescript
-export interface CapstoneJWT {
+export interface CAPFLUXJWT {
   // Standard claims
   sub: string;           // profile_id (UUID)
   email: string;          
   exp: number;           // expiry timestamp
   iat: number;           // issued at
   
-  // Custom claims (Capstone-specific)
+  // Custom claims (CAPFLUX-specific)
   school_id: string;       // Tenant identifier
   role: 'OWNER' | 'ADMIN' | 'BURSAR' | 'REGISTRAR' | 'PARENT';  // User role
   admin_status: 'ACTIVE' | 'SUSPENDED';  // Account status

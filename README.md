@@ -1,4 +1,4 @@
-# Capstone
+# Capsflux
 
 Offline-first fee management platform for African schools.
 
@@ -20,7 +20,7 @@ Offline-first fee management platform for African schools.
 
 ## Overview
 
-Capstone is a local-first web application that helps schools manage student records, billing, payments, and notifications while supporting offline operation. The app persists transactions in IndexedDB and synchronizes them with Supabase when connectivity is available.
+Capflux is a local-first web application that helps schools manage student records, billing, payments, and notifications while supporting offline operation. The app persists transactions in IndexedDB and synchronizes them with Supabase when connectivity is available.
 
 ## Features
 
@@ -61,8 +61,8 @@ Capstone is a local-first web application that helps schools manage student reco
 ### Clone repository
 
 ```bash
-git clone git@github.com:capstone-ssng/capstone.git
-cd capstone/frontend
+git clone git@github.com:capflux-ssng/capflux.git
+cd capflux/frontend
 ```
 
 ### Install dependencies
@@ -132,7 +132,7 @@ npm run preview
 
 ## Pages and Flows
 
-- `LandingView` - public marketing and access page for Capstone
+- `LandingView` - public marketing and access page for CAPFLUX
 - `HomeView` - authenticated dashboard with sync status
 - `StudentListView` - register and search students locally
 - `StudentDetailView` - view student details and ledger entries

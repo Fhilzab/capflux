@@ -69,10 +69,10 @@ export const NotificationService = {
    */
   generateTemplates(student_name: string, class_name: string) {
     return {
-      fee_reminder: `Dear Parent/Guardian, this is a reminder that fees for ${student_name} (${class_name}) are due. Please make payment at the school bursary. Thank you. - Capstone`,
-      receipt_notice: `Dear Parent/Guardian, your payment for ${student_name} (${class_name}) has been received. Thank you. - Capstone`,
-      outstanding_balance: `Dear Parent/Guardian, ${student_name} (${class_name}) has an outstanding balance. Please settle at the bursary office. - Capstone`,
-      general_update: `Dear Parent/Guardian, this is an update regarding ${student_name} (${class_name}). Please contact the school for more information. - Capstone`,
+      fee_reminder: `Dear Parent/Guardian, this is a reminder that fees for ${student_name} (${class_name}) are due. Please make payment at the school bursary. Thank you. - CAPFLUX`,
+      receipt_notice: `Dear Parent/Guardian, your payment for ${student_name} (${class_name}) has been received. Thank you. - CAPFLUX`,
+      outstanding_balance: `Dear Parent/Guardian, ${student_name} (${class_name}) has an outstanding balance. Please settle at the bursary office. - CAPFLUX`,
+      general_update: `Dear Parent/Guardian, this is an update regarding ${student_name} (${class_name}). Please contact the school for more information. - CAPFLUX`,
     };
   },
 };

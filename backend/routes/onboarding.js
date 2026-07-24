@@ -15,7 +15,7 @@ router.post('/verify-account', async (req, res) => {
   // This endpoint abstracts the payment provider choice from the frontend
   const mockAccounts = {
     '0123456789': 'Ade Johnson Educational Services',
-    '0987654321': 'Capstone International School',
+    '0987654321': 'CAPFLUX International School',
   };
 
   // Simulate verification delay

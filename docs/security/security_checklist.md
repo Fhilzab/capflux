@@ -272,10 +272,10 @@
 
 | Purpose | Contact | SLA |
 |---------|---------|-----|
-| **Security incidents** | security@capstone.ng | 15 min |
-| **Data breach** | incidents@capstone.ng | 2 hours notice |
-| **Security questions** | security-team@capstone.ng | 24 hours |
-| **Bug bounty** | bounty@capstone.ng | 72 hours ack |
+| **Security incidents** | security@capflux.ng | 15 min |
+| **Data breach** | incidents@capflux.ng | 2 hours notice |
+| **Security questions** | security-team@capflux.ng | 24 hours |
+| **Bug bounty** | bounty@capflux.ng | 72 hours ack |
 
 ---
 

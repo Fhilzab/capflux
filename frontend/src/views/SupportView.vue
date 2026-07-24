@@ -6,12 +6,12 @@ import EmptyState from '../components/ui/EmptyState.vue';
   <div class="p-6">
     <div class="mb-6">
       <h1 class="text-headline">Support</h1>
-      <p class="text-text-secondary">Get help with Capstone</p>
+      <p class="text-text-secondary">Get help with CAPFLUX</p>
     </div>
     
     <EmptyState
       title="Support Center"
-      description="Contact support@capstone.ng for assistance. We're here to help with any questions about the platform."
+      description="Contact support@capflux.ng for assistance. We're here to help with any questions about the platform."
     />
   </div>
 </template>

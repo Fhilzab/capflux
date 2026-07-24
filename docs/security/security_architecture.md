@@ -1,4 +1,4 @@
-# Capstone Security Architecture
+# CAPFLUX Security Architecture
 
 > **Version:** 1.0 (Phase 1)  
 > **Last Updated:** July 2026  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Capstone is a multi-tenant, offline-first School Financial Management Platform handling tuition payments, virtual accounts, and financial reporting. This security architecture is designed with the same rigor as banking and fintech platforms, implementing **Zero Trust**, **Least Privilege**, **Defense in Depth**, and **Secure by Default** principles.
+CAPFLUX is a multi-tenant, offline-first School Financial Management Platform handling tuition payments, virtual accounts, and financial reporting. This security architecture is designed with the same rigor as banking and fintech platforms, implementing **Zero Trust**, **Least Privilege**, **Defense in Depth**, and **Secure by Default** principles.
 
 ### Security Posture Matrix
 

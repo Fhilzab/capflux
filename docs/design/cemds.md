@@ -1,20 +1,20 @@
 # docs/design/cemds.md
 
-# Capstone Enterprise Minimalism Design System (CEMDS)
+# CAPFLUX Enterprise Minimalism Design System (CEMDS)
 
 **Version:** 1.0
 
 **Status:** Living Standard
 
-**Product:** Capstone Fee-First
+**Product:** CAPFLUX Fee-First
 
-**Company:** Capstone Software Solutions Ltd
+**Company:** FHILZAB NIG LTD
 
 ---
 
 # 1. Purpose
 
-The Capstone Enterprise Minimalism Design System (CEMDS) defines the visual language, interaction principles, component standards, and accessibility rules for every Capstone product.
+The CAPFLUX Enterprise Minimalism Design System (CEMDS) defines the visual language, interaction principles, component standards, and accessibility rules for every CAPFLUX product.
 
 It ensures every screen feels as though it was designed by one team at one point in time.
 
@@ -102,7 +102,7 @@ the feature probably shouldn't exist.
 
 # 4. Product Identity
 
-Capstone is NOT
+CAPFLUX is NOT
 
 ❌ School Management Software
 
@@ -114,7 +114,7 @@ Capstone is NOT
 
 ❌ Payroll
 
-Capstone IS
+CAPFLUX IS
 
 ✓ Financial Operating System
 
@@ -868,7 +868,7 @@ Every screen should communicate one thing:
 
 ---
 
-## Capstone Design Manifesto
+## CAPFLUX Design Manifesto
 
 Clarity over Aesthetic.
 

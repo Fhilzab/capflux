@@ -1,6 +1,6 @@
-Capstone System Architecture v1.0 (Revised)
+CAPFLUX System Architecture v1.0 (Revised)
 Vision
-Capstone is an offline-first, multi-tenant, financially accurate School Management System built specifically for African schools where unreliable electricity, poor internet connectivity, and aging desktop computers are everyday realities.
+CAPFLUX is an offline-first, multi-tenant, financially accurate School Management System built specifically for African schools where unreliable electricity, poor internet connectivity, and aging desktop computers are everyday realities.
 Every architectural decision prioritizes:
 Fast local performance
 Financial integrity
@@ -8,7 +8,7 @@ Fault tolerance
 Simplicity
 Horizontal scalability
 High-Level Architecture
-CAPSTONE
+CAPFLUX
 
 ┌──────────────────────────────────────────────────────────────┐
 │                  PRESENTATION LAYER                          │

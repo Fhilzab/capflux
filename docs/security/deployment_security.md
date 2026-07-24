@@ -50,8 +50,8 @@ Manual configuration leads to drift and vulnerabilities.
 
 ```hcl
 # terraform/main.tf
-resource "supabase_project" "capstone" {
-  name     = "capstone-${var.environment}"
+resource "supabase_project" "capflux" {
+  name     = "capflux-${var.environment}"
   org_id   = var.org_id
   
   # Security settings
@@ -65,7 +65,7 @@ resource "supabase_project" "capstone" {
 
 # Edge function secrets
 resource "supabase_function_secret" "monnify_api_key" {
-  project_ref = supabase_project.capstone.id
+  project_ref = supabase_project.capflux.id
   name        = "MONNIFY_API_KEY"
   value       = var.monnify_api_key
 }
@@ -127,7 +127,7 @@ location /api/ {
         return 403;
     }
     
-    proxy_pass http://capstone-api;
+    proxy_pass http://capflux-api;
 }
 ```
 
@@ -137,8 +137,8 @@ location /api/ {
 // Supabase Edge Function CORS
 export const CORS_CONFIG = {
   allowedOrigins: [
-    'https://app.capstone.ng',
-    'https://staging.capstone.ng'
+    'https://app.capflux.ng',
+    'https://staging.capflux.ng'
   ],
   allowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Authorization', 'Content-Type', 'X-CSRF-Token'],

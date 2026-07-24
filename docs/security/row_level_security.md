@@ -7,7 +7,7 @@
 
 ## Why RLS Is Necessary
 
-RLS is the **primary security boundary** for Capstone. It ensures **multi-tenant isolation** by automatically filtering database rows based on the authenticated user's context. Without RLS, any bug in application code could expose one school's data to another.
+RLS is the **primary security boundary** for CAPFLUX. It ensures **multi-tenant isolation** by automatically filtering database rows based on the authenticated user's context. Without RLS, any bug in application code could expose one school's data to another.
 
 ### Security Benefits
 

@@ -91,7 +91,7 @@ export class MonnifyGateway {
     const accessToken = await this.getAccessToken(gateway_config);
 
     // Build split settlement configuration
-    // Tuition goes to school, Tech Levy + Platform Fee goes to Capstone
+    // Tuition goes to school, Tech Levy + Platform Fee goes to CAPFLUX
     const splitConfig = gateway_config.submerchant_code ? {
       splitAmount: [
         {
@@ -103,7 +103,7 @@ export class MonnifyGateway {
 
     const requestBody = {
       accountReference: `${school_id}-${student_id}`.substring(0, 50),
-      accountName: `${student_name} - Capstone School`,
+      accountName: `${student_name} - CAPFLUX School`,
       currencyCode: 'NGN',
       ...splitConfig,
     };
@@ -308,9 +308,9 @@ export class MonnifyGateway {
 
     if (techLevy > 0) {
       settlements.push({
-        destination: 'capstone',
-        account_number: process.env.CAPSTONE_SETTLEMENT_ACCOUNT,
-        bank_name: process.env.CAPSTONE_SETTLEMENT_BANK,
+        destination: 'capflux',
+        account_number: process.env.CAPFLUX_SETTLEMENT_ACCOUNT,
+        bank_name: process.env.CAPFLUX_SETTLEMENT_BANK,
         amount: techLevy,
         category: 'TECH_LEVY',
         status: 'SUCCESS',
@@ -319,9 +319,9 @@ export class MonnifyGateway {
 
     if (platformFee > 0) {
       settlements.push({
-        destination: 'capstone',
-        account_number: process.env.CAPSTONE_SETTLEMENT_ACCOUNT,
-        bank_name: process.env.CAPSTONE_SETTLEMENT_BANK,
+        destination: 'capflux',
+        account_number: process.env.CAPFLUX_SETTLEMENT_ACCOUNT,
+        bank_name: process.env.CAPFLUX_SETTLEMENT_BANK,
         amount: platformFee,
         category: 'PLATFORM_FEE',
         status: 'SUCCESS',

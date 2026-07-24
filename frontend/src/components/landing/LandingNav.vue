@@ -58,19 +58,19 @@ onUnmounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 8a7 7 0 0114 0c0 2.21-.9 4.2-2.25 5.64A6.97 6.97 0 0112 15a6.97 6.97 0 01-4.75-1.36C5.9 12.2 5 10.21 5 8z" />
               </svg>
             </div>
-            <span class="text-lg font-semibold text-text-primary">Capstone</span>
+            <span class="text-lg font-semibold text-text-primary">CAPFLUX</span>
           </a>
         </div>
 
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center space-x-8">
           <CmButton
-            v-for="item in ['product', 'pricing', 'resources', 'security']"
+            v-for="item in ['features', 'how-it-works', 'pricing', 'faq']"
             :key="item"
             @click="navigateTo(item)"
             variant="link"
           >
-            {{ item.charAt(0).toUpperCase() + item.slice(1) }}
+            {{ item === 'how-it-works' ? 'How It Works' : item.charAt(0).toUpperCase() + item.slice(1) }}
           </CmButton>
         </div>
 
@@ -99,13 +99,13 @@ onUnmounted(() => {
             Log In
           </CmButton>
 
-          <!-- Create Free Account Button -->
+          <!-- Get Started Free Button -->
           <CmButton
             @click="navigateToAuth('signup')"
             variant="primary"
             class="hidden md:inline-flex"
           >
-            Create Free Account
+            Get Started Free
           </CmButton>
 
           <!-- Mobile Menu Button -->
@@ -137,13 +137,13 @@ onUnmounted(() => {
           class="md:hidden py-4 space-y-2 border-t border-divider"
         >
           <CmButton
-            v-for="item in ['product', 'pricing', 'resources', 'security']"
+            v-for="item in ['features', 'how-it-works', 'pricing', 'faq']"
             :key="item"
             @click="navigateTo(item)"
             variant="link"
             class="w-full block text-left"
           >
-            {{ item.charAt(0).toUpperCase() + item.slice(1) }}
+            {{ item === 'how-it-works' ? 'How It Works' : item.charAt(0).toUpperCase() + item.slice(1) }}
           </CmButton>
           <CmButton
             @click="navigateToAuth('login')"
@@ -157,7 +157,7 @@ onUnmounted(() => {
             variant="primary"
             class="w-full mt-2 inline-flex"
           >
-            Create Free Account
+            Get Started Free
           </CmButton>
         </div>
       </transition>

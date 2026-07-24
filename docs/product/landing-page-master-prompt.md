@@ -1,12 +1,12 @@
-Capstone Landing Page Master Specification
+CAPFLUX Landing Page Master Specification
 
 Version: 1.0
 
 Status: Living Document
 
-Product: Capstone Fee-First
+Product: CAPFLUX Fee-First
 
-Company: Capstone Software Solutions Ltd
+Company: FHILZAB NIG LTD
 
 
 ---
@@ -15,7 +15,7 @@ Company: Capstone Software Solutions Ltd
 
 Vision
 
-Capstone is the Financial Operating System for African Private Schools.
+CAPFLUX is the Financial Operating System for African Private Schools.
 
 We do not compete with generic School Management Systems.
 
@@ -60,7 +60,7 @@ Every animation should support understanding.
 
 3. Brand Positioning
 
-Capstone is NOT
+CAPFLUX is NOT
 
 ❌ School ERP
 
@@ -75,7 +75,7 @@ Capstone is NOT
 
 ---
 
-Capstone IS
+CAPFLUX IS
 
 ✓ Financial Operating System
 
@@ -105,7 +105,7 @@ Stop chasing school fees.
 
 Start controlling your cash flow.
 
-Capstone helps private schools collect, reconcile, and understand tuition revenue through dedicated virtual accounts, automated reconciliation, and an offline-first financial platform built for African realities.
+CAPFLUX helps private schools collect, reconcile, and understand tuition revenue through dedicated virtual accounts, automated reconciliation, and an offline-first financial platform built for African realities.
 
 
 ---
@@ -240,7 +240,7 @@ Stop chasing school fees.
 
 Start controlling your cash flow.
 
-Capstone is the Financial Operating System built for African private schools—helping you collect, reconcile, and understand tuition payments with dedicated virtual accounts, automated reconciliation, and offline-first reliability.
+CAPFLUX is the Financial Operating System built for African private schools—helping you collect, reconcile, and understand tuition payments with dedicated virtual accounts, automated reconciliation, and offline-first reliability.
 
 Primary CTA:
 
@@ -440,11 +440,11 @@ Optimize for Lighthouse performance and accessibility
 
 The landing page is complete only if it:
 
-Clearly positions Capstone as a Financial Operating System.
+Clearly positions CAPFLUX as a Financial Operating System.
 
 Uses the complete landing page copy without diluting the messaging.
 
-Follows the Capstone Enterprise Minimalism Design System.
+Follows the CAPFLUX Enterprise Minimalism Design System.
 
 Supports both light and dark themes.
 
@@ -460,4 +460,4 @@ Feels calm, premium, and trustworthy.
 
 ---
 
-This document becomes the single source of truth for the marketing site. As Capstone evolves, update this specification first, then implement changes from it. That keeps your messaging, design, and engineering aligned over time.
+This document becomes the single source of truth for the marketing site. As CAPFLUX evolves, update this specification first, then implement changes from it. That keeps your messaging, design, and engineering aligned over time.

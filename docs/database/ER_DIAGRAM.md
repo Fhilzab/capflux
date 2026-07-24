@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            CAPSTONE SCHOOL ERP                              │
+│                            CAPFLUX SCHOOL ERP                              │
 │                       Fee-First Billing Architecture                        │
 │                       Payment Accounts Domain v2                           │
 └─────────────────────────────────────────────────────────────────────────────┘

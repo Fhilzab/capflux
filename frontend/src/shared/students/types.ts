@@ -28,7 +28,7 @@ export interface Student {
   gender: string;
   dateOfBirth?: string;
   admissionDate: string;
-  registeredAt: string;         // automatic - when recorded in Capstone
+  registeredAt: string;         // automatic - when recorded in CAPFLUX
   relationshipToGuardian: Relationship;
   discountRate: number;         // 0-100 percentage
   status: StudentStatus;

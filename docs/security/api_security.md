@@ -212,9 +212,9 @@ Prevents **cross-site request forgery** and **data exfiltration** via malicious 
 ```typescript
 // supabase/functions/_shared/cors.ts
 export const ALLOWED_ORIGINS = [
-  'https://app.capstone.ng',
-  'https://staging.capstone.ng',
-  'https://www.capstone.ng'
+  'https://app.capflux.ng',
+  'https://staging.capflux.ng',
+  'https://www.capflux.ng'
 ];
 
 export function getCorsHeaders(origin: string | null): HeadersInit {

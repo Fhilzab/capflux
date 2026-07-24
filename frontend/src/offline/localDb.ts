@@ -23,7 +23,7 @@ export type EntitySource = {
 };
 
 // Extend Dexie to include our tables
-class CapstoneDB extends Dexie {
+class CapfluxDB extends Dexie {
   schools!: Table<School & EntitySource, string>;
   profiles!: Table<Profile & EntitySource, string>;
   students!: Table<Student & EntitySource, string>;
@@ -51,7 +51,7 @@ class CapstoneDB extends Dexie {
   }, string>;
 
   constructor() {
-    super('capstone_local_db');
+    super('capflux_local_db');
     this.version(3).stores({
       schools: 'id, school_id, subscription_status, created_at, source, version, updated_at',
       profiles: 'id, school_id, full_name, role, created_at, source, version, updated_at',
@@ -74,7 +74,7 @@ class CapstoneDB extends Dexie {
   }
 }
 
-const db = new CapstoneDB();
+const db = new CapfluxDB();
 
 // ============================================================================
 // ENTITY OWNERSHIP CLASSIFICATION

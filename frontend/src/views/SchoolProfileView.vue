@@ -7,7 +7,7 @@ import CmInput from '../components/ui/CmInput.vue';
 
 const schoolStore = useSchoolStore();
 
-const DEFAULT_SCHOOL_NAME = 'Capstone Demo School';
+const DEFAULT_SCHOOL_NAME = 'CAPFLUX Demo School';
 
 const settings = ref({
   currency: 'NGN',

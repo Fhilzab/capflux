@@ -27,7 +27,7 @@ export class AuthorizationService {
       // Local dev fallback
       return {
         id: 'local-user',
-        email: 'admin@capstone.local',
+        email: 'admin@capflux.local',
         role: 'OWNER',
         admin_status: 'ACTIVE',
         school_id: 'demo-school',
@@ -84,8 +84,8 @@ export class AuthorizationService {
     if (!hasSupabaseConfig) {
       // Mock data for local dev
       return [
-        { id: 'admin-1', email: 'bursar@capstone.local', admin_status: 'ACTIVE' },
-        { id: 'admin-2', email: 'accountant@capstone.local', admin_status: 'SUSPENDED' },
+        { id: 'admin-1', email: 'bursar@capflux.local', admin_status: 'ACTIVE' },
+        { id: 'admin-2', email: 'accountant@capflux.local', admin_status: 'SUSPENDED' },
       ];
     }
 

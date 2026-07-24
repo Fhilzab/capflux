@@ -124,7 +124,7 @@ sequenceDiagram
 ### Customer Notification
 
 ```
-SUBJECT: Security Notice - Capstone Account Activity
+SUBJECT: Security Notice - CAPFLUX Account Activity
 
 We detected unusual activity on your account on [DATE] at [TIME].
 We have temporarily suspended your account to prevent unauthorized access.
@@ -135,7 +135,7 @@ What we're doing: [Remediation steps]
 
 What you need to do: [User action required]
 
-Questions? Contact security@capstone.ng
+Questions? Contact security@capflux.ng
 ```
 
 ### Regulatory Notification (NDPA)
@@ -144,7 +144,7 @@ Questions? Contact security@capstone.ng
 To: National Data Protection Bureau
 Subject: Mandatory Breach Notification
 
-Organization: Capstone Software Solutions Ltd
+Organization: FHILZAB NIG LTD
 Date of breach: [DATE]
 Nature of breach: [Description]
 Data affected: [Types and quantities]
@@ -243,10 +243,10 @@ CREATE TABLE incident_remediation (
 
 | Role | Contact | Availability |
 |------|---------|--------------|
-| **Incident Lead** | security@capstone.ng | 24/7 |
-| **Engineering Lead** | on-call@capstone.ng | 24/7 |
-| **Legal Contact** | legal@capstone.ng | Business hours |
-| **PR Contact** | pr@capstone.ng | Business hours |
+| **Incident Lead** | security@capflux.ng | 24/7 |
+| **Engineering Lead** | on-call@capflux.ng | 24/7 |
+| **Legal Contact** | legal@capflux.ng | Business hours |
+| **PR Contact** | pr@capflux.ng | Business hours |
 | **External Counsel** | [Law firm] | Retainer |
 
 ---

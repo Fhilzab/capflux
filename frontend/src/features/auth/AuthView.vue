@@ -99,7 +99,7 @@ if (props.provider === 'google') {
     <!-- Footer -->
     <template #footer>
       <div class="mt-6 text-center text-xs text-text-muted">
-        <p>&copy; 2024 Capstone Software Solutions Ltd. All rights reserved.</p>
+        <p>&copy; 2024 FHILZAB NIG LTD. All rights reserved.</p>
       </div>
     </template>
   </AuthLayout>

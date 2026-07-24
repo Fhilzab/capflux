@@ -4,7 +4,7 @@
     <div class="mb-12">
       <svg class="h-10 w-auto" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="24" font-family="var(--font-family-sans)" font-weight="700" font-size="24" class="fill-text-primary">
-          Capstone
+          CAPFLUX
         </text>
       </svg>
     </div>
