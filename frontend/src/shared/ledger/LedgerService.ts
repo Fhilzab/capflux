@@ -64,6 +64,10 @@ export class LedgerService {
   ): Promise<LedgerResult<LedgerEntry | null>> {
     return provider.getEntryBySourceDocument(sourceDocumentType, sourceDocumentId);
   }
+
+  async listEntries(schoolId: string): Promise<LedgerResult<LedgerEntry[]>> {
+    return provider.listEntries(schoolId);
+  }
 }
 
 export const ledgerService = new LedgerService();
