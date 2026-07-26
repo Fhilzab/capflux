@@ -170,7 +170,47 @@ Each milestone must:
 
 ---
 
-## 8. Architecture Diagram
+## 8. Ledger Guarantees
+
+The append-only ledger is the single source of financial truth for Capflux. The following guarantees are architectural promises. Future milestones and contributors must preserve them.
+
+### 8.1 Append-only ledger
+Ledger entries may only be created. They may never be updated or deleted. Corrections are made by adding compensating entries (REVERSAL, REFUND, ADJUSTMENT).
+
+### 8.2 Idempotent posting
+Posting the same financial event twice must not create duplicate ledger entries. Engines must check for an existing entry by source document (`sourceDocumentType + sourceDocumentId`) before creating a new one.
+
+### 8.3 Atomic financial operations
+If any part of a financial operation fails (ledger creation, allocation, charge locking), the entire operation must fail. Partial success that leaves billing and ledger out of sync is unacceptable.
+
+### 8.4 Immutable historical records
+Once created, billing snapshots, ledger entries, and receipts are immutable. Their values represent the truth at the time of the event and must remain unchanged for audit and reconciliation.
+
+### 8.5 Deterministic running balances
+Running balances are computed deterministically from the ordered ledger chain:
+- DEBIT increases balance
+- CREDIT decreases balance
+- REVERSAL applies the opposite direction of the original entry
+
+The balance after any entry must equal `balanceBeforeMinor + (direction === 'DEBIT' ? amountMinor : -amountMinor)`.
+
+### 8.6 Compensating entries only
+No existing ledger entry may be modified to correct an error. All corrections are new entries with opposite effects:
+- REVERSAL negates an original entry
+- REFUND records money returned
+- ADJUSTMENT represents manual corrections
+
+### 8.7 Database-level concurrency protection
+Application-level idempotency checks prevent duplicates in normal operation. Future implementation must add database-level protection:
+- Unique constraint on (`source_document_type`, `source_document_id`)
+- Atomic sequence number generation per organization/school
+- Row-level locking or serializable transactions for concurrent allocations
+
+This protection is **deferred** but must be implemented before production deployment.
+
+---
+
+## 9. Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────┐
