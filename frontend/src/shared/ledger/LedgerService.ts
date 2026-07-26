@@ -1,5 +1,8 @@
 import { LedgerEngine, type CreateEntryInput } from './LedgerEngine';
+import { SupabaseLedgerProvider } from './SupabaseLedgerProvider';
 import type { LedgerEntry, LedgerResult } from './types';
+
+const provider = new SupabaseLedgerProvider();
 
 export class LedgerService {
   /**
@@ -49,6 +52,17 @@ export class LedgerService {
     previousEntry: LedgerEntry | null,
   ): Promise<LedgerResult<LedgerEntry>> {
     return LedgerEngine.createReversalEntry(originalEntry, reason, previousEntry);
+  }
+
+  /**
+   * Look up an existing ledger entry by source document.
+   * Used for idempotency checks.
+   */
+  async getEntryBySourceDocument(
+    sourceDocumentType: string,
+    sourceDocumentId: string,
+  ): Promise<LedgerResult<LedgerEntry | null>> {
+    return provider.getEntryBySourceDocument(sourceDocumentType, sourceDocumentId);
   }
 }
 

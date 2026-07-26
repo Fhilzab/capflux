@@ -37,12 +37,8 @@ export class PaymentEngine {
    * Charges with status !== 'ACTIVE' or ledgerLocked === true are skipped.
    *
    * After successful allocation:
-   *   - Creates a PAYMENT ledger entry for the total payment amount
+   *   - Creates a PAYMENT ledger entry for the total payment amount (idempotent)
    *   - Locks charges via BillingEngine.lockCharge
-   *
-   * @param payment - The confirmed payment to allocate
-   * @param charges - Charges with snapshot amounts (netAmount from BillingSnapshot)
-   * @param ledgerContext - Org/school/academic context required for ledger entries
    */
   static async allocate(
     payment: Payment,
@@ -108,10 +104,22 @@ export class PaymentEngine {
       };
     }
 
-    // Create PAYMENT ledger entry for the total payment amount
-    const paymentAmountMinor = Math.round(payment.amount * 100);
-    try {
-      await ledgerService.createPaymentEntry({
+    // Idempotency: check if PAYMENT ledger entry already exists for this payment
+    const existingLedgerResult = await ledgerService.getEntryBySourceDocument('PAYMENT', payment.id);
+    if (existingLedgerResult.error) {
+      return {
+        data: null,
+        error: {
+          code: 'UNKNOWN',
+          message: existingLedgerResult.error.message,
+        },
+      };
+    }
+
+    if (!existingLedgerResult.data) {
+      // Create PAYMENT ledger entry for the total payment amount
+      const paymentAmountMinor = Math.round(payment.amount * 100);
+      const ledgerResult = await ledgerService.createPaymentEntry({
         organizationId: ledgerContext.organizationId,
         schoolId: ledgerContext.schoolId,
         studentId: payment.studentId,
@@ -132,10 +140,16 @@ export class PaymentEngine {
         occurredAt: payment.paymentDate,
         postingDate: new Date().toISOString(),
       });
-    } catch (e) {
-      // Ledger failure should not prevent allocation completion
-      // Log in production; allocation still succeeds
-      console.warn('PaymentEngine.allocate: failed to create payment ledger entry', e);
+
+      if (ledgerResult.error) {
+        return {
+          data: null,
+          error: {
+            code: 'UNKNOWN',
+            message: ledgerResult.error.message,
+          },
+        };
+      }
     }
 
     // Lock charges after successful allocation
@@ -144,7 +158,7 @@ export class PaymentEngine {
       if (charge) {
         try {
           const { BillingEngine } = await import('../billing/BillingEngine');
-          await BillingEngine.lockCharge(
+          const lockResult = await BillingEngine.lockCharge(
             {
               id: charge.chargeId,
               billingProfileId: '',
@@ -161,8 +175,25 @@ export class PaymentEngine {
             updated.allocatedAmount,
             charge.netAmount,
           );
+
+          if (lockResult.error) {
+            return {
+              data: null,
+              error: {
+                code: 'ALLOCATION_FAILED',
+                message: lockResult.error.message,
+                raw: lockResult.error,
+              },
+            };
+          }
         } catch (e) {
-          console.warn('PaymentEngine.allocate: failed to lock charge', updated.chargeId, e);
+          return {
+            data: null,
+            error: {
+              code: 'UNKNOWN',
+              message: e instanceof Error ? e.message : 'Failed to lock charge',
+            },
+          };
         }
       }
     }

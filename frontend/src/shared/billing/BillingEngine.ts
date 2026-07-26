@@ -111,6 +111,22 @@ export class BillingEngine {
           continue;
         }
 
+        const sourceDocumentId = snapshot.id;
+
+        const existingLedgerResult = await ledgerService.getEntryBySourceDocument('CHARGE', sourceDocumentId);
+        if (existingLedgerResult.error) {
+          return {
+            data: null,
+            error: {
+              code: 'UNKNOWN',
+              message: existingLedgerResult.error.message,
+            },
+          };
+        }
+        if (existingLedgerResult.data) {
+          continue;
+        }
+
         const charge: StudentCharge = {
           id: '',
           billingProfileId: existingProfile.id,
@@ -129,14 +145,14 @@ export class BillingEngine {
 
         // Create CHARGE ledger entry for this student charge
         const netAmountMinor = Math.round((snapshot.netAmount || 0) * 100);
-        await ledgerService.createChargeEntry({
+        const ledgerResult = await ledgerService.createChargeEntry({
           organizationId: student.schoolId,
           schoolId: student.schoolId,
           studentId: student.id,
           billingProfileId: existingProfile.id,
           transactionGroupId: existingProfile.id,
           sourceDocumentType: 'CHARGE',
-          sourceDocumentId: charge.id || snapshot.id,
+          sourceDocumentId,
           academicSessionId: session.id,
           academicTermId: term.id,
           entryType: 'CHARGE',
@@ -148,6 +164,16 @@ export class BillingEngine {
           occurredAt: new Date().toISOString(),
           postingDate: new Date().toISOString(),
         });
+
+        if (ledgerResult.error) {
+          return {
+            data: null,
+            error: {
+              code: 'UNKNOWN',
+              message: ledgerResult.error.message,
+            },
+          };
+        }
       }
 
       return {
