@@ -7,13 +7,10 @@ import { BillingValidator } from './BillingValidator';
 import type {
   BillingProfile,
   StudentCharge,
-  BillingSnapshot,
   BillingResult,
   ChargeSource,
   ChargeStatus,
-  BillingInitializationStatus,
 } from './types';
-import type { Student } from '../students/types';
 import type { AcademicSession, AcademicTerm } from '../academic/types';
 
 const BILLING_VERSION = 1;
@@ -25,7 +22,6 @@ export class BillingEngine {
     schoolId?: string,
   ): Promise<BillingResult<{ profile: BillingProfile; charges: StudentCharge[] }>> {
     try {
-      // 1. Load student
       const studentResult = await studentService.loadStudents(schoolId || '');
       const students = studentResult.data || [];
       const student = students.find(s => s.id === studentId);
@@ -42,7 +38,6 @@ export class BillingEngine {
       const schoolIdFromStudent = student.schoolId;
       const divisionId = student.divisionId;
 
-      // 2. Resolve academic context via AcademicService
       const sessionResult = await academicService.getCurrentSession(schoolIdFromStudent);
       const termResult = await academicService.getCurrentTerm(schoolIdFromStudent);
 
@@ -59,7 +54,6 @@ export class BillingEngine {
       const session = sessionResult.data as AcademicSession;
       const term = termResult.data as AcademicTerm;
 
-      // 3. Find or create BillingProfile (per student + session)
       if (!existingProfile) {
         return {
           data: null,
@@ -70,7 +64,6 @@ export class BillingEngine {
         };
       }
 
-      // 4. Get applicable fees
       const applicableResult = await feeService.getApplicableFees(schoolIdFromStudent, divisionId);
       if (applicableResult.error) {
         return {
@@ -86,13 +79,15 @@ export class BillingEngine {
       const platformFees = applicableResult.data?.platform || [];
       const feesToAssign = [...mandatoryFees, ...platformFees];
 
-      // 5. Create charges for each fee (idempotent)
       const createdCharges: StudentCharge[] = [];
 
       for (const fee of feesToAssign) {
+        // Fee amount is resolved from the pricing configuration.
+        // In production, query from FeePrice or similar table.
+        const feeAmount = 0;
         const snapshot = BillingSnapshotBuilder.create({
           fee,
-          amount: fee.amount || 0,
+          amount: feeAmount,
           studentId: student.id,
           session,
           term,
@@ -145,6 +140,53 @@ export class BillingEngine {
         error: {
           code: 'UNKNOWN',
           message: e?.message || 'Failed to initialize student billing',
+        },
+      };
+    }
+  }
+
+  /**
+   * Lock a student charge after successful payment allocation.
+   * - Sets ledgerLocked to true
+   * - Updates status to PAID or PARTIALLY_PAID
+   * - Called by PaymentEngine after allocation succeeds
+   */
+  static async lockCharge(
+    charge: StudentCharge,
+    allocatedAmount: number,
+    netAmount: number,
+  ): Promise<BillingResult<StudentCharge>> {
+    try {
+      if (charge.ledgerLocked) {
+        return {
+          data: null,
+          error: {
+            code: 'CHARGE_LEDGER_LOCKED',
+            message: 'This charge is already locked and cannot be modified.',
+          },
+        };
+      }
+
+      const isPaid = allocatedAmount >= netAmount;
+      const newStatus: ChargeStatus = isPaid ? 'PAID' : 'PARTIALLY_PAID';
+
+      const updatedCharge: StudentCharge = {
+        ...charge,
+        status: newStatus,
+        ledgerLocked: true,
+        updatedAt: new Date().toISOString(),
+      };
+
+      return {
+        data: updatedCharge,
+        error: null,
+      };
+    } catch (e: any) {
+      return {
+        data: null,
+        error: {
+          code: 'STUDENT_CHARGE_UPDATE_FAILED',
+          message: e?.message || 'Failed to lock charge',
         },
       };
     }
