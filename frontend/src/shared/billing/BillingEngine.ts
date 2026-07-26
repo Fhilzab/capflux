@@ -4,7 +4,7 @@ import { studentService } from '../students/StudentService';
 import { feeService } from '../fees/FeeService';
 import { BillingSnapshotBuilder } from './BillingSnapshot';
 import { BillingValidator } from './BillingValidator';
-import { ledgerService } from '../ledger/LedgerService';
+import { accountingService } from '../accounting/AccountingService';
 import type {
   BillingProfile,
   StudentCharge,
@@ -113,20 +113,6 @@ export class BillingEngine {
 
         const sourceDocumentId = snapshot.id;
 
-        const existingLedgerResult = await ledgerService.getEntryBySourceDocument('CHARGE', sourceDocumentId);
-        if (existingLedgerResult.error) {
-          return {
-            data: null,
-            error: {
-              code: 'UNKNOWN',
-              message: existingLedgerResult.error.message,
-            },
-          };
-        }
-        if (existingLedgerResult.data) {
-          continue;
-        }
-
         const charge: StudentCharge = {
           id: '',
           billingProfileId: existingProfile.id,
@@ -143,36 +129,43 @@ export class BillingEngine {
 
         createdCharges.push(charge);
 
-        // Create CHARGE ledger entry for this student charge
+        // Create accounting journal for this student charge
         const netAmountMinor = Math.round((snapshot.netAmount || 0) * 100);
-        const ledgerResult = await ledgerService.createChargeEntry({
+        const journalResult = await accountingService.createChargeJournal({
           organizationId: student.schoolId,
           schoolId: student.schoolId,
-          studentId: student.id,
-          billingProfileId: existingProfile.id,
           transactionGroupId: existingProfile.id,
           sourceDocumentType: 'CHARGE',
           sourceDocumentId,
-          academicSessionId: session.id,
-          academicTermId: term.id,
-          entryType: 'CHARGE',
-          entryDirection: 'DEBIT',
+          description: `Fee: ${fee.name}`,
           amountMinor: netAmountMinor,
           currency: 'NGN',
-          sourceEntity: 'BILLING',
-          previousEntry: null,
           occurredAt: new Date().toISOString(),
-          postingDate: new Date().toISOString(),
         });
 
-        if (ledgerResult.error) {
+        if (journalResult.error) {
           return {
             data: null,
             error: {
               code: 'UNKNOWN',
-              message: ledgerResult.error.message,
+              message: journalResult.error.message,
             },
           };
+        }
+
+        if (journalResult.data) {
+          const { JournalPoster } = await import('../accounting/JournalPoster');
+          const postResult = await JournalPoster.postJournal(journalResult.data, null);
+
+          if (postResult.error) {
+            return {
+              data: null,
+              error: {
+                code: 'UNKNOWN',
+                message: postResult.error.message,
+              },
+            };
+          }
         }
       }
 

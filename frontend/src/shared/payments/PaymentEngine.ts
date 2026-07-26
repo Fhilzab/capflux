@@ -1,6 +1,6 @@
 import type { Payment, PaymentAllocation, PaymentResult } from './types';
 import { PaymentValidator } from './PaymentValidator';
-import { ledgerService } from '../ledger/LedgerService';
+import { accountingService } from '../accounting/AccountingService';
 
 export interface ChargeWithAmount {
   chargeId: string;
@@ -104,49 +104,40 @@ export class PaymentEngine {
       };
     }
 
-    // Idempotency: check if PAYMENT ledger entry already exists for this payment
-    const existingLedgerResult = await ledgerService.getEntryBySourceDocument('PAYMENT', payment.id);
-    if (existingLedgerResult.error) {
+    // Create accounting journal for this payment
+    const paymentAmountMinor = Math.round(payment.amount * 100);
+    const journalResult = await accountingService.createPaymentJournal({
+      organizationId: ledgerContext.organizationId,
+      schoolId: ledgerContext.schoolId,
+      transactionGroupId: payment.id,
+      sourceDocumentType: 'PAYMENT',
+      sourceDocumentId: payment.id,
+      description: `Payment from ${payment.studentId}`,
+      amountMinor: paymentAmountMinor,
+      currency: payment.currency,
+      occurredAt: payment.paymentDate,
+    });
+
+    if (journalResult.error) {
       return {
         data: null,
         error: {
           code: 'UNKNOWN',
-          message: existingLedgerResult.error.message,
+          message: journalResult.error.message,
         },
       };
     }
 
-    if (!existingLedgerResult.data) {
-      // Create PAYMENT ledger entry for the total payment amount
-      const paymentAmountMinor = Math.round(payment.amount * 100);
-      const ledgerResult = await ledgerService.createPaymentEntry({
-        organizationId: ledgerContext.organizationId,
-        schoolId: ledgerContext.schoolId,
-        studentId: payment.studentId,
-        billingProfileId: ledgerContext.billingProfileId,
-        transactionGroupId: payment.id,
-        sourceDocumentType: 'PAYMENT',
-        sourceDocumentId: payment.id,
-        paymentGatewayReference: payment.gatewayReference || null,
-        paymentMethod: payment.method || null,
-        academicSessionId: ledgerContext.academicSessionId || null,
-        academicTermId: ledgerContext.academicTermId || null,
-        entryType: 'PAYMENT',
-        entryDirection: 'CREDIT',
-        amountMinor: paymentAmountMinor,
-        currency: payment.currency,
-        sourceEntity: 'PAYMENT',
-        previousEntry: null,
-        occurredAt: payment.paymentDate,
-        postingDate: new Date().toISOString(),
-      });
+    if (journalResult.data) {
+      const { JournalPoster } = await import('../accounting/JournalPoster');
+      const postResult = await JournalPoster.postJournal(journalResult.data, null);
 
-      if (ledgerResult.error) {
+      if (postResult.error) {
         return {
           data: null,
           error: {
             code: 'UNKNOWN',
-            message: ledgerResult.error.message,
+            message: postResult.error.message,
           },
         };
       }
