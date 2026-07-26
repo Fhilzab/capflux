@@ -23,6 +23,8 @@ export interface CreateEntryInput {
   previousEntry?: LedgerEntry | null;
   reconciliationStatus?: 'UNRECONCILED' | 'RECONCILED' | 'DISPUTED';
   metadata?: Record<string, unknown>;
+  paymentGatewayReference?: string | null;
+  paymentMethod?: string | null;
   occurredAt: string;
   postingDate: string;
   createdBy?: string;
@@ -104,7 +106,11 @@ export class LedgerEngine {
       entryHash,
       hashAlgorithm: HASH_ALGORITHM,
       reconciliationStatus: input.reconciliationStatus || 'UNRECONCILED',
-      metadata: input.metadata,
+      metadata: {
+        ...input.metadata,
+        ...(input.paymentGatewayReference ? { paymentGatewayReference: input.paymentGatewayReference } : {}),
+        ...(input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
+      },
       occurredAt: input.occurredAt,
       postingDate: input.postingDate,
       createdBy: input.createdBy,

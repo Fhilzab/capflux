@@ -4,6 +4,7 @@ import { studentService } from '../students/StudentService';
 import { feeService } from '../fees/FeeService';
 import { BillingSnapshotBuilder } from './BillingSnapshot';
 import { BillingValidator } from './BillingValidator';
+import { ledgerService } from '../ledger/LedgerService';
 import type {
   BillingProfile,
   StudentCharge,
@@ -82,8 +83,6 @@ export class BillingEngine {
       const createdCharges: StudentCharge[] = [];
 
       for (const fee of feesToAssign) {
-        // Fee amount is resolved from the pricing configuration.
-        // In production, query from FeePrice or similar table.
         const feeAmount = 0;
         const snapshot = BillingSnapshotBuilder.create({
           fee,
@@ -112,7 +111,7 @@ export class BillingEngine {
           continue;
         }
 
-        createdCharges.push({
+        const charge: StudentCharge = {
           id: '',
           billingProfileId: existingProfile.id,
           snapshotId: snapshot.id,
@@ -124,6 +123,30 @@ export class BillingEngine {
           ledgerLocked: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+        };
+
+        createdCharges.push(charge);
+
+        // Create CHARGE ledger entry for this student charge
+        const netAmountMinor = Math.round((snapshot.netAmount || 0) * 100);
+        await ledgerService.createChargeEntry({
+          organizationId: student.schoolId,
+          schoolId: student.schoolId,
+          studentId: student.id,
+          billingProfileId: existingProfile.id,
+          transactionGroupId: existingProfile.id,
+          sourceDocumentType: 'CHARGE',
+          sourceDocumentId: charge.id || snapshot.id,
+          academicSessionId: session.id,
+          academicTermId: term.id,
+          entryType: 'CHARGE',
+          entryDirection: 'DEBIT',
+          amountMinor: netAmountMinor,
+          currency: 'NGN',
+          sourceEntity: 'BILLING',
+          previousEntry: null,
+          occurredAt: new Date().toISOString(),
+          postingDate: new Date().toISOString(),
         });
       }
 

@@ -56,6 +56,13 @@ export const usePaymentStore = defineStore('payment', {
         paymentDate: string;
       },
       charges: ChargeWithAmount[],
+      ledgerContext: {
+        organizationId: string;
+        schoolId: string;
+        billingProfileId: string;
+        academicSessionId?: string;
+        academicTermId?: string;
+      },
       academicSessionId: string,
       academicTermId: string,
       termNumber: number,
@@ -67,6 +74,7 @@ export const usePaymentStore = defineStore('payment', {
         const result = await paymentService.processPayment(
           confirmInput,
           charges,
+          ledgerContext,
           academicSessionId,
           academicTermId,
           termNumber,

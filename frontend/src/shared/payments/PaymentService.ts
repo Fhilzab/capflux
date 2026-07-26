@@ -1,4 +1,4 @@
-import { PaymentEngine, type ChargeWithAmount, type AllocationResult } from './PaymentEngine';
+import { PaymentEngine, type ChargeWithAmount, type AllocationResult, type PaymentLedgerContext } from './PaymentEngine';
 import { ReceiptGenerator, type ReceiptGenerationInput } from './ReceiptGenerator';
 import type { Payment, PaymentAllocation, Receipt, PaymentResult } from './types';
 import { PaymentValidator } from './PaymentValidator';
@@ -60,6 +60,7 @@ export class PaymentService {
   async allocatePayment(
     payment: Payment,
     charges: ChargeWithAmount[],
+    ledgerContext: PaymentLedgerContext,
   ): Promise<PaymentResult<AllocationResult>> {
     if (payment.status !== 'CONFIRMED') {
       return {
@@ -71,7 +72,7 @@ export class PaymentService {
       };
     }
 
-    return PaymentEngine.allocate(payment, charges);
+    return PaymentEngine.allocate(payment, charges, ledgerContext);
   }
 
   /**
@@ -103,6 +104,7 @@ export class PaymentService {
       paymentDate: string;
     },
     charges: ChargeWithAmount[],
+    ledgerContext: PaymentLedgerContext,
     academicSessionId: string,
     academicTermId: string,
     termNumber: number,
@@ -120,7 +122,7 @@ export class PaymentService {
     const payment = confirmResult.data;
 
     // Step 2: Allocate
-    const allocateResult = await this.allocatePayment(payment, charges);
+    const allocateResult = await this.allocatePayment(payment, charges, ledgerContext);
     if (allocateResult.error || !allocateResult.data) {
       return { data: null, error: allocateResult.error };
     }
