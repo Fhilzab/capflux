@@ -1,6 +1,9 @@
 import type { Payment, PaymentAllocation, PaymentResult } from './types';
 import { PaymentValidator } from './PaymentValidator';
 import { accountingService } from '../accounting/AccountingService';
+import { auditService } from '../audit/AuditService';
+import { generateUuidV7 } from '../core/IdGenerator';
+import { createAuditContext } from '../audit/AuditContext';
 
 export interface ChargeWithAmount {
   chargeId: string;
@@ -188,6 +191,27 @@ export class PaymentEngine {
         }
       }
     }
+
+    // Fire-and-forget: audit the successful payment confirmation.
+    // Audit failure must never block the financial transaction.
+    void auditService.recordPayment({
+      organizationId: ledgerContext.organizationId,
+      schoolId: ledgerContext.schoolId,
+      entityId: payment.id,
+      description: `Payment confirmed for student ${payment.studentId}: ${payment.amount} ${payment.currency} allocated across ${allocations.length} charges`,
+      context: createAuditContext('PAYMENTS', {
+        correlationId: generateUuidV7(),
+      }),
+      metadata: {
+        paymentId: payment.id,
+        studentId: payment.studentId,
+        amount: payment.amount,
+        currency: payment.currency,
+        method: payment.method,
+        allocationCount: allocations.length,
+        remainingBalance,
+      },
+    });
 
     return {
       data: {

@@ -2,6 +2,9 @@ import { ledgerService } from '../ledger/LedgerService';
 import type { JournalEntry, AccountingResult, PostingBatch } from './types';
 import type { LedgerEntry, LedgerEntryType } from '../ledger/types';
 import { mapAccountingError } from './AccountingError';
+import { auditService } from '../audit/AuditService';
+import { generateUuidV7 } from '../core/IdGenerator';
+import { createAuditContext } from '../audit/AuditContext';
 
 /**
  * JournalPoster
@@ -107,6 +110,66 @@ export class JournalPoster {
         postingBatchId: batch?.id,
         postingDate: batch?.occurredAt || new Date().toISOString(),
       };
+
+      // Fire-and-forget: audit the successful journal posting.
+      // Audit failure must never block the financial transaction.
+      const correlationId = generateUuidV7();
+
+      void auditService.recordApproval({
+        organizationId: journal.organizationId,
+        schoolId: journal.schoolId,
+        entityId: journal.id,
+        description: `Journal ${journal.journalNumber} posted: ${ledgerEntries.length} ledger entries created`,
+        context: createAuditContext('ACCOUNTING', {
+          correlationId,
+        }),
+        metadata: {
+          journalId: journal.id,
+          journalNumber: journal.journalNumber,
+          sourceDocumentType: journal.sourceDocumentType,
+          sourceDocumentId: journal.sourceDocumentId,
+          transactionGroupId: journal.transactionGroupId,
+          ledgerEntryCount: ledgerEntries.length,
+          postingBatchId: batch?.id,
+        },
+      });
+
+      // Audit compensating entries (REVERSAL, REFUND, ADJUSTMENT) only.
+      // Do NOT audit normal CHARGE, PAYMENT, or WAIVER entries.
+      const sourceDocumentType = journal.sourceDocumentType;
+      if (sourceDocumentType === 'REFUND') {
+        void auditService.recordRefund({
+          organizationId: journal.organizationId,
+          schoolId: journal.schoolId,
+          entityId: journal.sourceDocumentId,
+          description: `Refund ledger entry created for journal ${journal.journalNumber}`,
+          context: createAuditContext('ACCOUNTING', {
+            correlationId,
+          }),
+          metadata: {
+            journalId: journal.id,
+            journalNumber: journal.journalNumber,
+            sourceDocumentId: journal.sourceDocumentId,
+            transactionGroupId: journal.transactionGroupId,
+          },
+        });
+      } else if (sourceDocumentType === 'ADJUSTMENT') {
+        void auditService.recordAdjustment({
+          organizationId: journal.organizationId,
+          schoolId: journal.schoolId,
+          entityId: journal.sourceDocumentId,
+          description: `Adjustment ledger entry created for journal ${journal.journalNumber}`,
+          context: createAuditContext('ACCOUNTING', {
+            correlationId,
+          }),
+          metadata: {
+            journalId: journal.id,
+            journalNumber: journal.journalNumber,
+            sourceDocumentId: journal.sourceDocumentId,
+            transactionGroupId: journal.transactionGroupId,
+          },
+        });
+      }
 
       return { data: { journal: updatedJournal, ledgerEntries }, error: null };
     } catch (e) {

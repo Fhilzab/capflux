@@ -13,6 +13,9 @@ import type {
   ChargeStatus,
 } from './types';
 import type { AcademicSession, AcademicTerm } from '../academic/types';
+import { auditService } from '../audit/AuditService';
+import { generateUuidV7 } from '../core/IdGenerator';
+import { createAuditContext } from '../audit/AuditContext';
 
 const BILLING_VERSION = 1;
 
@@ -168,6 +171,25 @@ export class BillingEngine {
           }
         }
       }
+
+      // Fire-and-forget: audit the successful billing generation.
+      // Audit failure must never block the financial transaction.
+      void auditService.recordBilling({
+        organizationId: schoolIdFromStudent,
+        schoolId: schoolIdFromStudent,
+        entityId: existingProfile.id,
+        description: `Billing generated for student ${studentId}: ${createdCharges.length} charges created`,
+        context: createAuditContext('BILLING', {
+          correlationId: generateUuidV7(),
+        }),
+        metadata: {
+          studentId,
+          billingProfileId: existingProfile.id,
+          chargeCount: createdCharges.length,
+          session: session.id,
+          term: term.id,
+        },
+      });
 
       return {
         data: {
