@@ -2,6 +2,7 @@ import type { Payment, PaymentAllocation, PaymentResult } from './types';
 import { PaymentValidator } from './PaymentValidator';
 import { accountingService } from '../accounting/AccountingService';
 import { auditService } from '../audit/AuditService';
+import { notificationService } from '../notifications/NotificationService';
 import { generateUuidV7 } from '../core/IdGenerator';
 import { createAuditContext } from '../audit/AuditContext';
 
@@ -192,6 +193,9 @@ export class PaymentEngine {
       }
     }
 
+    // Generate a correlation ID shared across audit and notification.
+    const paymentCorrelationId = generateUuidV7();
+
     // Fire-and-forget: audit the successful payment confirmation.
     // Audit failure must never block the financial transaction.
     void auditService.recordPayment({
@@ -200,7 +204,7 @@ export class PaymentEngine {
       entityId: payment.id,
       description: `Payment confirmed for student ${payment.studentId}: ${payment.amount} ${payment.currency} allocated across ${allocations.length} charges`,
       context: createAuditContext('PAYMENTS', {
-        correlationId: generateUuidV7(),
+        correlationId: paymentCorrelationId,
       }),
       metadata: {
         paymentId: payment.id,
@@ -210,6 +214,29 @@ export class PaymentEngine {
         method: payment.method,
         allocationCount: allocations.length,
         remainingBalance,
+      },
+    });
+
+    // Fire-and-forget: notify stakeholders of payment receipt.
+    // Notification failure must never block the financial transaction.
+    // Reuses the same correlation ID as audit for traceability.
+    void notificationService.sendPaymentReceived({
+      organizationId: ledgerContext.organizationId,
+      schoolId: ledgerContext.schoolId,
+      studentId: payment.studentId,
+      paymentId: payment.id,
+      correlationId: paymentCorrelationId,
+      variables: {
+        studentName: payment.studentId,
+        amount: payment.amount.toString(),
+        receiptNumber: payment.id,
+      },
+      channels: ['EMAIL', 'SMS', 'IN_APP'],
+      metadata: {
+        paymentId: payment.id,
+        amount: payment.amount,
+        currency: payment.currency,
+        allocationCount: allocations.length,
       },
     });
 

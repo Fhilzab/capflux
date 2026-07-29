@@ -14,6 +14,7 @@ import type {
 } from './types';
 import type { AcademicSession, AcademicTerm } from '../academic/types';
 import { auditService } from '../audit/AuditService';
+import { notificationService } from '../notifications/NotificationService';
 import { generateUuidV7 } from '../core/IdGenerator';
 import { createAuditContext } from '../audit/AuditContext';
 
@@ -172,6 +173,9 @@ export class BillingEngine {
         }
       }
 
+      // Generate a correlation ID shared across audit and notification.
+      const billingCorrelationId = generateUuidV7();
+
       // Fire-and-forget: audit the successful billing generation.
       // Audit failure must never block the financial transaction.
       void auditService.recordBilling({
@@ -180,7 +184,7 @@ export class BillingEngine {
         entityId: existingProfile.id,
         description: `Billing generated for student ${studentId}: ${createdCharges.length} charges created`,
         context: createAuditContext('BILLING', {
-          correlationId: generateUuidV7(),
+          correlationId: billingCorrelationId,
         }),
         metadata: {
           studentId,
@@ -188,6 +192,27 @@ export class BillingEngine {
           chargeCount: createdCharges.length,
           session: session.id,
           term: term.id,
+        },
+      });
+
+      // Fire-and-forget: notify stakeholders of billing generation.
+      // Notification failure must never block the financial transaction.
+      // Reuses the same correlation ID as audit for traceability.
+      void notificationService.sendBillingCreated({
+        organizationId: schoolIdFromStudent,
+        schoolId: schoolIdFromStudent,
+        studentId,
+        billingProfileId: existingProfile.id,
+        correlationId: billingCorrelationId,
+        variables: {
+          studentName: studentId,
+          amount: '0',
+          term: term.id,
+        },
+        channels: ['EMAIL', 'SMS', 'IN_APP'],
+        metadata: {
+          billingProfileId: existingProfile.id,
+          chargeCount: createdCharges.length,
         },
       });
 

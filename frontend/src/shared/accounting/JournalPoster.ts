@@ -3,6 +3,7 @@ import type { JournalEntry, AccountingResult, PostingBatch } from './types';
 import type { LedgerEntry, LedgerEntryType } from '../ledger/types';
 import { mapAccountingError } from './AccountingError';
 import { auditService } from '../audit/AuditService';
+import { notificationService } from '../notifications/NotificationService';
 import { generateUuidV7 } from '../core/IdGenerator';
 import { createAuditContext } from '../audit/AuditContext';
 
@@ -146,6 +147,28 @@ export class JournalPoster {
           context: createAuditContext('ACCOUNTING', {
             correlationId,
           }),
+          metadata: {
+            journalId: journal.id,
+            journalNumber: journal.journalNumber,
+            sourceDocumentId: journal.sourceDocumentId,
+            transactionGroupId: journal.transactionGroupId,
+          },
+        });
+
+        // Fire-and-forget: notify stakeholders of refund processing.
+        // Notification failure must never block the financial transaction.
+        // Reuses the same correlation ID as audit for traceability.
+        void notificationService.sendRefundProcessed({
+          organizationId: journal.organizationId,
+          schoolId: journal.schoolId,
+          studentId: '',
+          refundId: journal.sourceDocumentId,
+          correlationId,
+          variables: {
+            studentName: journal.sourceDocumentId,
+            amount: '0',
+          },
+          channels: ['EMAIL', 'SMS', 'IN_APP'],
           metadata: {
             journalId: journal.id,
             journalNumber: journal.journalNumber,
