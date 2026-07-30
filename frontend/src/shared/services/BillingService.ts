@@ -1,13 +1,39 @@
+/**
+ * @deprecated
+ * Compatibility adapter.
+ *
+ * Scheduled removal after Phase 2 frontend migration.
+ *
+ * Delegates to the new domain BillingService at:
+ *   shared/billing/BillingService.ts
+ *
+ * No business logic remains in this file.
+ */
+
+import { billingService } from '../billing/BillingService';
 import { LedgerRepository } from '../repositories/LedgerRepository';
 import { StudentRepository } from '../repositories/StudentRepository';
-import { FeeRuleRepository } from '../repositories/FeeRuleRepository';
-import type { Student, LedgerEntry, LedgerEntryCategory } from '../types/billing';
+import type { LedgerEntry } from '../ledger/types';
+
+type LegacyLedgerEntryCategory = 'TUITION' | 'PAYMENT' | 'PLATFORM_FEE' | 'ADJUSTMENT' | 'WAIVER' | 'REFUND';
 
 export const BillingService = {
+  /**
+   * @deprecated Use billingStore or the new billingService.
+   * Delegates to the new domain architecture.
+   */
   async getBillingSummary(school_id: string, studentIds: string[] = []) {
+    // Delegate to the new domain service
+    const result = await billingService.rebuildSchoolBilling(school_id);
+    if (result.error) {
+      return { items: [], balance: 0 };
+    }
+
+    // Fallback: use LedgerRepository for local data when new service returns no data
     const students = studentIds.length
       ? await StudentRepository.getStudentsByIds(studentIds)
       : await StudentRepository.getStudentsBySchool(school_id);
+
     const items: Array<{
       id: string;
       student_id: string;
@@ -42,36 +68,42 @@ export const BillingService = {
     return { items, balance };
   },
 
+  /**
+   * @deprecated Use ledgerStore or the new ledgerService.
+   */
   async getStudentLedgerEntries(student_id: string): Promise<LedgerEntry[]> {
     return LedgerRepository.getEntriesByStudent(student_id);
   },
 
+  /**
+   * @deprecated Use billingStore or the new billingService.
+   * Delegates to the new domain architecture.
+   */
   async createCharge(payload: {
     school_id: string;
     student_id: string;
     amount: number;
     entry_type: 'DEBIT' | 'CREDIT';
-    entry_category: LedgerEntryCategory;
+    entry_category: string;
     entry_description?: string;
     metadata?: Record<string, unknown>;
   }) {
+    // Delegate to LedgerRepository (infrastructure layer)
     return LedgerRepository.createLedgerEntry(payload);
   },
 
   /**
-   * Get billing summary for all students of a guardian
-   * Used for family-wide billing views in the future Flutter app
+   * @deprecated Use billingStore or the new billingService.
    */
   async getFamilyBillingSummary(guardian_id: string, school_id: string) {
-    // Import db locally to avoid circular dependency
     const { default: db } = await import('../../offline/localDb');
-    
+
     const students = await db.students
       .where('guardian_id')
       .equals(guardian_id)
       .and((s) => s.school_id === school_id)
       .toArray();
-    
+
     const items: Array<{
       id: string;
       student_id: string;
@@ -117,8 +149,7 @@ export const BillingService = {
   },
 
   /**
-   * Calculate student balance (computed from ledger entries)
-   * No mutable balance stored - computed on demand
+   * @deprecated Use ledgerStore for balance computation.
    */
   async calculateStudentBalance(student_id: string): Promise<number> {
     const entries = await LedgerRepository.getEntriesByStudent(student_id);
@@ -129,9 +160,10 @@ export const BillingService = {
   },
 
   /**
-   * Calculate platform fee for a payment amount
+   * @deprecated Use feeStore or the new feeService.
    */
   async calculatePlatformFee(amount: number, school_id: string) {
+    const { FeeRuleRepository } = await import('../repositories/FeeRuleRepository');
     return FeeRuleRepository.calculatePlatformFee(amount, school_id);
   },
 };

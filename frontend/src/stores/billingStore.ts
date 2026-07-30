@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia';
 import { billingService } from '../shared/billing/BillingService';
+import { LedgerRepository } from '../shared/repositories/LedgerRepository';
+import { StudentRepository } from '../shared/repositories/StudentRepository';
 import type { BillingProfile, StudentCharge } from '../shared/billing/types';
+import type { LedgerEntry } from '../shared/ledger/types';
 import { useSchoolStore } from './schoolStore';
 
 export const useBillingStore = defineStore('billing', {
@@ -92,6 +95,116 @@ export const useBillingStore = defineStore('billing', {
         this.studentCharges = [];
       } catch (e: any) {
         this.error = e?.message || 'Failed to load student charges';
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /**
+     * Get billing summary for a school (optionally filtered by student IDs).
+     * Delegates to LedgerRepository for local data.
+     */
+    async getBillingSummary(schoolId: string, studentIds: string[] = []): Promise<{
+      items: Array<{
+        id: string;
+        student_id: string;
+        student_name: string;
+        amount: number;
+        entry_type: string;
+        entry_category: string;
+        entry_description: string | undefined;
+      }>;
+      balance: number;
+    }> {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const students = studentIds.length
+          ? await StudentRepository.getStudentsByIds(studentIds)
+          : await StudentRepository.getStudentsBySchool(schoolId);
+
+        const items: Array<{
+          id: string;
+          student_id: string;
+          student_name: string;
+          amount: number;
+          entry_type: string;
+          entry_category: string;
+          entry_description: string | undefined;
+        }> = [];
+        let balance = 0;
+
+        for (const student of students) {
+          const studentEntries = await LedgerRepository.getEntriesByStudent(student.id);
+          const studentBalance = studentEntries.reduce((total, entry) => {
+            const amount = Number(entry.amount || 0);
+            return total + (entry.entry_type === 'DEBIT' ? amount : -amount);
+          }, 0);
+
+          items.push(...studentEntries.map((entry) => ({
+            id: entry.id,
+            student_id: student.id,
+            student_name: `${student.first_name} ${student.last_name}`,
+            amount: entry.amount,
+            entry_type: entry.entry_type,
+            entry_description: entry.entry_description,
+            entry_category: entry.entry_category,
+          })));
+
+          balance += studentBalance;
+        }
+
+        return { items, balance };
+      } catch (e: any) {
+        this.error = e?.message || 'Failed to load billing summary';
+        return { items: [], balance: 0 };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /**
+     * Create a charge (ledger entry) for a student.
+     * Delegates to LedgerRepository.
+     */
+    async createCharge(payload: {
+      school_id: string;
+      student_id: string;
+      amount: number;
+      entry_type: 'DEBIT' | 'CREDIT';
+      entry_category?: string;
+      entry_description?: string;
+      metadata?: Record<string, unknown>;
+    }): Promise<void> {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        await LedgerRepository.createLedgerEntry({
+          ...payload,
+          entry_category: payload.entry_category || (payload.entry_type === 'DEBIT' ? 'TUITION' : 'PAYMENT'),
+        });
+      } catch (e: any) {
+        this.error = e?.message || 'Failed to create charge';
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /**
+     * Load ledger entries for a student.
+     * Delegates to LedgerRepository.
+     */
+    async loadStudentLedger(studentId: string): Promise<LedgerEntry[]> {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        return await LedgerRepository.getEntriesByStudent(studentId);
+      } catch (e: any) {
+        this.error = e?.message || 'Failed to load student ledger';
+        return [];
       } finally {
         this.loading = false;
       }

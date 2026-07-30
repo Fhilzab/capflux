@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { ReportService } from '../shared/services/ReportService';
+import { useReportingStore } from '../stores/reportingStore';
 import CmButton from '../components/ui/CmButton.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
+const reportingStore = useReportingStore();
 const loading = ref(false);
 const startDate = ref('');
 const endDate = ref('');
@@ -16,12 +17,31 @@ const totalCollected = computed(() => {
 const loadCollections = async () => {
   loading.value = true;
   try {
-    const result = await ReportService.getDailyCollections(
-      DEFAULT_SCHOOL_ID,
-      startDate.value || null,
-      endDate.value || null
-    );
-    collections.value = result;
+    const filter = {
+      organizationId: DEFAULT_SCHOOL_ID,
+      schoolId: DEFAULT_SCHOOL_ID,
+      startDate: startDate.value || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: endDate.value || new Date().toISOString().split('T')[0],
+    };
+    await reportingStore.loadCashBook(filter);
+    const cashBook = reportingStore.cashBook;
+    if (cashBook) {
+      const entries = (cashBook as any).entries || [];
+      const grouped: Record<string, { count: number; total: number }> = {};
+      for (const entry of entries) {
+        const date = (entry as any).postingDate || (entry as any).occurredAt;
+        if (!date) continue;
+        const dateStr = new Date(date).toISOString().split('T')[0];
+        if (startDate.value && dateStr < startDate.value) continue;
+        if (endDate.value && dateStr > endDate.value) continue;
+        if (!grouped[dateStr]) grouped[dateStr] = { count: 0, total: 0 };
+        grouped[dateStr].count += 1;
+        grouped[dateStr].total += ((entry as any).amountMinor || 0) / 100;
+      }
+      collections.value = Object.entries(grouped)
+        .map(([date, data]) => ({ date, count: data.count, total: data.total }))
+        .sort((a: any, b: any) => b.date.localeCompare(a.date));
+    }
   } catch (err) {
     console.error('Failed to load daily collections:', err);
   } finally {
@@ -41,7 +61,7 @@ const formatCsvValue = (value) => {
 const downloadCsv = async () => {
   const rows = [
     ['Date', 'Payments Count', 'Total Collected (₦)'],
-    ...collections.map((item) => [
+    ...collections.value.map((item) => [
       item.date,
       item.count,
       item.total,

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { StudentService } from '../shared/services/StudentService';
+import { useStudentStore } from '../stores/studentStore';
 import CmButton from '../components/ui/CmButton.vue';
 
 const router = useRouter();
 const DEFAULT_SCHOOL_ID = 'demo-school';
+const studentStore = useStudentStore();
 const students = ref([]);
 const search = ref('');
 const showArchived = ref(false);
@@ -23,8 +24,8 @@ const saving = ref(false);
 const message = ref('');
 
 const loadStudents = async (query = '') => {
-  const result = await StudentService.getStudentsWithGuardians(DEFAULT_SCHOOL_ID, showArchived.value);
-  students.value = result.filter(s => !query || showArchived.value || s.status === 'ACTIVE');
+  const result = await studentStore.getStudentsWithGuardians(DEFAULT_SCHOOL_ID, showArchived.value);
+  students.value = result.filter((s: any) => !query || showArchived.value || s.status === 'ACTIVE');
 };
 
 const toggleArchived = () => {
@@ -36,15 +37,18 @@ const saveStudent = async () => {
   saving.value = true;
   message.value = '';
 
-  await StudentService.registerStudentWithGuardian(DEFAULT_SCHOOL_ID, {
+  await studentStore.registerStudentWithGuardian(DEFAULT_SCHOOL_ID, {
     first_name: form.value.first_name,
     last_name: form.value.last_name,
     class_name: form.value.class_name,
+    category: 'DAY',
+    academic_session: '2024/2025',
+    academic_term: 'First Term',
     guardian_full_name: form.value.guardian_full_name,
     guardian_phone: form.value.guardian_phone,
     guardian_secondary_phone: form.value.guardian_secondary_phone || undefined,
     guardian_email: form.value.guardian_email || undefined,
-    relationship: form.value.relationship,
+    relationship: form.value.relationship as 'FATHER' | 'MOTHER' | 'GUARDIAN' | 'OTHER',
   });
 
   await loadStudents();
@@ -62,7 +66,7 @@ const saveStudent = async () => {
   };
 };
 
-const goToStudent = (id) => {
+const goToStudent = (id: string) => {
   router.push({ name: 'StudentDetail', params: { id } });
 };
 

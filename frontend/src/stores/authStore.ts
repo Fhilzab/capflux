@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { AuthService } from '../shared/services/AuthService';
+import { AuthService } from '../shared/auth/AuthService';
 import { organizationService } from '../shared/organization/OrganizationService';
 import type { Organization, OrganizationMembership, OrganizationRole } from '../shared/organization/types';
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { ReportService } from '../shared/services/ReportService';
+import { useReportingStore } from '../stores/reportingStore';
 import CmButton from '../components/ui/CmButton.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
+const reportingStore = useReportingStore();
 const loading = ref(false);
 const report = ref({
   totalCharges: 0,
@@ -76,7 +77,32 @@ const exportSummary = async () => {
 
 const loadReport = async () => {
   loading.value = true;
-  report.value = await ReportService.getFeeDashboard(DEFAULT_SCHOOL_ID);
+  const filter = {
+    organizationId: DEFAULT_SCHOOL_ID,
+    schoolId: DEFAULT_SCHOOL_ID,
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+  };
+  await reportingStore.loadStudentStatement('', filter);
+  // Build report from store data
+  const statement = reportingStore.studentStatements[''];
+  if (statement) {
+    const lines = (statement as any).lines || [];
+    report.value = {
+      totalCharges: ((statement as any).metadata?.totalCharges || 0),
+      totalPayments: ((statement as any).metadata?.totalPayments || 0),
+      netBalance: ((statement as any).metadata?.totalCharges || 0) - ((statement as any).metadata?.totalPayments || 0),
+      outstandingByStudent: lines.map((line: any) => ({
+        student_id: line.studentId || '',
+        student_name: line.studentName || 'Unknown',
+        class_name: '',
+        totalCharges: line.totalCharges,
+        totalPayments: line.totalPayments,
+        outstanding: line.balance,
+      })),
+      recentPayments: [],
+    };
+  }
   loading.value = false;
 };
 

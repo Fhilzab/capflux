@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { StudentService } from '../shared/services/StudentService';
-import { BillingService } from '../shared/services/BillingService';
-import db from '../offline/localDb';
+import { useStudentStore } from '../stores/studentStore';
+import { useBillingStore } from '../stores/billingStore';
 import CmButton from '../components/ui/CmButton.vue';
 
 const route = useRoute();
 const router = useRouter();
-const student = ref(null);
-const ledgerItems = ref([]);
+const studentStore = useStudentStore();
+const billingStore = useBillingStore();
+const student = ref(null) as any;
+const ledgerItems = ref([]) as any;
 const loading = ref(true);
 const error = ref('');
 const editing = ref(false);
@@ -25,14 +26,14 @@ const editForm = ref({
 
 const totalCharges = computed(() =>
   ledgerItems.value
-    .filter((entry) => entry.entry_type === 'DEBIT')
-    .reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
+    .filter((entry: any) => entry.entry_type === 'DEBIT')
+    .reduce((sum: number, entry: any) => sum + Number(entry.amount || 0), 0)
 );
 
 const totalPayments = computed(() =>
   ledgerItems.value
-    .filter((entry) => entry.entry_type === 'CREDIT')
-    .reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
+    .filter((entry: any) => entry.entry_type === 'CREDIT')
+    .reduce((sum: number, entry: any) => sum + Number(entry.amount || 0), 0)
 );
 
 const outstandingBalance = computed(() => totalCharges.value - totalPayments.value);
@@ -49,7 +50,9 @@ const loadStudent = async () => {
   try {
     loading.value = true;
     error.value = '';
-    const studentRecord = await StudentService.getStudentById(route.params.id);
+    const studentId = route.params.id as string;
+    const students = await studentStore.getStudentsWithGuardians('');
+    const studentRecord = students.find((s: any) => s.id === studentId);
     if (!studentRecord) {
       error.value = 'Student not found.';
       return;
@@ -60,7 +63,7 @@ const loadStudent = async () => {
       last_name: student.value.last_name || '',
       class_name: student.value.class_name || '',
     };
-    ledgerItems.value = await BillingService.getStudentLedgerEntries(student.value.id);
+    ledgerItems.value = await billingStore.loadStudentLedger(student.value.id);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -96,11 +99,10 @@ const saveEdit = async () => {
   editMessage.value = '';
 
   try {
-    await StudentService.updateStudent(student.value.id, {
-      first_name: editForm.value.first_name,
-      last_name: editForm.value.last_name,
-      class_name: editForm.value.class_name,
-    });
+    await studentStore.updateStudent(student.value.id, {
+      firstName: editForm.value.first_name,
+      lastName: editForm.value.last_name,
+    } as any);
     await loadStudent();
     editing.value = false;
     editMessage.value = 'Student updated successfully.';
@@ -111,13 +113,17 @@ const saveEdit = async () => {
   }
 };
 
-const archiveStudent = async (status) => {
+const archiveStudent = async (status: 'ACTIVE' | 'GRADUATED' | 'LEFT') => {
   if (!student.value) return;
   archiving.value = true;
   editMessage.value = '';
 
   try {
-    await StudentService.archiveStudent(student.value.id, status);
+    if (status === 'ACTIVE') {
+      await studentStore.activateStudent(student.value.id);
+    } else {
+      await studentStore.deactivateStudent(student.value.id);
+    }
     await loadStudent();
     editMessage.value = `Student status changed to ${status}.`;
   } catch (err) {
@@ -141,17 +147,13 @@ const submitEntry = async () => {
   saving.value = true;
   message.value = '';
 
-  await BillingService.createCharge({
-    id: `${student.value.id}-${Date.now()}`,
-    school_id: student.value.school_id,
+  await billingStore.createCharge({
+    school_id: student.value.school_id || student.value.schoolId || '',
     student_id: student.value.id,
     amount: Number(form.value.amount),
-    entry_type: form.value.entry_type,
+    entry_type: form.value.entry_type as 'DEBIT' | 'CREDIT',
     entry_category: form.value.entry_type === 'DEBIT' ? 'TUITION' : 'PAYMENT',
     entry_description: form.value.entry_description,
-    created_at: new Date().toISOString(),
-    client_sequence: 0,
-    device_id: 'local-client',
   });
 
   await loadStudent();

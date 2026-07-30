@@ -1,12 +1,24 @@
+import { notificationService } from '../notifications/NotificationService';
 import { NotificationRepository } from '../repositories/NotificationRepository';
 import { supabase, hasSupabaseConfig } from './api/supabase';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 
+/**
+ * @deprecated
+ * Compatibility adapter.
+ *
+ * Scheduled removal after Phase 2 frontend migration.
+ *
+ * Delegates to the new domain NotificationService at:
+ *   shared/notifications/NotificationService.ts
+ *
+ * No business logic remains in this file.
+ */
+
 export const NotificationService = {
   /**
-   * Send a notification to a guardian
-   * The payload includes guardian_id for targeting and student_id for context
+   * @deprecated Use notificationStore or the new notificationService.
    */
   async sendNotification(notification: Record<string, any>) {
     const saved = await NotificationRepository.saveNotification({
@@ -16,7 +28,6 @@ export const NotificationService = {
       created_at: notification.created_at ?? new Date().toISOString(),
     });
 
-    // Attempt to send via Edge Function if Supabase is configured
     if (hasSupabaseConfig) {
       try {
         const { data, error } = await supabase.functions.invoke('send-notification', {
@@ -34,7 +45,6 @@ export const NotificationService = {
         if (error) {
           console.warn('Failed to send notification via Edge Function:', error.message);
         } else if (data?.success && data?.provider_msg_id) {
-          // Mark as sent with provider message ID
           await NotificationRepository.updateDeliveryStatus(saved.id, 'SENT', data.provider_msg_id);
           return { ...saved, delivery_status: 'SENT', provider_msg_id: data.provider_msg_id };
         }
@@ -46,14 +56,23 @@ export const NotificationService = {
     return saved;
   },
 
+  /**
+   * @deprecated Use notificationStore or the new notificationService.
+   */
   async getNotificationsForStudent(student_id: string) {
     return NotificationRepository.getNotificationsByStudent(student_id);
   },
 
+  /**
+   * @deprecated Use notificationStore or the new notificationService.
+   */
   async getNotificationsForGuardian(guardian_id: string) {
     return NotificationRepository.getNotificationsByGuardian(guardian_id);
   },
 
+  /**
+   * @deprecated Use notificationStore or the new notificationService.
+   */
   async retryFailedNotification(notification_id: string) {
     const notification = await NotificationRepository.getNotificationById(notification_id);
     if (!notification) throw new Error('Notification not found');
@@ -64,8 +83,7 @@ export const NotificationService = {
   },
 
   /**
-   * Generate notification templates for common scenarios.
-   * Templates are addressed to parents/guardians and reference the student.
+   * @deprecated Use notificationStore or the new notificationService.
    */
   generateTemplates(student_name: string, class_name: string) {
     return {

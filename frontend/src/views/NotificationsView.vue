@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useNotificationStore } from '../stores/notificationStore';
+import { useStudentStore } from '../stores/studentStore';
 import { NotificationService } from '../shared/services/NotificationService';
-import { StudentService } from '../shared/services/StudentService';
 import CmButton from '../components/ui/CmButton.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
 import CmInput from '../components/ui/CmInput.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
-const students = ref([]);
-const notifications = ref([]);
+const notificationStore = useNotificationStore();
+const studentStore = useStudentStore();
+const students = ref([]) as any;
+const notifications = ref([]) as any;
 const form = ref({
   student_id: '',
   recipient_phone: '',
@@ -28,24 +31,26 @@ const templates = ref({
 });
 
 const loadStudents = async () => {
-  students.value = await StudentService.getStudentsBySchool(DEFAULT_SCHOOL_ID);
+  await studentStore.loadStudents();
+  students.value = studentStore.students;
 };
 
 const loadNotifications = async () => {
-  const allStudents = await StudentService.getStudentsBySchool(DEFAULT_SCHOOL_ID);
-  const allNotifications = [];
+  const allStudents = studentStore.students;
+  const allNotifications = [] as any[];
 
   for (const student of allStudents) {
-    const studentNotifications = await NotificationService.getNotificationsForStudent(student.id);
+    await notificationStore.loadNotifications(student.id);
+    const studentNotifications = notificationStore.notifications;
     allNotifications.push(
-      ...studentNotifications.map((notification) => ({
+      ...studentNotifications.map((notification: any) => ({
         ...notification,
-        student_name: `${student.first_name} ${student.last_name}`,
+        student_name: `${student.firstName} ${student.lastName}`,
       }))
     );
   }
 
-  notifications.value = allNotifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  notifications.value = allNotifications.sort((a: any, b: any) => new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime());
 };
 
 const onStudentSelect = () => {

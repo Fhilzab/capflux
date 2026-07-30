@@ -1,131 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useThemeStore } from '../stores/themeStore';
 import { useAuthStore } from '../stores/authStore';
-import { AuthorizationService } from '../shared/services/AuthorizationService';
-import CmButton from '../components/ui/CmButton.vue';
 
 const themeStore = useThemeStore();
 const authStore = useAuthStore();
-const authz = new AuthorizationService();
 
 const isDark = computed(() => themeStore.mode === 'dark');
-const isOwner = computed(() => authStore.isOwner);
 
 const setTheme = (mode: 'dark' | 'light') => {
   themeStore.setTheme(mode);
-};
-
-// Admin management
-const admins = ref([]);
-const newAdminEmail = ref('');
-const loading = ref(false);
-const error = ref('');
-const success = ref('');
-
-onMounted(async () => {
-  if (isOwner.value && authStore.schoolId) {
-    await fetchAdmins();
-  }
-});
-
-const fetchAdmins = async () => {
-  loading.value = true;
-  error.value = '';
-  try {
-    admins.value = await authz.getAdmins(authStore.schoolId);
-  } catch (e: any) {
-    error.value = e.message;
-  } finally {
-    loading.value = false;
-  }
-};
-
-const inviteAdmin = async () => {
-  if (!newAdminEmail.value || !authStore.schoolId) return;
-  
-  loading.value = true;
-  error.value = '';
-  success.value = '';
-  
-  try {
-    await authz.inviteAdmin(authStore.schoolId, newAdminEmail.value);
-    success.value = `Invitation sent to ${newAdminEmail.value}`;
-    newAdminEmail.value = '';
-    await fetchAdmins();
-  } catch (e: any) {
-    error.value = e.message;
-  } finally {
-    loading.value = false;
-  }
-};
-
-const suspendAdmin = async (adminId: string) => {
-  if (!authStore.schoolId) return;
-  
-  loading.value = true;
-  error.value = '';
-  
-  try {
-    await authz.suspendAdmin(authStore.schoolId, adminId);
-    await fetchAdmins();
-  } catch (e: any) {
-    error.value = e.message;
-  } finally {
-    loading.value = false;
-  }
-};
-
-const reactivateAdmin = async (adminId: string) => {
-  if (!authStore.schoolId) return;
-  
-  loading.value = true;
-  error.value = '';
-  
-  try {
-    await authz.reactivateAdmin(authStore.schoolId, adminId);
-    await fetchAdmins();
-  } catch (e: any) {
-    error.value = e.message;
-  } finally {
-    loading.value = false;
-  }
-};
-
-const removeAdmin = async (adminId: string) => {
-  if (!authStore.schoolId) return;
-  
-  if (!confirm('Are you sure you want to remove this admin?')) return;
-  
-  loading.value = true;
-  error.value = '';
-  
-  try {
-    await authz.removeAdmin(authStore.schoolId, adminId);
-    await fetchAdmins();
-  } catch (e: any) {
-    error.value = e.message;
-  } finally {
-    loading.value = false;
-  }
-};
-
-const transferOwnership = async (adminId: string) => {
-  if (!authStore.schoolId) return;
-  
-  if (!confirm('Are you sure you want to transfer ownership to this admin? You will become an admin afterward.')) return;
-  
-  loading.value = true;
-  error.value = '';
-  
-  try {
-    await authz.transferOwnership(authStore.schoolId, adminId);
-    await fetchAdmins();
-  } catch (e: any) {
-    error.value = e.message;
-  } finally {
-    loading.value = false;
-  }
 };
 </script>
 
@@ -181,84 +65,6 @@ const transferOwnership = async (adminId: string) => {
           <div>
             <p class="text-sm font-medium text-text-primary mb-2">Currency</p>
             <p class="text-sm text-text-secondary">₦ Naira (NGN)</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Administration (Owner Only) -->
-      <div v-if="isOwner" class="premium-card p-6">
-        <h2 class="text-title mb-4">Administration</h2>
-        
-        <!-- Invite Admin -->
-        <div class="space-y-4">
-          <div>
-            <p class="text-sm font-medium text-text-primary mb-2">Invite New Admin</p>
-            <div class="flex gap-2">
-              <input
-                v-model="newAdminEmail"
-                type="email"
-                placeholder="admin@school.edu.ng"
-                class="flex-1 rounded-input px-3 py-2.5 text-sm bg-surface text-text-primary border border-border focus:ring-2 focus:ring-brand transition-all"
-              />
-              <CmButton
-                @click="inviteAdmin"
-                :disabled="loading || !newAdminEmail"
-                variant="link"
-              >
-                Invite
-              </CmButton>
-            </div>
-            <p v-if="error" class="text-xs text-danger mt-2">{{ error }}</p>
-            <p v-if="success" class="text-xs text-success mt-2">{{ success }}</p>
-          </div>
-
-          <!-- Admins List -->
-          <div>
-            <p class="text-sm font-medium text-text-primary mb-3">Current Admins</p>
-            <div v-if="loading && admins.length === 0" class="text-sm text-text-muted">Loading...</div>
-            <div v-else class="space-y-2">
-              <div v-for="admin in admins" :key="admin.id" class="flex items-center justify-between rounded-card bg-surface/50 p-3">
-                <div>
-                  <p class="font-medium text-text-primary">{{ admin.email }}</p>
-                  <p class="text-xs text-text-muted">{{ admin.full_name || admin.id }}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs px-2 py-1 rounded" :class="admin.admin_status === 'ACTIVE' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'">
-                    {{ admin.admin_status }}
-                  </span>
-                  <CmButton
-                    v-if="admin.admin_status === 'ACTIVE'"
-                    @click="suspendAdmin(admin.id)"
-                    :disabled="loading"
-                    variant="link"
-                  >
-                    Suspend
-                  </CmButton>
-                  <CmButton
-                    v-else
-                    @click="reactivateAdmin(admin.id)"
-                    :disabled="loading"
-                    variant="link"
-                  >
-                    Reactivate
-                  </CmButton>
-                  <CmButton
-                    @click="transferOwnership(admin.id)"
-                    :disabled="loading"
-                    variant="link"
-                  >
-                    Make Owner
-                  </CmButton>
-                  <CmButton
-                    @click="removeAdmin(admin.id)"
-                    :disabled="loading"
-                    variant="link"
-                  >
-                    Remove
-                  </CmButton>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

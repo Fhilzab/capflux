@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia';
 import { studentService } from '../shared/students/StudentService';
+import { GuardianService } from '../shared/services/GuardianService';
+import { TuitionConfigurationService } from '../shared/services/TuitionConfigurationService';
+import { PaymentAccountRepository } from '../shared/repositories/PaymentAccountRepository';
+import { LedgerRepository } from '../shared/repositories/LedgerRepository';
+import { PaymentGateway } from '../shared/services/PaymentGateway';
+import db from '../offline/localDb';
 import type { Student, Guardian } from '../shared/students/types';
 import { useSchoolStore } from './schoolStore';
 
@@ -291,6 +297,177 @@ export const useStudentStore = defineStore('student', {
       } catch (e: any) {
         this.error = e?.message || 'Failed to deactivate student';
         return false;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /**
+     * Search students by name within a school.
+     * Delegates to studentService.
+     */
+    async searchStudents(schoolId: string, query: string): Promise<Student[]> {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const result = await studentService.searchStudents(schoolId, query);
+        if (result.error) {
+          this.error = result.error.message;
+          return [];
+        }
+        return result.data || [];
+      } catch (e: any) {
+        this.error = e?.message || 'Failed to search students';
+        return [];
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /**
+     * Get students with their guardian information attached.
+     * Delegates to studentService and local DB for guardian lookup.
+     */
+    async getStudentsWithGuardians(schoolId: string, includeArchived = false): Promise<any[]> {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const result = await studentService.loadStudents(schoolId);
+        if (result.error) {
+          this.error = result.error.message;
+          return [];
+        }
+
+        const students = result.data || [];
+        const guardianIds = [...new Set(students.map((s: any) => s.guardianId || s.guardian_id).filter(Boolean))] as string[];
+
+        const guardians = await db.guardians.where('id').anyOf(guardianIds).toArray();
+        const guardianMap = new Map(guardians.map((g) => [g.id, g]));
+
+        return students.map((student: any) => ({
+          ...student,
+          first_name: student.firstName || student.first_name,
+          last_name: student.lastName || student.last_name,
+          class_name: student.className || student.class_name,
+          guardian_id: student.guardianId || student.guardian_id,
+          guardian: (student.guardianId || student.guardian_id) ? guardianMap.get(student.guardianId || student.guardian_id) : null,
+        }));
+      } catch (e: any) {
+        this.error = e?.message || 'Failed to load students with guardians';
+        return [];
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /**
+     * Register a student with guardian, tuition, and payment account.
+     * Delegates to GuardianService, studentService, PaymentGateway, and LedgerRepository.
+     */
+    async registerStudentWithGuardian(schoolId: string, studentData: {
+      first_name: string;
+      last_name: string;
+      class_name: string;
+      category: string;
+      academic_session: string;
+      academic_term: string;
+      guardian_full_name: string;
+      guardian_phone: string;
+      guardian_secondary_phone?: string;
+      guardian_email?: string;
+      relationship?: 'FATHER' | 'MOTHER' | 'GUARDIAN' | 'OTHER';
+    }): Promise<any> {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const tuitionConfig = await TuitionConfigurationService.getTuition(
+          schoolId,
+          studentData.academic_session,
+          studentData.academic_term,
+          studentData.category
+        );
+
+        if (!tuitionConfig) {
+          throw new Error('No tuition configured for this category/session/term. Please configure tuition first.');
+        }
+
+        const guardian = await GuardianService.getOrCreateGuardian(schoolId, {
+          full_name: studentData.guardian_full_name,
+          primary_phone: studentData.guardian_phone,
+          secondary_phone: studentData.guardian_secondary_phone,
+          email: studentData.guardian_email,
+          relationship: studentData.relationship,
+        });
+
+        const student = await studentService.createStudent({
+          schoolId: schoolId,
+          divisionId: '',
+          guardianId: guardian.id,
+          firstName: studentData.first_name,
+          lastName: studentData.last_name,
+          gender: '',
+          admissionDate: new Date().toISOString(),
+          registeredAt: new Date().toISOString(),
+          relationshipToGuardian: studentData.relationship || 'GUARDIAN',
+          discountRate: 0,
+        });
+
+        let paymentAccount;
+        try {
+          const dvaResponse = await PaymentGateway.provisionDVA(student.data?.id || '', schoolId);
+          if (dvaResponse?.dva || dvaResponse?.payment_account) {
+            const dva = dvaResponse.dva || dvaResponse.payment_account;
+            const provider = dva.provider || 'monnify';
+            const virtual_account_number = dva.dva_account_number || dva.virtual_account_number || '';
+            const account_name = dva.dva_account_name || dva.account_name || '';
+            const bank_name = dva.dva_bank_name || dva.bank_name || '';
+
+            paymentAccount = await PaymentAccountRepository.savePaymentAccount({
+              school_id: schoolId,
+              student_id: student.data?.id || '',
+              provider: provider as 'monnify' | 'flutterwave' | 'remita',
+              provider_account_id: dva.provider_account_id,
+              provider_reference: dva.provider_ref || dva.provider_reference,
+              virtual_account_number,
+              account_name,
+              bank_name,
+              account_status: 'ACTIVE',
+              is_primary: true,
+            });
+          }
+        } catch (error) {
+          console.warn('Payment account provisioning failed:', error);
+        }
+
+        if (student.data?.id) {
+          await LedgerRepository.createLedgerEntry({
+            school_id: schoolId,
+            student_id: student.data?.id,
+            amount: tuitionConfig.tuition_amount,
+            entry_type: 'DEBIT',
+            entry_category: 'TUITION',
+            entry_description: `Tuition for ${tuitionConfig.academic_session} - ${tuitionConfig.academic_term} term - ${tuitionConfig.category}`,
+            metadata: {
+              academic_session: tuitionConfig.academic_session,
+              academic_term: tuitionConfig.academic_term,
+              category: tuitionConfig.category,
+              tuition_config_id: tuitionConfig.id,
+            },
+          });
+        }
+
+        return {
+          student: student.data,
+          guardian,
+          tuition_config: tuitionConfig,
+          payment_account: paymentAccount,
+        };
+      } catch (e: any) {
+        this.error = e?.message || 'Failed to register student';
+        throw e;
       } finally {
         this.loading = false;
       }

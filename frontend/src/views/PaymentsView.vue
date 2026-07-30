@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { PaymentService } from '../shared/services/PaymentService';
-import { StudentService } from '../shared/services/StudentService';
+import { usePaymentStore } from '../stores/paymentStore';
+import { useStudentStore } from '../stores/studentStore';
+import { useBillingStore } from '../stores/billingStore';
 import CmButton from '../components/ui/CmButton.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
 import CmInput from '../components/ui/CmInput.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
-const students = ref([]);
-const payments = ref([]);
+const paymentStore = usePaymentStore();
+const studentStore = useStudentStore();
+const billingStore = useBillingStore();
+const students = ref([]) as any;
+const payments = ref([]) as any;
 const form = ref({
   student_id: '',
   amount: '',
@@ -18,24 +22,26 @@ const saving = ref(false);
 const message = ref('');
 
 const loadStudents = async () => {
-  students.value = await StudentService.getStudentsBySchool(DEFAULT_SCHOOL_ID);
+  await studentStore.loadStudents();
+  students.value = studentStore.students;
 };
 
 const loadPayments = async () => {
-  const allStudents = await StudentService.getStudentsBySchool(DEFAULT_SCHOOL_ID);
-  const entries = [];
+  const allStudents = studentStore.students;
+  const entries = [] as any[];
 
   for (const student of allStudents) {
-    const history = await PaymentService.getPaymentHistory(student.id);
+    const ledgerEntries = await billingStore.loadStudentLedger(student.id);
+    const creditEntries = ledgerEntries.filter((e: any) => e.entry_type === 'CREDIT');
     entries.push(
-      ...history.map((entry) => ({
+      ...creditEntries.map((entry: any) => ({
         ...entry,
-        student_name: `${student.first_name} ${student.last_name}`,
+        student_name: `${student.firstName} ${student.lastName}`,
       }))
     );
   }
 
-  payments.value = entries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  payments.value = entries.sort((a: any, b: any) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime());
 };
 
 const submitPayment = async () => {
@@ -47,15 +53,13 @@ const submitPayment = async () => {
   saving.value = true;
   message.value = '';
 
-  await PaymentService.recordPayment({
-    id: `${form.value.student_id}-${Date.now()}`,
+  await billingStore.createCharge({
     school_id: DEFAULT_SCHOOL_ID,
     student_id: form.value.student_id,
     amount: Number(form.value.amount),
+    entry_type: 'CREDIT',
+    entry_category: 'PAYMENT',
     entry_description: form.value.description,
-    created_at: new Date().toISOString(),
-    client_sequence: 0,
-    device_id: 'local-client',
   });
 
   await loadPayments();

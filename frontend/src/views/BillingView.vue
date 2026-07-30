@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { BillingService } from '../shared/services/BillingService';
-import { StudentService } from '../shared/services/StudentService';
+import { useBillingStore } from '../stores/billingStore';
+import { useStudentStore } from '../stores/studentStore';
 import CmButton from '../components/ui/CmButton.vue';
 import CmInput from '../components/ui/CmInput.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
@@ -21,8 +21,11 @@ const form = ref({
 const saving = ref(false);
 const message = ref('');
 
+const billingStore = useBillingStore();
+const studentStore = useStudentStore();
+
 const loadBilling = async (studentIds = []) => {
-  const result = await BillingService.getBillingSummary(DEFAULT_SCHOOL_ID, studentIds);
+  const result = await billingStore.getBillingSummary(DEFAULT_SCHOOL_ID, studentIds);
   items.value = result.items;
   balance.value = result.balance;
   reconciliation.value = {
@@ -33,7 +36,8 @@ const loadBilling = async (studentIds = []) => {
 };
 
 const loadStudents = async () => {
-  students.value = await StudentService.getStudentsBySchool(DEFAULT_SCHOOL_ID);
+  await studentStore.loadStudents();
+  students.value = studentStore.students;
 };
 
 const searchBilling = async () => {
@@ -43,7 +47,7 @@ const searchBilling = async () => {
     return;
   }
 
-  const matchingStudents = await StudentService.searchStudents(DEFAULT_SCHOOL_ID, query);
+  const matchingStudents = await studentStore.searchStudents(DEFAULT_SCHOOL_ID, query);
   const ids = matchingStudents.map((student) => student.id);
   await loadBilling(ids);
 };
@@ -57,17 +61,13 @@ const submitCharge = async () => {
   saving.value = true;
   message.value = '';
 
-  await BillingService.createCharge({
-    id: `${form.value.student_id}-${Date.now()}`,
+  await billingStore.createCharge({
     school_id: DEFAULT_SCHOOL_ID,
     student_id: form.value.student_id,
     amount: Number(form.value.amount),
-    entry_type: form.value.entry_type,
+    entry_type: form.value.entry_type as 'DEBIT' | 'CREDIT',
     entry_category: form.value.entry_type === 'DEBIT' ? 'TUITION' : 'PAYMENT',
     entry_description: form.value.entry_description,
-    created_at: new Date().toISOString(),
-    client_sequence: 0,
-    device_id: 'local-client',
   });
 
   await loadBilling();

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { ReportService } from '../shared/services/ReportService';
+import { useReportingStore } from '../stores/reportingStore';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
+const reportingStore = useReportingStore();
 const loading = ref(false);
 const report = ref({
   totalCharges: 0,
@@ -24,7 +25,31 @@ const outstandingCount = computed(() => {
 const loadReport = async () => {
   loading.value = true;
   try {
-    report.value = await ReportService.getFeeDashboard(DEFAULT_SCHOOL_ID);
+    const filter = {
+      organizationId: DEFAULT_SCHOOL_ID,
+      schoolId: DEFAULT_SCHOOL_ID,
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+    };
+    await reportingStore.loadStudentStatement('', filter);
+    const statement = reportingStore.studentStatements[''];
+    if (statement) {
+      const lines = (statement as any).lines || [];
+      report.value = {
+        totalCharges: ((statement as any).metadata?.totalCharges || 0),
+        totalPayments: ((statement as any).metadata?.totalPayments || 0),
+        netBalance: ((statement as any).metadata?.totalCharges || 0) - ((statement as any).metadata?.totalPayments || 0),
+        outstandingByStudent: lines.map((line: any) => ({
+          student_id: line.studentId || '',
+          student_name: line.studentName || 'Unknown',
+          class_name: '',
+          totalCharges: line.totalCharges,
+          totalPayments: line.totalPayments,
+          outstanding: line.balance,
+        })),
+        recentPayments: [],
+      };
+    }
   } catch (err) {
     console.error('Failed to load revenue dashboard:', err);
   } finally {

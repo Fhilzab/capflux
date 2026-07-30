@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { ReportService } from '../shared/services/ReportService';
+import { useReportingStore } from '../stores/reportingStore';
 import CmButton from '../components/ui/CmButton.vue';
 
 const router = useRouter();
 const DEFAULT_SCHOOL_ID = 'demo-school';
+const reportingStore = useReportingStore();
 const loading = ref(false);
 const classFilter = ref('');
-const outstandingData = ref([]);
+const outstandingData = ref([]) as any;
 
 const classNames = computed(() => {
   const names = new Set(outstandingData.value.map((item) => item.class_name));
@@ -27,8 +28,25 @@ const totalOutstanding = computed(() => {
 const loadOutstanding = async () => {
   loading.value = true;
   try {
-    const report = await ReportService.getFeeDashboard(DEFAULT_SCHOOL_ID);
-    outstandingData.value = report.outstandingByStudent;
+    const filter = {
+      organizationId: DEFAULT_SCHOOL_ID,
+      schoolId: DEFAULT_SCHOOL_ID,
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+    };
+    await reportingStore.loadStudentStatement('', filter);
+    const statement = reportingStore.studentStatements[''];
+    if (statement) {
+      const lines = (statement as any).lines || [];
+      outstandingData.value = lines.map((line: any) => ({
+        student_id: line.studentId || '',
+        student_name: line.studentName || 'Unknown',
+        class_name: '',
+        totalCharges: line.totalCharges,
+        totalPayments: line.totalPayments,
+        outstanding: line.balance,
+      }));
+    }
   } catch (err) {
     console.error('Failed to load outstanding fees:', err);
   } finally {
