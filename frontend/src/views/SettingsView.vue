@@ -1,16 +1,31 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useThemeStore } from '../stores/themeStore';
 import { useAuthStore } from '../stores/authStore';
+import { usePermission } from '../shared/rbac/usePermission';
+import { PERMISSIONS } from '../shared/rbac/permissions';
 
 const themeStore = useThemeStore();
 const authStore = useAuthStore();
+const { can } = usePermission();
 
 const isDark = computed(() => themeStore.mode === 'dark');
+
+const canManageSettings = ref(false);
+const canManageSchools = ref(false);
+const canSendNotifications = ref(false);
 
 const setTheme = (mode: 'dark' | 'light') => {
   themeStore.setTheme(mode);
 };
+
+onMounted(async () => {
+    if (authStore.isAuthenticated) {
+      canManageSettings.value = await can(PERMISSIONS.SETTINGS.MANAGE);
+      canManageSchools.value = await can(PERMISSIONS.SCHOOL.MANAGE);
+      canSendNotifications.value = await can(PERMISSIONS.NOTIFICATION.SEND);
+    }
+});
 </script>
 
 <template>
@@ -55,7 +70,7 @@ const setTheme = (mode: 'dark' | 'light') => {
       </div>
 
       <!-- School Settings -->
-      <div class="premium-card p-6">
+      <div v-if="canManageSchools" class="premium-card p-6">
         <h2 class="text-title mb-4">School Information</h2>
         <div class="space-y-4">
           <div>
@@ -70,7 +85,7 @@ const setTheme = (mode: 'dark' | 'light') => {
       </div>
 
       <!-- Notification Settings -->
-      <div class="premium-card p-6">
+      <div v-if="canSendNotifications" class="premium-card p-6">
         <h2 class="text-title mb-4">Notifications</h2>
         <div class="space-y-4">
           <div class="flex items-center justify-between">

@@ -4,6 +4,7 @@ import './style.css';
 import App from './App.vue';
 import router from './router/index';
 import { useAuthStore } from './stores/authStore';
+import { useRBACStore } from './stores/rbacStore';
 import { SyncService } from './shared/services/SyncService';
 import { useSyncStore } from './stores/syncStore';
 
@@ -29,8 +30,11 @@ async function bootstrap(): Promise<void> {
 
   const authStore = useAuthStore(pinia);
   const syncStore = useSyncStore(pinia);
+  const rbacStore = useRBACStore(pinia);
 
   await authStore.initialize();
+  // Register RBAC store resolver with rbacService for domain-layer checks
+  rbacStore.registerWithService();
   await syncStore.refreshStatus();
   SyncService.startBackgroundSync(30000);
   app.mount('#app');

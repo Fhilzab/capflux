@@ -60,11 +60,8 @@ class AuthorizationService {
 
   // Invite admin to school
   async inviteAdmin(schoolId, email, invitedBy) {
-    // Verify inviter is owner
-    const inviterProfile = await this.getProfile(invitedBy);
-    if (inviterProfile.role !== 'OWNER' || inviterProfile.school_id !== schoolId) {
-      throw new Error('Only owners can invite admins');
-    }
+    // Verify inviter has permission to manage school
+    await this.assertPermission(invitedBy, schoolId, 'school.manage');
 
     // Check if email already exists in this school
     const { data: existingUser } = await this.supabase
@@ -100,7 +97,7 @@ class AuthorizationService {
 
   // Suspend admin
   async suspendAdmin(schoolId, adminId, performedBy) {
-    await this.verifyOwner(performedBy, schoolId);
+    await this.assertPermission(performedBy, schoolId, 'school.manage');
 
     // Cannot suspend yourself
     if (performedBy === adminId) {
@@ -122,7 +119,7 @@ class AuthorizationService {
 
   // Reactivate admin
   async reactivateAdmin(schoolId, adminId, performedBy) {
-    await this.verifyOwner(performedBy, schoolId);
+    await this.assertPermission(performedBy, schoolId, 'school.manage');
 
     const { error } = await this.supabase.rpc('reactivate_admin', {
       p_school_id: schoolId,
@@ -139,7 +136,7 @@ class AuthorizationService {
 
   // Remove admin
   async removeAdmin(schoolId, adminId, performedBy) {
-    await this.verifyOwner(performedBy, schoolId);
+    await this.assertPermission(performedBy, schoolId, 'school.manage');
 
     // Cannot remove yourself
     if (performedBy === adminId) {
@@ -161,11 +158,8 @@ class AuthorizationService {
 
   // Transfer ownership
   async transferOwnership(schoolId, currentOwnerId, newOwnerId) {
-    // Verify current owner
-    const ownerProfile = await this.getProfile(currentOwnerId);
-    if (ownerProfile.role !== 'OWNER' || ownerProfile.school_id !== schoolId) {
-      throw new Error('Current user is not the owner');
-    }
+    // Verify current owner has permission
+    await this.assertPermission(currentOwnerId, schoolId, 'school.manage');
 
     // Verify new owner is an active admin
     const newOwnerProfile = await this.getProfile(newOwnerId);
@@ -225,6 +219,47 @@ class AuthorizationService {
     if (profile.role !== 'OWNER' || profile.school_id !== schoolId) {
       throw new Error('Unauthorized: Only owners can perform this action');
     }
+  }
+
+  // Check permission code at backend level (uses roles/permissions tables)
+  async checkPermission(userId, schoolId, permissionCode) {
+    // Owners and Admins are resolved via role in profile for now
+    const profile = await this.getProfile(userId);
+    if (!profile) return false;
+
+    // Platform-level SUPER_ADMIN bypass (from profiles.system_role if present)
+    if (profile.system_role === 'SUPER_ADMIN') return true;
+
+    // If schoolId mismatch, deny
+    if (profile.school_id !== schoolId) return false;
+
+    // Query role_permissions join
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select(`
+        role:roles!inner (
+          role_permissions!inner (
+            permissions!inner (code)
+          )
+        )
+      `)
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.warn('permission check failed', error.message);
+      return false;
+    }
+
+    const codes = new Set<string>();
+    const role = data?.role;
+    role?.role_permissions?.forEach((rp) => codes.add(rp.permissions.code));
+    return codes.has(permissionCode);
+  }
+
+  async assertPermission(userId, schoolId, permissionCode) {
+    const allowed = await this.checkPermission(userId, schoolId, permissionCode);
+    if (!allowed) throw new Error('INSUFFICIENT_PERMISSIONS');
   }
 
   // Log audit event

@@ -13,6 +13,8 @@
 import { billingService } from '../billing/BillingService';
 import { LedgerRepository } from '../repositories/LedgerRepository';
 import { StudentRepository } from '../repositories/StudentRepository';
+import { rbacService } from '../rbac/RBACService';
+import { PERMISSIONS } from '../rbac/permissions';
 import type { LedgerEntry } from '../ledger/types';
 
 type LegacyLedgerEntryCategory = 'TUITION' | 'PAYMENT' | 'PLATFORM_FEE' | 'ADJUSTMENT' | 'WAIVER' | 'REFUND';
@@ -88,6 +90,14 @@ export const BillingService = {
     entry_description?: string;
     metadata?: Record<string, unknown>;
   }) {
+    try {
+      await rbacService.assertCan(PERMISSIONS.BILLING.CREATE);
+    } catch (e) {
+      // If no context/resolver available (e.g., worker), allow caller to supply scope or handle error upstream
+      // Re-throw to fail fast in typical UI flows
+      throw e;
+    }
+
     // Delegate to LedgerRepository (infrastructure layer)
     return LedgerRepository.createLedgerEntry(payload);
   },

@@ -5,6 +5,8 @@ import { PaymentAccountRepository } from '../repositories/PaymentAccountReposito
 import { LedgerRepository } from '../repositories/LedgerRepository';
 import { PaymentGateway } from './PaymentGateway';
 import db from '../../offline/localDb';
+import { rbacService } from '../rbac/RBACService';
+import { PERMISSIONS } from '../rbac/permissions';
 
 /**
  * @deprecated
@@ -35,6 +37,9 @@ export const StudentService = {
     guardian_email?: string;
     relationship?: 'FATHER' | 'MOTHER' | 'GUARDIAN' | 'OTHER';
   }) {
+    // Assert permission to create students
+    await rbacService.assertCan(PERMISSIONS.STUDENT.CREATE);
+
     const tuitionConfig = await TuitionConfigurationService.getTuition(
       school_id,
       studentData.academic_session,

@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory, RouteRecordRaw, RouteLocationNormalized } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import { useSchoolStore } from '../stores/schoolStore';
+import { authorizeRoute } from '../shared/rbac/RouteGuard';
+import { PERMISSIONS, type PermissionCode } from '../shared/rbac/permissions';
+import type { SystemRole } from '../shared/rbac/types';
 import AuthView from '../features/auth/AuthView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../features/dashboard/views/HomeView.vue';
@@ -20,6 +23,8 @@ interface RouteMeta {
   requiresAuth?: boolean;
   requiresOrganization?: boolean;
   requiresSchoolContext?: boolean;
+  role?: SystemRole;
+  permission?: PermissionCode;
 }
 
 const routes: RouteRecordRaw[] = [
@@ -27,13 +32,13 @@ const routes: RouteRecordRaw[] = [
     path: '/settings',
     name: 'Settings',
     component: SettingsView,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, role: 'OWNER', permission: PERMISSIONS.SETTINGS.MANAGE },
   },
   {
     path: '/guardians',
     name: 'Guardians',
     component: GuardianListView,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, permission: PERMISSIONS.USER.MANAGE },
   },
   {
     path: '/virtual-accounts',
@@ -80,13 +85,13 @@ const routes: RouteRecordRaw[] = [
     path: '/billing',
     name: 'Billing',
     component: BillingView,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, permission: PERMISSIONS.BILLING.VIEW },
   },
   {
     path: '/payments',
     name: 'Payments',
     component: PaymentsView,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, permission: PERMISSIONS.PAYMENT.VIEW },
   },
   {
     path: '/notifications',
@@ -98,7 +103,7 @@ const routes: RouteRecordRaw[] = [
     path: '/reports',
     name: 'Reports',
     component: ReportsView,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, permission: PERMISSIONS.REPORT.VIEW },
   },
   {
     path: '/reports/daily-collections',
@@ -171,58 +176,6 @@ const SCHOOL_SETUP_REQUIRED_ROUTES = [
   'DailyCollections', 'OutstandingFees', 'RevenueDashboard'
 ];
 
-router.beforeEach(async (to) => {
-  const authStore = useAuthStore();
-  const schoolStore = useSchoolStore();
-
-  // Wait for initialization (happens in bootstrap, but guard against race conditions)
-  if (!authStore.initialized) {
-    await authStore.initialize();
-  }
-
-  if (!schoolStore.initialized && authStore.isAuthenticated) {
-    await schoolStore.initialize();
-  }
-
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return { name: 'Auth' };
-  }
-
-  if (to.name === 'Auth' && authStore.isAuthenticated) {
-    return { name: 'Home' };
-  }
-
-  if (to.name === 'Landing' && authStore.isAuthenticated) {
-    return { name: 'Home' };
-  }
-
-  // Guard for organization requirement
-  if (to.meta.requiresAuth && to.meta.requiresOrganization && authStore.isAuthenticated) {
-    // Organization must be initialized (attempted loading)
-    if (!authStore.organizationInitialized) {
-      // Organization loading will happen on navigation, but for future use:
-      // TODO: Future redirect when organization setup flow is implemented
-    }
-    // If logged in but no organization, page will render with empty state
-    // No blocking redirect for now
-  }
-
-  // Guard for school context requirement
-  if (to.meta.requiresSchoolContext && authStore.isAuthenticated) {
-    if (!schoolStore.schoolSetupComplete) {
-      return { name: 'SchoolSetup' };
-    }
-  }
-
-  // Feature gate for school setup
-  if (authStore.isAuthenticated && SCHOOL_SETUP_REQUIRED_ROUTES.includes(to.name as string)) {
-    const schoolSetupComplete = schoolStore.schoolSetupComplete;
-
-    // Redirect to school setup if workspace not ready
-    if (!schoolSetupComplete) {
-      return { name: 'SchoolSetup' };
-    }
-  }
-});
+router.beforeEach(authorizeRoute);
 
 export default router;

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { AuthService } from '../shared/auth/AuthService';
 import { organizationService } from '../shared/organization/OrganizationService';
+import { rbacService } from '../shared/rbac/RBACService';
 import type { Organization, OrganizationMembership, OrganizationRole } from '../shared/organization/types';
 
 export interface User {
@@ -173,6 +174,7 @@ export const useAuthStore = defineStore('auth', {
 
     async signOut() {
       await AuthService.signOut();
+      rbacService.clearCache();
       // Clear all auth state
       this.user = null;
       this.session = null;

@@ -25,6 +25,15 @@ router.post('/provision', async (req, res) => {
   }
 
   try {
+    // Authorization: only users with billing.create or payment.record can provision
+    const { AuthorizationService } = require('../services/AuthorizationService');
+    const authz = new AuthorizationService();
+    const userId = req.headers['x-user-id'];
+    try {
+      await authz.assertPermission(userId, school_id, 'payment.record');
+    } catch (permErr) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     // Verify student exists and belongs to school
     const { data: student, error: studentError } = await supabase
       .from('students')
