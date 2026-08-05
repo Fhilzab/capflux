@@ -50,6 +50,9 @@ export type AuthErrorCode =
   | 'SESSION_EXPIRED'
   | 'NETWORK_ERROR'
   | 'UNAUTHORIZED'
+  | 'USER_ALREADY_EXISTS'
+  | 'RATE_LIMITED'
+  | 'NOT_FOUND'
   | 'UNKNOWN';
 
 /**

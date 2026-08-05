@@ -32,7 +32,37 @@ export abstract class AuthProvider {
   /**
    * Sign up with email and password
    */
-  abstract signUp(email: string, password: string): Promise<AuthResult<{ user: User }>>;
+  abstract signUp(email: string, password: string, fullName?: string): Promise<AuthResult<{ user: User }>>;
+
+  /**
+   * Sign up with email, password, and full name
+   */
+  abstract signUpWithName(email: string, password: string, fullName: string): Promise<AuthResult<{ user: User }>>;
+
+  /**
+   * Sign in with an external provider (OAuth)
+   */
+  abstract signInWithProvider(provider: string): Promise<AuthResult<{ session: Session | null; user: User | null; redirect?: boolean }>>;
+
+  /**
+   * Handle OAuth callback with authorization code.
+   */
+  abstract handleOAuthCallback(code: string): Promise<AuthResult<{ session: Session | null; user: User | null }>>;
+
+  /**
+   * Send a password reset email
+   */
+  abstract forgotPassword(email: string): Promise<AuthResult<void>>;
+
+  /**
+   * Reset password with a reset token
+   */
+  abstract resetPassword(token: string, newPassword: string): Promise<AuthResult<void>>;
+
+  /**
+   * Resend email verification
+   */
+  abstract resendVerification(userId: string): Promise<AuthResult<void>>;
 
   /**
    * Sign out and clear session

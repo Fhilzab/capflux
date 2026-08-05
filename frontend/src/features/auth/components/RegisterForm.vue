@@ -84,6 +84,7 @@ const handleSignUp = async () => {
   if (isOffline.value) return;
 
   const response = await authStore.signUp({
+    fullName: fullName.value,
     email: email.value,
     password: password.value,
   });
@@ -97,8 +98,15 @@ const handleSignUp = async () => {
   emit('switch-state', 'verify-email');
 };
 
-const handleGoogleSignIn = () => {
-  // Placeholder for Google OAuth integration
+const handleGoogleSignIn = async () => {
+  if (isOffline.value) {
+    return;
+  }
+
+  const success = await authStore.signInWithProvider('google');
+  if (success) {
+    router.push({ name: 'Home' });
+  }
 };
 
 // Handle offline/online status

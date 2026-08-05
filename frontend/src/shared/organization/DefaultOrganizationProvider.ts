@@ -72,7 +72,8 @@ export class DefaultOrganizationProvider extends OrganizationProvider {
 
   async getContext(): Promise<OrganizationResult<OrganizationContext>> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { useAuthStore } = await import('../../stores/authStore');
+      const user = useAuthStore().user;
       if (!user) {
         return { data: null, error: { code: 'UNAUTHORIZED', message: 'No authenticated user' } };
       }
@@ -113,7 +114,8 @@ export class DefaultOrganizationProvider extends OrganizationProvider {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { useAuthStore } = await import('../../stores/authStore');
+      const user = useAuthStore().user;
       if (!user) {
         return { data: null, error: { code: 'UNAUTHORIZED', message: 'No authenticated user' } };
       }
@@ -154,7 +156,8 @@ export class DefaultOrganizationProvider extends OrganizationProvider {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { useAuthStore } = await import('../../stores/authStore');
+      const user = useAuthStore().user;
       if (!user) {
         return { data: null, error: { code: 'UNAUTHORIZED', message: 'No authenticated user' } };
       }

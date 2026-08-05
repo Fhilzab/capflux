@@ -28,7 +28,8 @@ export async function processSyncQueue() {
   }
 
   // Verify we have a valid session before syncing
-  const { data: { session } } = await supabase.auth.getSession();
+  const { useAuthStore } = await import('../stores/authStore');
+  const session = useAuthStore().session;
   if (!session) {
     console.warn('Skipping sync queue: No valid Supabase session.');
     return;

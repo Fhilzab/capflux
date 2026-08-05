@@ -64,7 +64,8 @@ export async function processUploadSyncQueue(): Promise<{ processed: number; err
   }
 
   // Verify we have a valid session
-  const { data: { session } } = await supabase.auth.getSession();
+  const { useAuthStore } = await import('../stores/authStore');
+  const session = useAuthStore().session;
   if (!session) {
     console.warn('Skipping upload sync: No valid Supabase session.');
     return { processed: 0, errors: 0 };

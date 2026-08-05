@@ -60,9 +60,11 @@ export const AuthService = {
   /**
    * Sign up with email and password
    */
-  async signUp(email: string, password: string): Promise<{ data: { user: User | null }; error: AuthErrorData | null }> {
+  async signUp(email: string, password: string, fullName?: string): Promise<{ data: { user: User | null }; error: AuthErrorData | null }> {
     try {
-      const result = await this._provider.signUp(email, password);
+      const result = fullName
+        ? await this._provider.signUpWithName(email, password, fullName)
+        : await this._provider.signUp(email, password);
       return {
         data: {
           user: result.data?.user ?? null,
@@ -72,6 +74,43 @@ export const AuthService = {
     } catch (rawError) {
       return {
         data: { user: null },
+        error: mapProviderError(rawError),
+      };
+    }
+  },
+
+  async handleOAuthCallback(code: string): Promise<{ data: { session: Session | null; user: User | null }; error: AuthErrorData | null }> {
+    try {
+      const result = await this._provider.handleOAuthCallback(code);
+      return {
+        data: {
+          session: result.data?.session ?? null,
+          user: result.data?.user ?? null,
+        },
+        error: result.error,
+      };
+    } catch (rawError) {
+      return {
+        data: { session: null, user: null },
+        error: mapProviderError(rawError),
+      };
+    }
+  },
+
+  async signInWithProvider(provider: string): Promise<{ data: { session: Session | null; user: User | null; redirect?: boolean }; error: AuthErrorData | null }> {
+    try {
+      const result = await this._provider.signInWithProvider(provider);
+      return {
+        data: {
+          session: result.data?.session ?? null,
+          user: result.data?.user ?? null,
+          redirect: result.data?.redirect,
+        },
+        error: result.error,
+      };
+    } catch (rawError) {
+      return {
+        data: { session: null, user: null, redirect: false },
         error: mapProviderError(rawError),
       };
     }
@@ -104,6 +143,42 @@ export const AuthService = {
         session: null,
         error: mapProviderError(rawError),
       };
+    }
+  },
+
+  /**
+   * Send a password reset email
+   */
+  async forgotPassword(email: string): Promise<{ error: AuthErrorData | null }> {
+    try {
+      const result = await this._provider.forgotPassword(email);
+      return { error: result.error };
+    } catch (rawError) {
+      return { error: mapProviderError(rawError) };
+    }
+  },
+
+  /**
+   * Reset password with a reset token
+   */
+  async resetPassword(token: string, newPassword: string): Promise<{ error: AuthErrorData | null }> {
+    try {
+      const result = await this._provider.resetPassword(token, newPassword);
+      return { error: result.error };
+    } catch (rawError) {
+      return { error: mapProviderError(rawError) };
+    }
+  },
+
+  /**
+   * Resend the email verification
+   */
+  async resendVerification(userId: string): Promise<{ error: AuthErrorData | null }> {
+    try {
+      const result = await this._provider.resendVerification(userId);
+      return { error: result.error };
+    } catch (rawError) {
+      return { error: mapProviderError(rawError) };
     }
   },
 

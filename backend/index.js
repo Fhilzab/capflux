@@ -4,6 +4,7 @@ import { supabase, hasSupabaseConfig } from './supabaseClient.js';
 import webhookRoutes from './routes/webhook.js';
 import paymentAccountRoutes from './routes/payment-accounts.js';
 import dvaRoutes from './routes/dva.js'; // DEPRECATED: For backward compatibility only
+import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import onboardingRoutes from './routes/onboarding.js';
 
@@ -52,6 +53,8 @@ app.use('/api/webhook', webhookRoutes);
 app.use('/api/dva', dvaRoutes);
 // Provider-agnostic payment accounts routes (NEW)
 app.use('/api/payment-accounts', paymentAccountRoutes);
+// Auth routes
+app.use('/api/auth', authRoutes);
 // Admin management routes (Owner/Admin authorization)
 app.use('/api/admin', adminRoutes);
 // Onboarding routes

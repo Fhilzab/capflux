@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { useAuthStore } from '../../stores/authStore';
 import { useAuthState } from './useAuthState';
 import AuthLayout from './components/AuthLayout.vue';
 import AuthIllustration from './components/AuthIllustration.vue';
@@ -17,6 +18,8 @@ interface Props {
 
 const props = defineProps<Props>();
 const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 
 const { state, transition } = useAuthState();
 
@@ -27,8 +30,18 @@ const getQueryParam = (param: string | string[] | undefined): string => {
 };
 
 // Set initial state from URL query params on mount
-watch(() => route.query, (query) => {
+watch(() => route.query, async (query) => {
   const mode = getQueryParam(query.mode) as string;
+  const code = getQueryParam(query.code) as string;
+
+  if (code) {
+    const success = await authStore.handleOAuthCallback(code);
+    if (success) {
+      router.push({ name: 'Home' });
+      return;
+    }
+  }
+
   if (mode && ['login', 'signup', 'verify-email', 'forgot-password', 'reset-password'].includes(mode)) {
     transition(mode as any);
   }

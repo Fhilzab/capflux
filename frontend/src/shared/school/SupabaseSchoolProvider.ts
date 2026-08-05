@@ -34,7 +34,8 @@ export class SupabaseSchoolProvider extends SchoolProvider {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { useAuthStore } = await import('../../stores/authStore');
+      const user = useAuthStore().user;
       if (!user) {
         return { data: null, error: { code: 'UNAUTHORIZED', message: 'No authenticated user' } };
       }

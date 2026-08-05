@@ -25,7 +25,8 @@ export async function downloadFinancialData(school_id: string): Promise<{
   }
 
   // Verify we have a valid session
-  const { data: { session } } = await supabase.auth.getSession();
+  const { useAuthStore } = await import('../stores/authStore');
+  const session = useAuthStore().session;
   if (!session) {
     console.warn('Skipping download sync: No valid Supabase session.');
     return { payment_transactions: [], settlement_records: [] };

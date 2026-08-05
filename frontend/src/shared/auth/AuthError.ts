@@ -14,6 +14,9 @@ const ERROR_MESSAGES: Record<AuthErrorCode, string> = {
   SESSION_EXPIRED: 'Your session has expired. Please sign in again.',
   NETWORK_ERROR: 'Unable to connect. Please check your internet connection.',
   UNAUTHORIZED: 'You are not authorized to access this resource.',
+  USER_ALREADY_EXISTS: 'An account with this email already exists. Please sign in instead.',
+  RATE_LIMITED: 'Too many attempts. Please try again later.',
+  NOT_FOUND: 'The requested resource was not found.',
   UNKNOWN: 'An unexpected error occurred. Please try again.',
 };
 
@@ -41,7 +44,8 @@ export function mapProviderError(error: unknown): AuthErrorData {
   if (lowerMessage.includes('invalid login') || 
       lowerMessage.includes('invalid email') ||
       lowerMessage.includes('invalid password') ||
-      supabaseError.code === 'invalid_credentials') {
+      supabaseError.code === 'invalid_credentials' ||
+      supabaseError.code === 'INVALID_CREDENTIALS') {
     return {
       code: 'INVALID_CREDENTIALS',
       message: ERROR_MESSAGES.INVALID_CREDENTIALS,
@@ -50,7 +54,9 @@ export function mapProviderError(error: unknown): AuthErrorData {
   }
 
   if (lowerMessage.includes('email not confirmed') ||
-      lowerMessage.includes('email not verified')) {
+      lowerMessage.includes('email not verified') ||
+      supabaseError.code === 'EMAIL_NOT_VERIFIED' ||
+      supabaseError.code === 'email_verification_required') {
     return {
       code: 'EMAIL_NOT_VERIFIED',
       message: ERROR_MESSAGES.EMAIL_NOT_VERIFIED,
@@ -77,7 +83,18 @@ export function mapProviderError(error: unknown): AuthErrorData {
     };
   }
 
-  // Default to unknown
+  if (supabaseError.code === 'USER_ALREADY_EXISTS' || supabaseError.code === 'user_already_exists' || lowerMessage.includes('already exists')) {
+    return { code: 'USER_ALREADY_EXISTS', message: ERROR_MESSAGES.USER_ALREADY_EXISTS, raw: error };
+  }
+
+  if (supabaseError.code === 'RATE_LIMITED' || supabaseError.code === 'rate_limited' || lowerMessage.includes('too many requests')) {
+    return { code: 'RATE_LIMITED', message: ERROR_MESSAGES.RATE_LIMITED, raw: error };
+  }
+
+  if (supabaseError.code === 'NOT_FOUND' || supabaseError.code === 'not_found' || lowerMessage.includes('not found')) {
+    return { code: 'NOT_FOUND', message: ERROR_MESSAGES.NOT_FOUND, raw: error };
+  }
+
   return {
     code: 'UNKNOWN',
     message: ERROR_MESSAGES.UNKNOWN,

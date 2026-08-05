@@ -146,11 +146,11 @@ export const useAuthStore = defineStore('auth', {
       return true;
     },
 
-    async signUp({ email, password }: { email: string; password: string }) {
+    async signUp({ fullName, email, password }: { fullName: string; email: string; password: string }) {
       this.loading = true;
       this.error = null;
 
-      const { data, error } = await AuthService.signUp(email, password);
+      const { data, error } = await AuthService.signUp(email, password, fullName);
 
       this.loading = false;
 
@@ -160,6 +160,51 @@ export const useAuthStore = defineStore('auth', {
       }
 
       return { data, error: null };
+    },
+
+    async signInWithProvider(provider: string) {
+      this.loading = true;
+      this.error = null;
+
+      const { data, error } = await AuthService.signInWithProvider(provider);
+
+      this.loading = false;
+
+      if (error) {
+        this.error = error.message;
+        return false;
+      }
+
+      if (data?.session) {
+        this.session = data.session;
+        this.user = data.user ?? null;
+        await this.loadOrganization();
+      }
+
+      return true;
+    },
+
+    async handleOAuthCallback(code: string) {
+      this.loading = true;
+      this.error = null;
+
+      const { data, error } = await AuthService.handleOAuthCallback(code);
+
+      this.loading = false;
+
+      if (error) {
+        this.error = error.message;
+        return false;
+      }
+
+      this.session = data?.session ?? null;
+      this.user = data?.user ?? null;
+
+      if (data?.session) {
+        await this.loadOrganization();
+      }
+
+      return true;
     },
 
     async refreshSession() {
