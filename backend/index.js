@@ -3,7 +3,9 @@ import cors from 'cors';
 import { supabase, hasSupabaseConfig } from './supabaseClient.js';
 import webhookRoutes from './routes/webhook.js';
 import paymentAccountRoutes from './routes/payment-accounts.js';
-import dvaRoutes from './routes/dva.js'; // DEPRECATED: For backward compatibility only
+import dvaRoutes from './routes/dva.js'; // Canonical DVA lifecycle
+import paymentsRoutes from './routes/payments.js';
+import financialOperationsRoutes from './routes/financial-operations.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import onboardingRoutes from './routes/onboarding.js';
@@ -100,11 +102,14 @@ app.use('/api/auth', authRateLimit);
 
 // Payment gateway routes
 app.use('/api/webhook', webhookRoutes);
-// DEPRECATED: Use /api/payment-accounts instead of /api/dva
-// The /api/dva routes are maintained for backward compatibility
+// Canonical DVA lifecycle
 app.use('/api/dva', dvaRoutes);
-// Provider-agnostic payment accounts routes (NEW)
+// Provider-agnostic payment accounts (DVA) routes
 app.use('/api/payment-accounts', paymentAccountRoutes);
+// Payment transaction routes
+app.use('/api/payments', paymentsRoutes);
+// Reconciliation + settlement routes
+app.use('/api', financialOperationsRoutes);
 // Auth routes
 app.use('/api/auth', authRoutes);
 // Admin management routes (Owner/Admin authorization)

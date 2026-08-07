@@ -14,8 +14,9 @@ import HomeView from '../features/dashboard/views/HomeView.vue';
 import StudentListView from '../views/StudentListView.vue';
 import GuardianListView from '../views/GuardianListView.vue';
 import BillingView from '../views/BillingView.vue';
-import PaymentsView from '../views/PaymentsView.vue';
+import PaymentsView from '../features/payments/PaymentsDashboard.vue';
 import VirtualAccountsView from '../views/VirtualAccountsView.vue';
+import SettlementsView from '../views/SettlementsView.vue';
 import AIInsightsView from '../views/AIInsightsView.vue';
 import SupportView from '../views/SupportView.vue';
 import NotificationsView from '../views/NotificationsView.vue';
@@ -102,6 +103,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Notifications',
     component: NotificationsView,
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/settlements',
+    name: 'Settlements',
+    component: SettlementsView,
+    meta: { requiresAuth: true, permission: PERMISSIONS.PAYMENT.VIEW },
   },
   {
     path: '/reports',

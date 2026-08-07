@@ -282,6 +282,13 @@ export class MonnifyGateway {
   }
 
   /**
+   * Parse webhook payload for a stable provider event id (webhook idempotency).
+   */
+  parseWebhookEventId(payload) {
+    return payload?.eventId || payload?.paymentReference || payload?.transactionReference || null;
+  }
+
+  /**
    * Parse webhook payload for amount
    */
   parseWebhookAmount(payload) {

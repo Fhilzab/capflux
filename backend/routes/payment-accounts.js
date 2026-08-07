@@ -1,309 +1,154 @@
 /**
- * Payment Accounts Route - Provider-agnostic payment account management
- * 
- * This route abstracts payment account operations across all providers.
- * Endpoints:
- * - POST /api/payment-accounts/provision - Create payment account for a student
- * - GET /api/payment-accounts/:student_id - Get payment account details for a student
- * - POST /api/payment-accounts/deactivate - Deactivate a payment account
- * - POST /api/payment-accounts/bulk-provision - Provision accounts for multiple students
+ * Payment Accounts Route — canonical payment account (DVA) management.
+ *
+ * The DVA lifecycle is implemented once in DVAService; this router exposes the
+ * payment-accounts contract and delegates to it. It intentionally does NOT
+ * duplicate provisioning logic. Gateway selection comes from
+ * gateway_assignments (CAPFLUX-internal), never from school-supplied config.
+ *
+ * GET    /api/payment-accounts          list accounts for caller's school
+ * GET    /api/payment-accounts/:id      get one account
+ * POST   /api/payment-accounts/provision  provision DVA for a student
+ * POST   /api/payment-accounts/bulk-provision
+ * POST   /api/payment-accounts/:id/deactivate
  */
-
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
-import { GatewayFactory } from '../services/gateways/GatewayFactory.js';
 import requireAuth from '../middleware/requireAuth.js';
 import requirePaymentReady from '../middleware/requirePaymentReady.js';
+import { DVAService } from '../services/DVAService.js';
 
 const router = express.Router();
-
-// All payment-account routes require an authenticated WorkOS session.
 router.use(requireAuth);
 
-// Payment-mutating routes also require payment readiness (ACTIVE + READY).
+const handleError = (res, error, fallbackStatus = 500) => {
+  const status = error?.statusCode || fallbackStatus;
+  const message = error?.message || 'Internal server error';
+  return res.status(status).json({ error: message });
+};
+
+async function getCallerSchool(userId) {
+  const { data, error } = await supabase
+    .from('school_members')
+    .select('school_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .single();
+  if (error || !data) return null;
+  return data.school_id;
+}
+
+async function verifyStudent(schoolId, studentId) {
+  const { data, error } = await supabase
+    .from('students')
+    .select('id')
+    .eq('id', studentId)
+    .eq('school_id', schoolId)
+    .eq('status', 'ACTIVE')
+    .single();
+  return !error && data;
+}
+
+// GET /api/payment-accounts
+router.get('/', async (req, res) => {
+  try {
+    const schoolId = await getCallerSchool(req.user.id);
+    if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
+
+    const { data, error } = await supabase
+      .from('payment_accounts')
+      .select('id, student_id, provider, virtual_account_number, bank_name, account_name, status, account_status, is_primary, created_at, updated_at')
+      .eq('school_id', schoolId)
+      .order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+
+    const masked = (data || []).map((d) => ({
+      ...d,
+      virtual_account_number_last4: d.virtual_account_number?.slice(-4) || null,
+      virtual_account_number: undefined,
+    }));
+
+    return res.json({ success: true, data: masked });
+  } catch (error) {
+    return handleError(res, error);
+  }
+});
+
+// GET /api/payment-accounts/:id
+router.get('/:id', async (req, res) => {
+  try {
+    const schoolId = await getCallerSchool(req.user.id);
+    if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
+
+    const { data, error } = await supabase
+      .from('payment_accounts')
+      .select('id, student_id, provider, virtual_account_number, bank_name, account_name, status, account_status, is_primary, created_at, updated_at, students(first_name, last_name, class_name)')
+      .eq('id', req.params.id)
+      .eq('school_id', schoolId)
+      .single();
+    if (error || !data) return res.status(404).json({ error: 'Payment account not found.' });
+
+    return res.json({
+      success: true,
+      data: {
+        ...data,
+        virtual_account_number_last4: data.virtual_account_number?.slice(-4) || null,
+        virtual_account_number: undefined,
+      },
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+});
+
+// POST /api/payment-accounts/provision
 router.post('/provision', requirePaymentReady, async (req, res) => {
-  const { student_id, school_id } = req.body;
-
-  if (!student_id || !school_id) {
-    return res.status(400).json({ error: 'student_id and school_id are required' });
-  }
+  const { student_id, idempotency_key } = req.body || {};
+  if (!student_id) return res.status(400).json({ error: 'student_id is required' });
 
   try {
-    // Authorization: only users with payment.record can provision
-    // (identity is derived from the authenticated session, not headers).
-    const userId = req.user.id;
-    const { AuthorizationService } = await import('../services/AuthorizationService.js');
-    const authz = new AuthorizationService();
-    try {
-      await authz.assertPermission(userId, school_id, 'payments.receive');
-    } catch (permErr) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    // Verify student exists and belongs to school
-    const { data: student, error: studentError } = await supabase
-      .from('students')
-      .select('*')
-      .eq('id', student_id)
-      .eq('school_id', school_id)
-      .eq('status', 'ACTIVE')
-      .single();
+    const schoolId = await getCallerSchool(req.user.id);
+    if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
-    if (studentError || !student) {
-      return res.status(404).json({ error: 'Student not found or not active' });
+    const studentOk = await verifyStudent(schoolId, student_id);
+    if (!studentOk) {
+      return res.status(404).json({ error: 'Student not found or not active in this school.' });
     }
 
-    // Get gateway config for school (provider-agnostic)
-    const { data: gatewayConfig, error: configError } = await supabase
-      .from('payment_gateway_config')
-      .select('*')
-      .eq('school_id', school_id)
-      .eq('is_active', true)
-      .single();
-
-    if (configError || !gatewayConfig) {
-      return res.status(404).json({ error: 'No active payment gateway configured for school' });
-    }
-
-    // Get gateway instance from factory
-    const gateway = GatewayFactory.get(gatewayConfig.provider);
-    if (!gateway) {
-      return res.status(400).json({ error: `Unsupported provider: ${gatewayConfig.provider}` });
-    }
-
-    // Check if payment account already exists
-    const { data: existingAccount } = await supabase
-      .from('payment_accounts')
-      .select('*')
-      .eq('student_id', student_id)
-      .eq('is_primary', true)
-      .single();
-
-    if (existingAccount) {
-      return res.json({
-        success: true,
-        already_exists: true,
-        payment_account: existingAccount,
-      });
-    }
-
-    // Create payment account via gateway
-    const studentName = `${student.first_name} ${student.last_name}`;
-    const accountDetails = await gateway.createStudentPaymentAccount({
-      student_id,
-      student_name: studentName,
-      guardian_phone: student.guardian_id,
-      gateway_config: gatewayConfig,
-      school_id,
+    const result = await DVAService.provisionDVA({
+      schoolId,
+      studentId: student_id,
+      actorId: req.user.id,
+      idempotencyKey: idempotency_key,
     });
-
-    // Save payment account to database (NOT to students table)
-    const { data: paymentAccount, error: accountError } = await supabase
-      .from('payment_accounts')
-      .insert({
-        school_id,
-        student_id,
-        provider: gatewayConfig.provider,
-        provider_account_id: accountDetails.provider_account_id,
-        provider_reference: accountDetails.provider_reference,
-        virtual_account_number: accountDetails.virtual_account_number,
-        account_name: accountDetails.account_name,
-        bank_name: accountDetails.bank_name,
-        account_status: 'ACTIVE',
-        is_primary: true,
-      })
-      .select()
-      .single();
-
-    if (accountError) {
-      return res.status(500).json({ error: `Failed to save payment account: ${accountError.message}` });
-    }
-
-    return res.json({
-      success: true,
-      payment_account: paymentAccount,
-    });
-
+    return res.json({ success: true, data: result });
   } catch (error) {
-    console.error('Payment account provisioning error:', error);
-    return res.status(500).json({ error: 'Failed to provision payment account', details: error.message });
-  }
-});
-
-// GET /api/payment-accounts/:student_id
-// Get payment account details for a student
-router.get('/:student_id', async (req, res) => {
-  const { student_id } = req.params;
-  const { school_id } = req.query;
-
-  if (!school_id) {
-    return res.status(400).json({ error: 'school_id query parameter required' });
-  }
-
-  try {
-    const { data: account, error } = await supabase
-      .from('payment_accounts')
-      .select('*')
-      .eq('student_id', student_id)
-      .eq('school_id', school_id)
-      .eq('is_primary', true)
-      .single();
-
-    if (error || !account) {
-      return res.status(404).json({ error: 'Payment account not found for student' });
-    }
-
-    return res.json({ success: true, payment_account: account });
-
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch payment account', details: error.message });
-  }
-});
-
-// POST /api/payment-accounts/deactivate
-// Deactivate a payment account
-router.post('/deactivate', requirePaymentReady, async (req, res) => {
-  const { account_id, school_id } = req.body;
-
-  if (!account_id || !school_id) {
-    return res.status(400).json({ error: 'account_id and school_id are required' });
-  }
-
-  try {
-    // Get payment account
-    const { data: account, error: accountError } = await supabase
-      .from('payment_accounts')
-      .select('*, payment_gateway_config!inner(provider, api_key, secret_key, submerchant_code)')
-      .eq('id', account_id)
-      .single();
-
-    if (accountError || !account) {
-      return res.status(404).json({ error: 'Payment account not found' });
-    }
-
-    // Get gateway instance from factory
-    const gateway = GatewayFactory.get(account.provider);
-    if (gateway && gateway.deactivatePaymentAccount) {
-      await gateway.deactivatePaymentAccount({
-        virtual_account_number: account.virtual_account_number,
-        gateway_config: {
-          api_key: account.payment_gateway_config.api_key,
-          secret_key: account.payment_gateway_config.secret_key,
-          provider: account.provider,
-        },
-      });
-    }
-
-    // Update the payment account status
-    const { data: updatedAccount, error: updateError } = await supabase
-      .from('payment_accounts')
-      .update({
-        account_status: 'INACTIVE',
-        is_primary: false,
-        deactivated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', account_id)
-      .select()
-      .single();
-
-    if (updateError) {
-      return res.status(500).json({ error: `Failed to deactivate payment account: ${updateError.message}` });
-    }
-
-    return res.json({
-      success: true,
-      payment_account: updatedAccount,
-    });
-
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to deactivate payment account', details: error.message });
+    return handleError(res, error);
   }
 });
 
 // POST /api/payment-accounts/bulk-provision
-// Provision payment accounts for multiple students
 router.post('/bulk-provision', requirePaymentReady, async (req, res) => {
-  const { school_id } = req.body;
-
-  if (!school_id) {
-    return res.status(400).json({ error: 'school_id is required' });
-  }
-
   try {
-    // Get all active students
+    const schoolId = await getCallerSchool(req.user.id);
+    if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
+
     const { data: students, error: studentsError } = await supabase
       .from('students')
-      .select('*')
-      .eq('school_id', school_id)
+      .select('id')
+      .eq('school_id', schoolId)
       .eq('status', 'ACTIVE');
-
-    if (studentsError) {
-      return res.status(500).json({ error: studentsError.message });
-    }
-
-    // Filter students who don't have a primary payment account
-    const studentsWithoutAccount = [];
-    for (const student of students) {
-      const { data: existing } = await supabase
-        .from('payment_accounts')
-        .select('id')
-        .eq('student_id', student.id)
-        .eq('is_primary', true)
-        .single();
-      if (!existing) {
-        studentsWithoutAccount.push(student);
-      }
-    }
-
-    // Get gateway config for school
-    const { data: gatewayConfig, error: configError } = await supabase
-      .from('payment_gateway_config')
-      .select('*')
-      .eq('school_id', school_id)
-      .eq('is_active', true)
-      .single();
-
-    if (configError || !gatewayConfig) {
-      return res.status(404).json({ error: 'No active payment gateway configured' });
-    }
-
-    // Get gateway instance from factory
-    const gateway = GatewayFactory.get(gatewayConfig.provider);
-    if (!gateway) {
-      return res.status(400).json({ error: `Unsupported provider: ${gatewayConfig.provider}` });
-    }
+    if (studentsError) return res.status(500).json({ error: studentsError.message });
 
     const results = [];
-
-    for (const student of studentsWithoutAccount) {
+    for (const student of students) {
       try {
-        const studentName = `${student.first_name} ${student.last_name}`;
-        const accountDetails = await gateway.createStudentPaymentAccount({
-          student_id: student.id,
-          student_name: studentName,
-          guardian_phone: student.guardian_id,
-          gateway_config: gatewayConfig,
-          school_id,
+        const result = await DVAService.provisionDVA({
+          schoolId,
+          studentId: student.id,
+          actorId: req.user.id,
         });
-
-        const { data: account } = await supabase
-          .from('payment_accounts')
-          .insert({
-            school_id,
-            student_id: student.id,
-            provider: gatewayConfig.provider,
-            provider_account_id: accountDetails.provider_account_id,
-            provider_reference: accountDetails.provider_reference,
-            virtual_account_number: accountDetails.virtual_account_number,
-            account_name: accountDetails.account_name,
-            bank_name: accountDetails.bank_name,
-            account_status: 'ACTIVE',
-            is_primary: true,
-          })
-          .select()
-          .single();
-
-        results.push({ student_id: student.id, success: true, account });
+        results.push({ student_id: student.id, ...result });
       } catch (err) {
         results.push({ student_id: student.id, success: false, error: err.message });
       }
@@ -311,13 +156,27 @@ router.post('/bulk-provision', requirePaymentReady, async (req, res) => {
 
     return res.json({
       success: true,
-      total: studentsWithoutAccount.length,
-      processed: results.filter(r => r.success).length,
-      results,
+      data: { total: students.length, processed: results.filter((r) => r.success).length, results },
     });
-
   } catch (error) {
-    return res.status(500).json({ error: 'Bulk provisioning failed', details: error.message });
+    return handleError(res, error);
+  }
+});
+
+// POST /api/payment-accounts/:id/deactivate
+router.post('/:id/deactivate', requirePaymentReady, async (req, res) => {
+  try {
+    const schoolId = await getCallerSchool(req.user.id);
+    if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
+
+    const result = await DVAService.deactivateDVA({
+      accountId: req.params.id,
+      schoolId,
+      actorId: req.user.id,
+    });
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    return handleError(res, error);
   }
 });
 

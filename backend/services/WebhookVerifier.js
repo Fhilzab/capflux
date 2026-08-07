@@ -45,11 +45,9 @@ export class WebhookVerifier {
   }
 
   /**
-   * Verify webhook payload with the payment gateway API
-   * @param {string} reference - Transaction reference
-   * @param {string} provider - Provider name
-   * @param {string} school_id - School UUID
-   * @returns {Promise<Object>} Verified transaction
+   * Verify webhook payload with the payment gateway API.
+   * Gateway assignment is resolved from gateway_assignments (CAPFLUX-internal);
+   * credentials come from the server environment, never the database.
    */
   async verifyWithAPI(reference, provider, school_id) {
     const gateway = this.providers[provider];
@@ -57,29 +55,32 @@ export class WebhookVerifier {
       throw new Error(`Unknown payment provider: ${provider}`);
     }
 
-    // Get gateway config for this school
-    const { data: gatewayConfig, error } = await supabase
-      .from('payment_gateway_config')
+    // Resolve the CAPFLUX-internal gateway assignment for the school.
+    const { data: assignment, error } = await supabase
+      .from('gateway_assignments')
       .select('*')
       .eq('school_id', school_id)
       .eq('provider', provider)
-      .eq('is_active', true)
-      .single();
+      .in('status', ['ASSIGNED', 'ACTIVE'])
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (error || !gatewayConfig) {
-      throw new Error(`No active gateway config found for school ${school_id}`);
+    if (error || !assignment) {
+      throw new Error(`No active ${provider} gateway assignment for school ${school_id}`);
     }
 
-    // Verify transaction with gateway API - NEVER trust webhook body
-    const transaction = await gateway.getTransaction(reference, gatewayConfig);
-    
+    // Verify transaction with gateway API - NEVER trust webhook body.
+    // gateway_config is intentionally empty; credentials come from server env.
+    const transaction = await gateway.getTransaction(reference, {});
+
     if (!transaction) {
       throw new Error(`Transaction ${reference} not found on gateway`);
     }
 
     return {
       transaction,
-      gatewayConfig,
+      gatewayAssignment: assignment,
       gateway,
     };
   }
