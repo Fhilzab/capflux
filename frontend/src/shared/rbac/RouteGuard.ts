@@ -65,25 +65,8 @@ export async function authorizeRoute(
     }
   }
 
-  if (to.meta.requiresSchoolContext && authStore.isAuthenticated) {
-    if (!schoolStore.schoolSetupComplete) {
-      return next({ name: 'SchoolSetup' });
-    }
-  }
-
-  if (authStore.isAuthenticated) {
-    const SCHOOL_SETUP_REQUIRED_ROUTES = [
-      'Students', 'Billing', 'Payments', 'VirtualAccounts',
-      'DailyCollections', 'OutstandingFees', 'RevenueDashboard'
-    ];
-
-    if (SCHOOL_SETUP_REQUIRED_ROUTES.includes(to.name as string)) {
-      const schoolSetupComplete = schoolStore.schoolSetupComplete;
-      if (!schoolSetupComplete) {
-        return next({ name: 'SchoolSetup' });
-      }
-    }
-  }
+  // Do not force-redirect users to a SchoolSetup route. Dashboard should remain accessible.
+  // Overlay-based module locking will handle access to specific features when setup is required.
 
   return next();
 }

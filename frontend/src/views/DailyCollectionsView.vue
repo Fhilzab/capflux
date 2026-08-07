@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useReportingStore } from '../stores/reportingStore';
+import { useModuleLock } from '../composables/useModuleLock';
+import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
 import CmButton from '../components/ui/CmButton.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const reportingStore = useReportingStore();
+const { paymentsLocked, loading: lockLoading } = useModuleLock();
 const loading = ref(false);
 const startDate = ref('');
 const endDate = ref('');
@@ -84,6 +87,8 @@ onMounted(loadCollections);
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
+    <ModuleLockOverlay v-if="paymentsLocked && !lockLoading" variant="payment" />
+    <template v-else>
     <div class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -156,5 +161,6 @@ onMounted(loadCollections);
         </table>
       </section>
     </div>
+    </template>
   </main>
 </template>

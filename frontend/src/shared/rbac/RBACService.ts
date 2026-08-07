@@ -1,9 +1,9 @@
 import { PermissionCache } from './PermissionCache';
 import { PermissionEngine } from './PermissionEngine';
-import { supabaseRBACProvider } from './SupabaseRBACProvider';
+import { backendRBACProvider } from './BackendRBACProvider';
 import { buildAccessScope } from './accessScope';
-import { RBACError, RBACErrorCode } from './types';
-import type { AccessScope, AccessScopePermissions, Permission, Role, SystemRole } from './types';
+import { RBACError, RBACErrorCode, SystemRole } from './types';
+import type { AccessScope, AccessScopePermissions, Permission, Role } from './types';
 
 export class RBACService {
   private readonly permissionCache = new PermissionCache();
@@ -58,14 +58,14 @@ export class RBACService {
     }
 
     const { schoolId, userId } = scope;
-    const schoolRoles = await supabaseRBACProvider.getUserRoles(userId, schoolId);
+    const schoolRoles = await backendRBACProvider.getUserRoles(userId, schoolId);
     const allRoles = this.mergeRoles(schoolRoles, systemRoles);
     const permissions = await this.loadPermissionsForRoles(allRoles);
     return [allRoles, permissions];
   }
 
   private async loadUserSystemRoles(userId: string): Promise<Role[]> {
-    return await supabaseRBACProvider.getUserSystemRoles(userId);
+    return await backendRBACProvider.getUserSystemRoles(userId);
   }
 
   private mergeRoles(primary: Role[], additional: Role[]): Role[] {
@@ -83,7 +83,7 @@ export class RBACService {
     const permissionMap = new Map<string, Permission>();
     await Promise.all(
       roles.map(async (role) => {
-        const rolePermissions = await supabaseRBACProvider.getRolePermissions(role.id);
+        const rolePermissions = await backendRBACProvider.getRolePermissions(role.id);
         rolePermissions.forEach((permission) => {
           if (!permissionMap.has(permission.code)) {
             permissionMap.set(permission.code, permission);

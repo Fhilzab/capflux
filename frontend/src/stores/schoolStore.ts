@@ -14,7 +14,16 @@ export const useSchoolStore = defineStore('school', {
     currentSchoolId: (state): string | null => state.school?.id ?? null,
     isSchoolActive: (state): boolean => state.school?.status === 'ACTIVE',
     schoolStatus: (state): SchoolStatus | null => state.school?.status ?? null,
-    schoolSetupComplete: (state): boolean => !!state.school && ['ACTIVE', 'INACTIVE'].includes(state.school.status),
+    // New computed helpers for onboarding & payment lifecycle
+    requiresSetup: (state): boolean => state.school?.status === 'PENDING_SETUP',
+    isOperational: (state): boolean => !!state.school && ['ACTIVE', 'SUSPENDED'].includes(state.school.status),
+    isSuspended: (state): boolean => state.school?.status === 'SUSPENDED',
+    isArchived: (state): boolean => state.school?.status === 'ARCHIVED',
+    requiresKYC: (state): boolean => !!state.school && ['PENDING_KYC', 'REJECTED'].includes(state.school.paymentStatus),
+    isPaymentReady: (state): boolean => state.school?.paymentStatus === 'READY',
+    canCollectPayments: (state): boolean => !!state.school && (['ACTIVE', 'SUSPENDED'].includes(state.school.status) && state.school.paymentStatus === 'READY'),
+    // Backwards compatible alias for previous check; keeps UI using this getter working
+    schoolSetupComplete: (state): boolean => !!state.school && state.school.status === 'ACTIVE',
   },
   actions: {
     async initialize() {

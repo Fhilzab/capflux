@@ -1,5 +1,5 @@
 -- ==========================================================
--- CAPSTONE SOFTWARE SOLUTIONS LTD
+-- CAPFLUX — FHILZAB NIG LTD
 -- Migration: 202607100009_guardians.sql
 -- Purpose: Guardian entity for normalized parent/guardian data
 -- ==========================================================
@@ -10,12 +10,15 @@ BEGIN;
 -- GUARDIAN RELATIONSHIP ENUM TYPE
 -- ==========================================================
 
-CREATE TYPE guardian_relationship AS ENUM (
-    'FATHER',
-    'MOTHER',
-    'GUARDIAN',
-    'OTHER'
-);
+DO $$ BEGIN
+    CREATE TYPE guardian_relationship AS ENUM (
+        'FATHER',
+        'MOTHER',
+        'GUARDIAN',
+        'OTHER'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ==========================================================
 -- CREATE GUARDIANS TABLE
@@ -35,6 +38,13 @@ CREATE TABLE IF NOT EXISTS guardians (
 );
 
 -- ==========================================================
+-- LINK STUDENTS TO GUARDIANS
+-- ==========================================================
+
+-- Add guardian_id to students BEFORE referencing it in the UPDATE below.
+ALTER TABLE students ADD COLUMN IF NOT EXISTS guardian_id UUID REFERENCES guardians (id) ON DELETE RESTRICT;
+
+-- ==========================================================
 -- MIGRATE EXISTING GUARDIAN PHONE TO GUARDIAN RECORDS
 -- ==========================================================
 
@@ -49,23 +59,13 @@ FROM students
 WHERE guardian_phone IS NOT NULL AND guardian_phone != ''
 ON CONFLICT (school_id, primary_phone) DO NOTHING;
 
--- ==========================================================
--- LINK STUDENTS TO GUARDIANS
--- ==========================================================
-
 -- Update students to link to their guardians
 UPDATE students s
 SET guardian_id = g.id
 FROM guardians g
-WHERE s.school_id = g.school_id 
+WHERE s.school_id = g.school_id
     AND s.guardian_phone = g.primary_phone
     AND s.guardian_id IS NULL;
-
--- ==========================================================
--- ADD GUARDIAN_ID TO STUDENTS TABLE
--- ==========================================================
-
-ALTER TABLE students ADD COLUMN IF NOT EXISTS guardian_id UUID REFERENCES guardians (id) ON DELETE RESTRICT;
 
 -- ==========================================================
 -- CREATE INDEXES FOR GUARDIANS

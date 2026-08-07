@@ -1,270 +1,142 @@
-const { createClient } = require('@supabase/supabase-js');
+/**
+ * AuthorizationService — canonical RBAC authorization.
+ *
+ * Canonical identity path (WorkOS):
+ *   req.user (verified session) -> organization_members -> school_members
+ *   -> roles -> permissions
+ *
+ * This service derives authorization from the authenticated user's school
+ * membership and role permissions. It is the single authorization layer used
+ * by backend routes. Legacy x-user-id/x-school-id header auth is NOT used.
+ *
+ * The service uses the shared supabase client (canonical SUPABASE_SECRET_KEY
+ * service-role client) so it can read membership/roles without RLS.
+ */
+import { supabase } from '../supabaseClient.js';
 
 class AuthorizationService {
-  constructor(supabaseClient = null) {
-    this.supabase = supabaseClient || createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-  }
+  /**
+   * Get the caller's active school membership with role for a given user id.
+   * Returns null when the user has no active membership in the school.
+   */
+  async getSchoolMembership(userId, schoolId) {
+    if (!userId || !schoolId) return null;
 
-  // Get user role and profile
-  async getProfile(userId) {
-    if (!this.supabase) {
-      // Fallback for local development
-      return { 
-        role: 'OWNER', 
-        admin_status: 'ACTIVE',
-        school_id: 'demo-school',
-        id: userId
-      };
-    }
-
-    const { data, error } = await this.supabase
-      .from('profiles')
-      .select('id, school_id, role, admin_status, email, full_name')
-      .eq('id', userId)
-      .single();
+    const { data, error } = await supabase
+      .from('school_members')
+      .select('id, school_id, role_id, roles!inner(id, system_role, is_system_role)')
+      .eq('user_id', userId)
+      .eq('school_id', schoolId)
+      .eq('is_active', true)
+      .maybeSingle();
 
     if (error) {
-      throw new Error('Failed to fetch profile: ' + error.message);
+      console.warn('AuthorizationService.getSchoolMembership error:', error.message);
+      return null;
     }
+    if (!data) return null;
 
-    return data;
+    return {
+      id: data.id,
+      schoolId: data.school_id,
+      roleId: data.role_id,
+      role: data.roles?.system_role || null,
+    };
   }
 
-  // Check if user has specified role
+  /**
+   * Get the caller's first active school membership (any school).
+   */
+  async getPrimarySchoolMembership(userId) {
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+      .from('school_members')
+      .select('id, school_id, role_id, roles!inner(id, system_role)')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('joined_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return {
+      id: data.id,
+      schoolId: data.school_id,
+      roleId: data.role_id,
+      role: data.roles?.system_role || null,
+    };
+  }
+
+  /**
+   * Resolve the caller's organization membership.
+   */
+  async getOrganizationMembership(userId) {
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+      .from('organization_members')
+      .select('organization_id, role_id, roles!inner(id, system_role)')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return {
+      organizationId: data.organization_id,
+      role: data.roles?.system_role || null,
+    };
+  }
+
+  /**
+   * Check whether a user has any of the given system roles in a school.
+   */
   async checkRole(userId, schoolId, allowedRoles) {
-    const profile = await this.getProfile(userId);
-    
-    if (profile.school_id !== schoolId) {
-      return false;
-    }
-
-    if (profile.admin_status !== 'ACTIVE') {
-      return false;
-    }
-
-    return allowedRoles.includes(profile.role);
+    const membership = await this.getSchoolMembership(userId, schoolId);
+    if (!membership) return false;
+    return allowedRoles.includes(membership.role);
   }
 
-  // Check if user is owner
-  async isOwner(userId, schoolId) {
-    return this.checkRole(userId, schoolId, ['OWNER']);
-  }
-
-  // Check if user is admin
-  async isAdminOrOwner(userId, schoolId) {
-    return this.checkRole(userId, schoolId, ['OWNER', 'ADMIN']);
-  }
-
-  // Invite admin to school
-  async inviteAdmin(schoolId, email, invitedBy) {
-    // Verify inviter has permission to manage school
-    await this.assertPermission(invitedBy, schoolId, 'school.manage');
-
-    // Check if email already exists in this school
-    const { data: existingUser } = await this.supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .eq('school_id', schoolId)
-      .single();
-
-    if (existingUser) {
-      throw new Error('User with this email already exists in this school');
-    }
-
-    // Send invitation via Supabase
-    const { data, error } = await this.supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.APP_URL}/login?invited=true`,
-      data: {
-        school_id: schoolId,
-        role: 'ADMIN',
-        invited_by: invitedBy
-      }
-    });
-
-    if (error) {
-      throw new Error('Failed to send invitation: ' + error.message);
-    }
-
-    // Log audit event
-    await this.logAudit(schoolId, invitedBy, 'ADMIN_INVITED', 'profile', data.user.id, { email });
-
-    return data;
-  }
-
-  // Suspend admin
-  async suspendAdmin(schoolId, adminId, performedBy) {
-    await this.assertPermission(performedBy, schoolId, 'school.manage');
-
-    // Cannot suspend yourself
-    if (performedBy === adminId) {
-      throw new Error('Cannot suspend yourself');
-    }
-
-    const { error } = await this.supabase.rpc('suspend_admin', {
-      p_school_id: schoolId,
-      p_admin_id: adminId
-    });
-
-    if (error) {
-      throw new Error('Failed to suspend admin: ' + error.message);
-    }
-
-    // Log audit event
-    await this.logAudit(schoolId, performedBy, 'ADMIN_SUSPENDED', 'profile', adminId);
-  }
-
-  // Reactivate admin
-  async reactivateAdmin(schoolId, adminId, performedBy) {
-    await this.assertPermission(performedBy, schoolId, 'school.manage');
-
-    const { error } = await this.supabase.rpc('reactivate_admin', {
-      p_school_id: schoolId,
-      p_admin_id: adminId
-    });
-
-    if (error) {
-      throw new Error('Failed to reactivate admin: ' + error.message);
-    }
-
-    // Log audit event
-    await this.logAudit(schoolId, performedBy, 'ADMIN_REACTIVATED', 'profile', adminId);
-  }
-
-  // Remove admin
-  async removeAdmin(schoolId, adminId, performedBy) {
-    await this.assertPermission(performedBy, schoolId, 'school.manage');
-
-    // Cannot remove yourself
-    if (performedBy === adminId) {
-      throw new Error('Cannot remove yourself');
-    }
-
-    const { error } = await this.supabase.rpc('remove_admin', {
-      p_school_id: schoolId,
-      p_admin_id: adminId
-    });
-
-    if (error) {
-      throw new Error('Failed to remove admin: ' + error.message);
-    }
-
-    // Log audit event
-    await this.logAudit(schoolId, performedBy, 'ADMIN_DELETED', 'profile', adminId);
-  }
-
-  // Transfer ownership
-  async transferOwnership(schoolId, currentOwnerId, newOwnerId) {
-    // Verify current owner has permission
-    await this.assertPermission(currentOwnerId, schoolId, 'school.manage');
-
-    // Verify new owner is an active admin
-    const newOwnerProfile = await this.getProfile(newOwnerId);
-    if (newOwnerProfile.role !== 'ADMIN' || newOwnerProfile.admin_status !== 'ACTIVE') {
-      throw new Error('New owner must be an active admin');
-    }
-
-    // Perform transfer
-    const { error } = await this.supabase.rpc('transfer_ownership', {
-      p_school_id: schoolId,
-      p_current_owner_id: currentOwnerId,
-      p_new_owner_id: newOwnerId
-    });
-
-    if (error) {
-      throw new Error('Failed to transfer ownership: ' + error.message);
-    }
-
-    return { success: true };
-  }
-
-  // Get all admins for a school
-  async getAdmins(schoolId) {
-    const { data, error } = await this.supabase
-      .from('profiles')
-      .select('id, email, full_name, admin_status, created_at, updated_at')
-      .eq('school_id', schoolId)
-      .eq('role', 'ADMIN')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw new Error('Failed to fetch admins: ' + error.message);
-    }
-
-    return data || [];
-  }
-
-  // Get owner for a school
-  async getOwner(schoolId) {
-    const { data, error } = await this.supabase
-      .from('profiles')
-      .select('id, email, full_name')
-      .eq('school_id', schoolId)
-      .eq('role', 'OWNER')
-      .single();
-
-    if (error && error.code !== 'PGRST116') { // No rows found
-      throw new Error('Failed to fetch owner: ' + error.message);
-    }
-
-    return data;
-  }
-
-  // Verify user is owner
-  async verifyOwner(userId, schoolId) {
-    const profile = await this.getProfile(userId);
-    if (profile.role !== 'OWNER' || profile.school_id !== schoolId) {
-      throw new Error('Unauthorized: Only owners can perform this action');
-    }
-  }
-
-  // Check permission code at backend level (uses roles/permissions tables)
+  /**
+   * Check whether a user has a specific permission code in a school.
+   * Resolves role -> role_permissions -> permissions.
+   */
   async checkPermission(userId, schoolId, permissionCode) {
-    // Owners and Admins are resolved via role in profile for now
-    const profile = await this.getProfile(userId);
-    if (!profile) return false;
+    const membership = await this.getSchoolMembership(userId, schoolId);
+    if (!membership) return false;
 
-    // Platform-level SUPER_ADMIN bypass (from profiles.system_role if present)
-    if (profile.system_role === 'SUPER_ADMIN') return true;
+    // SUPER_ADMIN bypass.
+    if (membership.role === 'SUPER_ADMIN') return true;
 
-    // If schoolId mismatch, deny
-    if (profile.school_id !== schoolId) return false;
-
-    // Query role_permissions join
-    const { data, error } = await this.supabase
-      .from('profiles')
-      .select(`
-        role:roles!inner (
-          role_permissions!inner (
-            permissions!inner (code)
-          )
-        )
-      `)
-      .eq('id', userId)
-      .single();
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select('permissions!inner(code)')
+      .eq('role_id', membership.roleId);
 
     if (error) {
-      console.warn('permission check failed', error.message);
+      console.warn('AuthorizationService.checkPermission error:', error.message);
       return false;
     }
 
-    const codes = new Set<string>();
-    const role = data?.role;
-    role?.role_permissions?.forEach((rp) => codes.add(rp.permissions.code));
-    return codes.has(permissionCode);
+    return (data || []).some((rp) => rp.permissions?.code === permissionCode);
   }
 
   async assertPermission(userId, schoolId, permissionCode) {
     const allowed = await this.checkPermission(userId, schoolId, permissionCode);
-    if (!allowed) throw new Error('INSUFFICIENT_PERMISSIONS');
+    if (!allowed) {
+      const err = new Error('INSUFFICIENT_PERMISSIONS');
+      err.code = 'INSUFFICIENT_PERMISSIONS';
+      err.statusCode = 403;
+      throw err;
+    }
   }
 
-  // Log audit event
+  /**
+   * Log an audit event for an actor.
+   */
   async logAudit(schoolId, actorId, action, entity, entityId, metadata = {}) {
-    const { error } = await this.supabase
+    const { error } = await supabase
       .from('audit_logs')
       .insert({
         school_id: schoolId,
@@ -272,13 +144,13 @@ class AuthorizationService {
         action,
         entity,
         entity_id: entityId,
-        metadata
+        metadata,
       });
-
     if (error) {
       console.warn('Failed to log audit event:', error.message);
     }
   }
 }
 
-module.exports = { AuthorizationService };
+export { AuthorizationService };
+export default new AuthorizationService();

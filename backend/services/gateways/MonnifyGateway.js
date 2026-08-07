@@ -21,10 +21,22 @@ export class MonnifyGateway {
   }
 
   /**
-   * Exchange API key/secret for access token
+   * Exchange API key/secret for access token.
+   *
+   * Canonical credential model: gateway credentials are CAPFLUX infrastructure
+   * secrets. They come from the server environment (MONNIFY_API_KEY /
+   * MONNIFY_SECRET_KEY) — never from per-school database rows. Legacy rows
+   * may carry api_key/secret_key; they are used only as a migration fallback.
    */
   async getAccessToken(gateway_config) {
-    const authString = `${gateway_config.api_key}:${gateway_config.secret_key}`;
+    const apiKey = process.env.MONNIFY_API_KEY || gateway_config?.api_key;
+    const secretKey = process.env.MONNIFY_SECRET_KEY || gateway_config?.secret_key;
+
+    if (!apiKey || !secretKey) {
+      throw new Error('Monnify credentials are not configured (MONNIFY_API_KEY / MONNIFY_SECRET_KEY)');
+    }
+
+    const authString = `${apiKey}:${secretKey}`;
     const encodedAuth = Buffer.from(authString).toString('base64');
 
     const response = await axios.post(

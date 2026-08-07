@@ -51,6 +51,7 @@ export const LedgerService = {
       entry_type: 'CREDIT',
       entry_category: 'TUITION', // Main payment goes to tuition
       reference_id: null, // Will be set if linked to a fee invoice
+      idempotency_key: `pay:${reference}`,
       metadata: {
         gateway_reference: reference,
         gateway_txn_ref: transaction.transactionReference,

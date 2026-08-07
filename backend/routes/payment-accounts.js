@@ -12,8 +12,12 @@
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
 import { GatewayFactory } from '../services/gateways/GatewayFactory.js';
+import requireAuth from '../middleware/requireAuth.js';
 
 const router = express.Router();
+
+// All payment-account routes require an authenticated WorkOS session.
+router.use(requireAuth);
 
 // POST /api/payment-accounts/provision
 // Creates a payment account for a student (provider-agnostic)
@@ -25,12 +29,13 @@ router.post('/provision', async (req, res) => {
   }
 
   try {
-    // Authorization: only users with billing.create or payment.record can provision
-    const { AuthorizationService } = require('../services/AuthorizationService');
+    // Authorization: only users with payment.record can provision
+    // (identity is derived from the authenticated session, not headers).
+    const userId = req.user.id;
+    const { AuthorizationService } = await import('../services/AuthorizationService.js');
     const authz = new AuthorizationService();
-    const userId = req.headers['x-user-id'];
     try {
-      await authz.assertPermission(userId, school_id, 'payment.record');
+      await authz.assertPermission(userId, school_id, 'payments.receive');
     } catch (permErr) {
       return res.status(403).json({ error: 'Forbidden' });
     }

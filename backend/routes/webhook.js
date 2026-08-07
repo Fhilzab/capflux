@@ -45,8 +45,14 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
   }
 
   try {
-    // Step 1: Verify webhook signature (if secret configured)
-    if (signature && !webhookVerifier.verifySignature(signature, rawPayload, provider)) {
+    // Step 1: Verify webhook signature.
+    // In production a missing signature is REJECTED (never treated as valid).
+    if (!signature) {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(401).json({ error: 'Missing webhook signature' });
+      }
+      console.warn('[webhook] dev mode: accepting webhook without signature');
+    } else if (!webhookVerifier.verifySignature(signature, rawPayload, provider)) {
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
 
@@ -58,13 +64,13 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
     }
 
     const dvaAccount = gateway.parseWebhookDVA(req.body);
-    
-    // Find the payment account to get school_id (using new payment_accounts table)
+
+    // Find the payment account to get school_id (canonical payment_accounts schema)
     const { data: paymentAccount, error: dvaError } = await supabase
       .from('payment_accounts')
       .select('*, students!inner(school_id, first_name, last_name, guardian_id)')
-      .eq('account_number', dvaAccount)
-      .eq('status', 'ACTIVE')
+      .eq('virtual_account_number', dvaAccount)
+      .eq('account_status', 'ACTIVE')
       .single();
 
     if (dvaError || !paymentAccount) {
@@ -88,7 +94,7 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
       return res.status(200).json({ received: true, alreadyProcessed: true });
     }
 
-    // Step 5: Save payment transaction record
+    // Step 5: Save payment transaction record (idempotency key set)
     const paymentTransaction = await LedgerService.savePaymentTransaction({
       reference: verified.reference,
       school_id: verified.school_id,
@@ -98,6 +104,7 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
       entry_category: 'TUITION',
       settlement_status: 'SUCCESS',
       raw_payload: verified.raw_payload,
+      idempotency_key: `pay:${verified.gateway_txn_ref || verified.reference}`,
     });
 
     // Step 6: Record CREDIT ledger entry (with platform fee calculation)
@@ -109,9 +116,14 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
       transaction: verified.transaction,
     });
 
-    // Step 7: Record settlement records
+    // Step 7: Record settlement records (canonical method)
     const settlements = gateway.parseSettlementDetails(req.body);
-    await LedgerService.recordSettlements(paymentTransaction.id, settlements);
+    await LedgerService.recordSplitSettlement(
+      verified.school_id,
+      verified.student_id,
+      paymentTransaction.id,
+      settlements
+    );
 
     // Step 8: Enqueue notification via guardian phone
     const { data: student } = await supabase
@@ -121,12 +133,16 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
       .single();
 
     if (student) {
-      const guardianPhone = student.guardians?.primary_phone || student.guardian_id;
+      const guardianPhone =
+        (student.guardians && typeof student.guardians === 'object' && student.guardians.primary_phone) ||
+        student.guardian_phone ||
+        null;
+
       await supabase.from('notifications').insert({
         school_id: verified.school_id,
         student_id: verified.student_id,
-        guardian_id: student.guardian_id,
-        recipient_phone: guardianPhone,
+        guardian_id: student.guardian_id || null,
+        recipient_phone: guardianPhone || '',
         message_body: `Payment of ₦${verified.amount.toLocaleString()} received for ${student.first_name} ${student.last_name}. Thank you. - CAPFLUX`,
         delivery_status: 'PENDING',
         client_sequence: Date.now(),
@@ -139,7 +155,7 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
 
   } catch (error) {
     console.error('Webhook processing error:', error);
-    
+
     // Handle idempotency errors gracefully
     if (error.message?.includes('already processed') || error.code === '23505') {
       return res.status(200).json({ received: true, alreadyProcessed: true });

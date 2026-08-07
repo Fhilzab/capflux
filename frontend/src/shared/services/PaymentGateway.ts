@@ -1,11 +1,15 @@
 /**
  * PaymentGateway Service - Client-side abstraction for payment gateway operations
- * 
+ *
  * This service communicates with the backend API to:
  * - Provision Dedicated Virtual Accounts (DVA) for students
  * - Check payment status
  * - Retrieve payment history
- * 
+ *
+ * Uses the canonical /api/payment-accounts/* endpoints. The deprecated
+ * /api/dva/* routes are no longer called from new frontend code.
+ * Authentication is carried by the HttpOnly session cookie.
+ *
  * Webhooks are handled server-side only (see backend/routes/webhook.js)
  */
 
@@ -23,11 +27,12 @@ export const PaymentGateway = {
     dva?: DVAResponse;
     payment_account?: PaymentAccount;
   }> {
-    const response = await fetch(`${API_BASE_URL}/dva/provision`, {
+    const response = await fetch(`${API_BASE_URL}/payment-accounts/provision`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ student_id, school_id }),
     });
 
@@ -49,7 +54,9 @@ export const PaymentGateway = {
     payment_account?: PaymentAccount;
     success?: boolean;
   }> {
-    const response = await fetch(`${API_BASE_URL}/dva/${student_id}?school_id=${school_id}`);
+    const response = await fetch(`${API_BASE_URL}/payment-accounts/${student_id}?school_id=${school_id}`, {
+      credentials: 'include',
+    });
 
     if (!response.ok) {
       const error = await response.json();
@@ -80,11 +87,12 @@ export const PaymentGateway = {
    * Deactivate a payment account
    */
   async deactivatePaymentAccount(account_id: string, school_id: string) {
-    const response = await fetch(`${API_BASE_URL}/dva/deactivate`, {
+    const response = await fetch(`${API_BASE_URL}/payment-accounts/deactivate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ account_id, school_id }),
     });
 

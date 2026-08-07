@@ -78,7 +78,11 @@ CREATE INDEX IF NOT EXISTS idx_fee_rules_school_active
 -- ==========================================================
 -- PAYMENT ACCOUNTS (DEDICATED VIRTUAL ACCOUNTS)
 -- Dedicated table for DVA management, decoupled from student records
--- Every student receives one DVA issued by the payment provider
+-- Every student receives one DVA issued by the payment provider.
+--
+-- NOTE: This is the CANONICAL schema. Migration 016 extends it with the
+-- provider-agnostic columns (virtual_account_number, account_status,
+-- is_primary). 012 and 016 must be kept in sync.
 -- ==========================================================
 
 CREATE TABLE IF NOT EXISTS payment_accounts (
@@ -91,10 +95,21 @@ CREATE TABLE IF NOT EXISTS payment_accounts (
     account_reference TEXT NOT NULL, -- Provider's reference for this account
     provider_student_reference TEXT, -- Provider's reference for the student
     status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED')),
+    -- Canonical provider-agnostic columns (aligned with 016)
+    provider TEXT,
+    provider_account_id TEXT,
+    provider_reference TEXT,
+    virtual_account_number TEXT,
+    account_name TEXT,
+    account_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (account_status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED')),
+    is_primary BOOLEAN NOT NULL DEFAULT true,
+    deactivated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (school_id, account_number),
-    UNIQUE (student_id)
+    UNIQUE (student_id),
+    -- One primary virtual account per student
+    UNIQUE (school_id, student_id, is_primary)
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_accounts_school
@@ -109,6 +124,12 @@ CREATE INDEX IF NOT EXISTS idx_payment_accounts_provider
 CREATE INDEX IF NOT EXISTS idx_payment_accounts_status
     ON payment_accounts (status);
 
+CREATE INDEX IF NOT EXISTS idx_payment_accounts_virtual_number
+    ON payment_accounts (virtual_account_number);
+
+CREATE INDEX IF NOT EXISTS idx_payment_accounts_primary
+    ON payment_accounts (school_id, student_id, is_primary) WHERE is_primary = true;
+
 -- ==========================================================
 -- STUDENT CATEGORY COLUMN
 -- Add category to students for tuition lookup
@@ -116,15 +137,5 @@ CREATE INDEX IF NOT EXISTS idx_payment_accounts_status
 
 ALTER TABLE students 
 ADD COLUMN IF NOT EXISTS category student_category NOT NULL DEFAULT 'PRIMARY';
-
--- Backfill category based on class_name where possible
--- This is a best-effort, schools can adjust manually
-UPDATE students 
-SET category = CASE 
-    WHEN class_name ILIKE '%nursery%' OR class_name ILIKE '%playgroup%' THEN 'NURSERY'
-    WHEN class_name ILIKE '%primary%' OR class_name ILIKE '%basic%' THEN 'PRIMARY'
-    WHEN class_name ILIKE '%secondary%' OR class_name ILIKE '%high school%' THEN 'SECONDARY'
-    ELSE category
-END;
 
 COMMIT;

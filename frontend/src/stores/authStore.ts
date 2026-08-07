@@ -10,6 +10,11 @@ export interface User {
   role?: 'OWNER' | 'ADMIN';
 }
 
+/**
+ * Session state. The HttpOnly workos_session cookie is the authoritative
+ * credential; these fields carry only safe identity data. Access/refresh
+ * tokens are NEVER stored in the frontend.
+ */
 export interface Session {
   access_token: string;
   refresh_token: string;

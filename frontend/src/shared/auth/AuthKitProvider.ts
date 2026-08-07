@@ -7,7 +7,10 @@ import { AuthProvider, AuthStateChangeListener, AuthSubscription } from './AuthP
 import type { User, Session, AuthProviderConfig, AuthResult, AuthErrorData } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
-const SESSION_KEY = 'capflux_auth_session';
+// NOTE: the HttpOnly workos_session cookie is the canonical session.
+// localStorage is used ONLY as a non-authoritative UI hint (e.g. to avoid a
+// flash of logged-out UI) and is never treated as a credential.
+const SESSION_KEY = 'capflux_auth_ui_hint';
 
 interface BackendUser {
   id: string;
@@ -65,22 +68,26 @@ export class AuthKitProvider extends AuthProvider {
       baseURL: API_BASE_URL,
       timeout: 15000,
       headers: { 'Content-Type': 'application/json' },
+      // Send/accept the HttpOnly workos_session cookie.
+      withCredentials: true,
     });
   }
 
-  // === Session persistence ===
+  // === Session hint (non-authoritative) ===
   private persistSession(session: Session | null): void {
+    // The server cookie is authoritative; we only keep a UI hint so the app
+    // doesn't flash logged-out before /auth/session returns. If localStorage
+    // is tampered with, /auth/session still returns the truth.
     if (typeof localStorage === 'undefined') return;
     if (!session) { localStorage.removeItem(SESSION_KEY); return; }
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    const hint = { userId: session.user?.id, email: session.user?.email };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(hint));
   }
 
   private readPersistedSession(): Session | null {
-    if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    try { return JSON.parse(raw) as Session; }
-    catch { localStorage.removeItem(SESSION_KEY); return null; }
+    // NOT a credential — only a hint that a session might exist. The real
+    // session is verified server-side from the cookie on every restore.
+    return null;
   }
 
   private notify(event: string, session: Session | null): void {
@@ -122,21 +129,25 @@ export class AuthKitProvider extends AuthProvider {
 
   // === AuthProvider ===
   async initialize(): Promise<AuthResult<{ session: Session | null }>> {
-    const persisted = this.readPersistedSession();
-    if (!persisted?.user?.id) return { data: { session: null }, error: null };
-
     try {
+      // The HttpOnly workos_session cookie is sent automatically; /auth/session
+      // returns safe session info only after server-side verification.
       const data = await this.request<BackendAuthResponse>(() =>
-        this.http.get('/auth/me', { headers: { Authorization: `Bearer ${persisted.user!.id}` } })
+        this.http.get('/auth/session')
       );
-      if (data.user) {
-        const session: Session = { ...persisted, user: toUser(data.user) || persisted.user };
+      const backendUser = data.session?.user || data.user;
+      if (backendUser?.id) {
+        const session: Session = {
+          accessToken: '', // never exposed to the frontend
+          refreshToken: '', // never exposed to the frontend
+          expiresAt: 0,
+          user: toUser(backendUser),
+        };
         this.persistSession(session);
         return { data: { session }, error: null };
       }
       return { data: { session: null }, error: null };
     } catch {
-      this.persistSession(null);
       return { data: { session: null }, error: null };
     }
   }
@@ -191,11 +202,9 @@ export class AuthKitProvider extends AuthProvider {
   }
 
   async signOut(): Promise<AuthResult<void>> {
-    const persisted = this.readPersistedSession();
     try {
-      if (persisted?.refreshToken) {
-        await this.request(() => this.http.post('/auth/signout', { refreshToken: persisted.refreshToken }));
-      }
+      // The backend revokes the WorkOS session and clears the HttpOnly cookie.
+      await this.request(() => this.http.post('/auth/signout'));
     } catch { /* ignore network errors on logout */ }
     this.persistSession(null);
     this.notify('SIGNED_OUT', null);
@@ -203,24 +212,8 @@ export class AuthKitProvider extends AuthProvider {
   }
 
   async refreshSession(): Promise<AuthResult<{ session: Session | null }>> {
-    const persisted = this.readPersistedSession();
-    if (!persisted?.refreshToken) return { data: { session: null }, error: null };
-    try {
-      const data = await this.request<BackendAuthResponse>(() =>
-        this.http.post('/auth/refresh', { refreshToken: persisted.refreshToken })
-      );
-      const session = toSession(data);
-      if (session) {
-        this.persistSession(session);
-        this.notify('SESSION_REFRESHED', session);
-        return { data: { session }, error: null };
-      }
-      this.persistSession(null);
-      return { data: { session: null }, error: null };
-    } catch {
-      this.persistSession(null);
-      return { data: { session: null }, error: null };
-    }
+    // Session refresh is transparent: /auth/session re-verifies the cookie.
+    return this.initialize();
   }
 
   restoreSession(): Promise<AuthResult<{ session: Session | null }>> {

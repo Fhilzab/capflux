@@ -1,7 +1,12 @@
 -- ==========================================================
--- CAPSTONE SOFTWARE SOLUTIONS LTD
+-- CAPFLUX — FHILZAB NIG LTD
 -- Migration: 202607100016_payment_accounts.sql
--- Purpose: Dedicated Payment Accounts domain for provider-agnostic infrastructure
+-- Purpose: Canonical provider-agnostic payment accounts domain.
+--
+-- The canonical payment_accounts schema is DEFINED in migration 012.
+-- This migration ensures the canonical columns exist (idempotent), migrates
+-- any legacy dva_assignments rows, drops legacy students.dva_* columns,
+-- enables RLS, and defines helper functions.
 -- ==========================================================
 
 BEGIN;
@@ -14,32 +19,26 @@ BEGIN;
 ALTER TYPE ledger_entry_category ADD VALUE IF NOT EXISTS 'PLATFORM_BANKING_FEE';
 
 -- ==========================================================
--- PAYMENT ACCOUNTS TABLE
--- Dedicated Virtual Accounts (DVA) managed independently from students
--- Supports multiple payment providers with tenant isolation
+-- PAYMENT ACCOUNTS TABLE — CANONICAL (idempotent)
+-- The full canonical definition lives in migration 012.
+-- Ensure all canonical columns exist here in case 012 is ever refactored.
 -- ==========================================================
 
-CREATE TABLE IF NOT EXISTS payment_accounts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    school_id UUID NOT NULL REFERENCES schools (id) ON DELETE CASCADE,
-    student_id UUID NOT NULL REFERENCES students (id) ON DELETE CASCADE,
-    provider TEXT NOT NULL CHECK (provider IN ('monnify', 'flutterwave', 'remita')),
-    provider_account_id TEXT,
-    provider_reference TEXT,
-    virtual_account_number TEXT NOT NULL,
-    account_name TEXT NOT NULL,
-    bank_name TEXT NOT NULL,
-    account_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (account_status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED')),
-    is_primary BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deactivated_at TIMESTAMPTZ,
-    
-    -- Ensure one primary account per student
-    UNIQUE (school_id, student_id, is_primary)
-);
+ALTER TABLE payment_accounts
+    ADD COLUMN IF NOT EXISTS provider TEXT,
+    ADD COLUMN IF NOT EXISTS provider_account_id TEXT,
+    ADD COLUMN IF NOT EXISTS provider_reference TEXT,
+    ADD COLUMN IF NOT EXISTS virtual_account_number TEXT,
+    ADD COLUMN IF NOT EXISTS account_name TEXT,
+    ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (account_status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED')),
+    ADD COLUMN IF NOT EXISTS is_primary BOOLEAN NOT NULL DEFAULT true,
+    ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
 
--- Indexes for efficient querying
+-- Ensure one primary account per student (idempotent)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payment_accounts_primary
+    ON payment_accounts (school_id, student_id, is_primary) WHERE is_primary = true;
+
+-- Indexes for efficient querying (idempotent)
 CREATE INDEX IF NOT EXISTS idx_payment_accounts_school ON payment_accounts (school_id);
 CREATE INDEX IF NOT EXISTS idx_payment_accounts_student ON payment_accounts (student_id);
 CREATE INDEX IF NOT EXISTS idx_payment_accounts_provider ON payment_accounts (provider);
@@ -67,12 +66,11 @@ INSERT INTO payment_accounts (
     created_at,
     updated_at
 )
-SELECT 
+SELECT
     id,
     school_id,
     student_id,
     provider,
-    -- Map dva_assignments fields to payment_accounts
     dva_account_number AS provider_account_id,
     dva_account_number AS provider_reference,
     dva_account_number AS virtual_account_number,
@@ -108,7 +106,10 @@ COMMENT ON TABLE dva_assignments IS 'DEPRECATED: Use payment_accounts table inst
 
 ALTER TABLE payment_accounts ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy: Only access records belonging to the current school
+-- RLS Policy: Only access records belonging to the current school.
+-- (Migration 013 already creates allow_authenticated_payment_accounts;
+-- drop it first so a fresh reset does not fail on a duplicate policy name.)
+DROP POLICY IF EXISTS allow_authenticated_payment_accounts ON payment_accounts;
 CREATE POLICY allow_authenticated_payment_accounts ON payment_accounts
     FOR SELECT, INSERT, UPDATE
     USING (current_school_id() = payment_accounts.school_id)

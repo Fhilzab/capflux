@@ -4,9 +4,13 @@
 -- ========================================
 -- ROLES
 -- ========================================
+-- NOTE: organization_id FK to public.organizations is intentionally NOT
+-- declared here. public.organizations is created in migration 022, and an
+-- FK declared before the referenced table exists would fail a clean reset.
+-- A nullable organization_id column is kept; the FK is added in migration 022.
 CREATE TABLE IF NOT EXISTS public.roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
+    organization_id UUID,
     name TEXT NOT NULL,
     description TEXT,
     system_role TEXT, -- SUPER_ADMIN, OWNER, ADMIN, BURSAR, PARENT
@@ -59,7 +63,9 @@ CREATE INDEX idx_role_permissions_role ON public.role_permissions(role_id);
 CREATE INDEX idx_role_permissions_permission ON public.role_permissions(permission_id);
 
 -- ========================================
--- SCHOOL_MEMBERS (extends organization_members)
+-- SCHOOL_MEMBERS
+-- NOTE: user_id references auth.users here and is retyped to public.users
+-- in migration 021 (WorkOS identity migration). invited_by likewise.
 -- ========================================
 CREATE TABLE IF NOT EXISTS public.school_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -91,61 +97,12 @@ ALTER TABLE public.permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.school_members ENABLE ROW LEVEL SECURITY;
 
--- ROLES: Readable by authenticated users; writable by SUPER_ADMIN and authorized users
-CREATE POLICY "Users can view roles in their organization" ON public.roles
-    FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
-        (
-            organization_id IS NULL -- system roles
-            OR
-            organization_id IN (
-                SELECT organization_id FROM public.organization_members
-                WHERE user_id = auth.uid() AND is_active = true
-            )
-        )
-    );
-
-CREATE POLICY "SUPER_ADMIN can manage roles" ON public.roles
-    FOR ALL USING (
-        auth.uid() IS NOT NULL AND
-        EXISTS (
-            SELECT 1 FROM public.school_members sm
-            JOIN public.roles r ON sm.role_id = r.id
-            WHERE sm.user_id = auth.uid()
-            AND sm.is_active = true
-            AND r.system_role = 'SUPER_ADMIN'
-        )
-    );
-
--- PERMISSIONS: Readable by all authenticated users
+-- PERMISSIONS: Readable by all authenticated users.
+-- NOTE: auth.uid() is only present when a Supabase Auth JWT is used. Under
+-- WorkOS, the backend service-role client bypasses RLS entirely; these
+-- policies are belt-and-suspenders for any direct anon/authenticated access.
 CREATE POLICY "Authenticated users can view permissions" ON public.permissions
     FOR SELECT USING (auth.uid() IS NOT NULL);
-
--- ROLE_PERMISSIONS: Follow role policies
-CREATE POLICY "Users can view role permissions in their org" ON public.role_permissions
-    FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
-        role_id IN (
-            SELECT id FROM public.roles
-            WHERE organization_id IS NULL
-            OR organization_id IN (
-                SELECT organization_id FROM public.organization_members
-                WHERE user_id = auth.uid() AND is_active = true
-            )
-        )
-    );
-
-CREATE POLICY "SUPER_ADMIN can manage role permissions" ON public.role_permissions
-    FOR ALL USING (
-        auth.uid() IS NOT NULL AND
-        EXISTS (
-            SELECT 1 FROM public.school_members sm
-            JOIN public.roles r ON sm.role_id = r.id
-            WHERE sm.user_id = auth.uid()
-            AND sm.is_active = true
-            AND r.system_role = 'SUPER_ADMIN'
-        )
-    );
 
 -- SCHOOL_MEMBERS: Users can view their own memberships
 CREATE POLICY "Users can view their own school memberships" ON public.school_members
@@ -351,24 +308,26 @@ END $$;
 -- FUNCTIONS
 -- ========================================
 
--- Function to check if current user is SUPER_ADMIN
-CREATE OR REPLACE FUNCTION public.is_super_admin()
+-- Function to check if a user is SUPER_ADMIN
+-- NOTE: takes an explicit user id (WorkOS user id). auth.uid() is empty
+-- under WorkOS and must not be used for identity.
+CREATE OR REPLACE FUNCTION public.is_super_admin(p_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM public.school_members sm
         JOIN public.roles r ON sm.role_id = r.id
-        WHERE sm.user_id = auth.uid()
+        WHERE sm.user_id = p_user_id
         AND sm.is_active = true
         AND r.system_role = 'SUPER_ADMIN'
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.is_super_admin() IS 'Returns true if current authenticated user is a SUPER_ADMIN';
+COMMENT ON FUNCTION public.is_super_admin(UUID) IS 'Returns true if the given user is a SUPER_ADMIN';
 
--- Function to check if current user has platform levy management permission
-CREATE OR REPLACE FUNCTION public.can_manage_platform_levy()
+-- Function to check if a user has platform levy management permission
+CREATE OR REPLACE FUNCTION public.can_manage_platform_levy(p_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
@@ -376,14 +335,14 @@ BEGIN
         JOIN public.roles r ON sm.role_id = r.id
         JOIN public.role_permissions rp ON rp.role_id = r.id
         JOIN public.permissions p ON p.id = rp.permission_id
-        WHERE sm.user_id = auth.uid()
+        WHERE sm.user_id = p_user_id
         AND sm.is_active = true
         AND p.code = 'platformlevy.manage'
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION public.can_manage_platform_levy() IS 'Returns true if current user can manage platform levy';
+COMMENT ON FUNCTION public.can_manage_platform_levy(UUID) IS 'Returns true if the given user can manage platform levy';
 
 -- ========================================
 -- TRIGGERS

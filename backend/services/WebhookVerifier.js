@@ -26,8 +26,14 @@ export class WebhookVerifier {
   verifySignature(signature, payload, provider) {
     const secret = process.env[`${provider.toUpperCase()}_WEBHOOK_SECRET`];
     if (!secret) {
-      console.warn(`No webhook secret configured for ${provider}`);
-      return true; // Allow in dev mode
+      // A missing verification secret must NEVER be treated as a valid
+      // signature. In production this is a hard failure. In development it is
+      // logged loudly so integrations are not accidentally live without a secret.
+      console.error(
+        `[webhook] No ${provider} webhook secret configured — signature verification is DISABLED. ` +
+        `Set ${provider.toUpperCase()}_WEBHOOK_SECRET before enabling live webhooks.`
+      );
+      return process.env.NODE_ENV === 'production' ? false : signature === undefined;
     }
 
     const expectedSignature = crypto

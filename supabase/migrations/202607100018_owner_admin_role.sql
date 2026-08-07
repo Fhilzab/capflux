@@ -1,5 +1,5 @@
 -- ==========================================================
--- CAPSTONE SOFTWARE SOLUTIONS LTD
+-- CAPFLUX — FHILZAB NIG LTD
 -- Migration: 202607100018_owner_admin_role.sql
 -- Purpose: Owner/Admin role architecture for Nigerian private schools
 -- ==========================================================
@@ -7,36 +7,40 @@
 BEGIN;
 
 -- ==========================================================
--- ALTER PROFILE_ROLE ENUM
+-- PROFILE ROLE ENUM — canonical OWNER/ADMIN
+-- Convert profiles.role to the canonical enum via USING (idempotent).
 -- ==========================================================
 
--- Drop old enum values by recreating enum
-ALTER TYPE profile_role RENAME TO profile_role_old;
+-- Ensure the canonical values exist (additive, safe).
+DO $$ BEGIN
+    ALTER TYPE profile_role ADD VALUE IF NOT EXISTS 'OWNER';
+    ALTER TYPE profile_role ADD VALUE IF NOT EXISTS 'ADMIN';
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE profile_role AS ENUM (
-    'OWNER',
-    'ADMIN'
-);
-
--- Migrate existing data
+-- Migrate existing rows to canonical values.
 UPDATE profiles SET role = 'OWNER'::profile_role WHERE role::text IN ('PROPRIETOR', 'BURSAR');
 UPDATE profiles SET role = 'ADMIN'::profile_role WHERE role::text = 'ADMIN';
 
--- Drop old enum
-DROP TYPE profile_role_old;
+-- Drop the legacy role values from the enum so only OWNER/ADMIN remain.
+ALTER TYPE profile_role DROP VALUE IF EXISTS 'PROPRIETOR';
+ALTER TYPE profile_role DROP VALUE IF EXISTS 'BURSAR';
 
 -- ==========================================================
 -- ADD ADMIN STATUS TO PROFILES
 -- ==========================================================
 
+-- Ensure the admin_status enum exists.
+DO $$ BEGIN
+    CREATE TYPE admin_status AS ENUM (
+        'ACTIVE',
+        'SUSPENDED'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Add the column as text first, then cast to the enum (idempotent).
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS admin_status TEXT NOT NULL DEFAULT 'ACTIVE';
-
-CREATE TYPE admin_status AS ENUM (
-    'ACTIVE',
-    'SUSPENDED'
-);
-
--- Migrate existing admin_status text to enum
 ALTER TABLE profiles ALTER COLUMN admin_status TYPE admin_status USING admin_status::admin_status;
 
 -- ==========================================================
@@ -97,46 +101,71 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ==========================================================
 -- ADMIN MANAGEMENT FUNCTIONS
+-- NOTE: These operate on profiles for legacy compatibility. New
+-- authorization uses organization_members/school_members. Actor_id is
+-- passed explicitly (never derived from auth.uid(), which is empty under
+-- WorkOS).
 -- ==========================================================
 
 -- Suspend admin
 CREATE OR REPLACE FUNCTION suspend_admin(
     p_school_id UUID,
-    p_admin_id UUID
+    p_admin_id UUID,
+    p_actor_id UUID DEFAULT NULL
 ) RETURNS VOID AS $$
 BEGIN
-    UPDATE profiles 
+    UPDATE profiles
     SET admin_status = 'SUSPENDED'
-    WHERE id = p_admin_id 
+    WHERE id = p_admin_id
     AND role = 'ADMIN'
     AND school_id = p_school_id;
+
+    IF p_actor_id IS NOT NULL THEN
+        INSERT INTO audit_logs (school_id, actor_id, action, entity, entity_id, metadata)
+        VALUES (p_school_id, p_actor_id, 'ADMIN_SUSPENDED', 'profile', p_admin_id,
+            jsonb_build_object('admin_status', 'SUSPENDED'));
+    END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Reactivate admin
 CREATE OR REPLACE FUNCTION reactivate_admin(
     p_school_id UUID,
-    p_admin_id UUID
+    p_admin_id UUID,
+    p_actor_id UUID DEFAULT NULL
 ) RETURNS VOID AS $$
 BEGIN
-    UPDATE profiles 
+    UPDATE profiles
     SET admin_status = 'ACTIVE'
-    WHERE id = p_admin_id 
+    WHERE id = p_admin_id
     AND role = 'ADMIN'
     AND school_id = p_school_id;
+
+    IF p_actor_id IS NOT NULL THEN
+        INSERT INTO audit_logs (school_id, actor_id, action, entity, entity_id, metadata)
+        VALUES (p_school_id, p_actor_id, 'ADMIN_REACTIVATED', 'profile', p_admin_id,
+            jsonb_build_object('admin_status', 'ACTIVE'));
+    END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Remove admin
 CREATE OR REPLACE FUNCTION remove_admin(
     p_school_id UUID,
-    p_admin_id UUID
+    p_admin_id UUID,
+    p_actor_id UUID DEFAULT NULL
 ) RETURNS VOID AS $$
 BEGIN
-    DELETE FROM profiles 
-    WHERE id = p_admin_id 
+    DELETE FROM profiles
+    WHERE id = p_admin_id
     AND role = 'ADMIN'
     AND school_id = p_school_id;
+
+    IF p_actor_id IS NOT NULL THEN
+        INSERT INTO audit_logs (school_id, actor_id, action, entity, entity_id, metadata)
+        VALUES (p_school_id, p_actor_id, 'ADMIN_REMOVED', 'profile', p_admin_id,
+            jsonb_build_object('admin_status', 'REMOVED'));
+    END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -174,54 +203,54 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- RLS POLICY UPDATES
 -- ==========================================================
 
--- Drop existing policies to recreate with role-based access
+-- Drop legacy auth.uid()-based policies (auth.uid() is NULL under WorkOS).
 DROP POLICY IF EXISTS "Profiles are viewable by authenticated users in same school" ON profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Owner can view all profiles in school" ON profiles;
+DROP POLICY IF EXISTS "Admins and owner can view own profile" ON profiles;
+DROP POLICY IF EXISTS "Owner can manage admins" ON profiles;
+DROP POLICY IF EXISTS "Owner can insert admins" ON profiles;
 
--- Re-create with role-based checks
-CREATE POLICY "Owner can view all profiles in school"
+-- Re-create with membership-based checks (WorkOS user id → school_members).
+-- Members may view profiles within their school.
+CREATE POLICY "School members can view profiles"
     ON profiles FOR SELECT
     USING (
         EXISTS (
-            SELECT 1 FROM profiles p 
-            WHERE p.id = auth.uid() 
-            AND p.role = 'OWNER' 
-            AND p.school_id = profiles.school_id
+            SELECT 1 FROM public.school_members sm
+            WHERE sm.user_id = auth.uid()
+              AND sm.school_id = profiles.school_id
+              AND sm.is_active = true
         )
     );
 
-CREATE POLICY "Admins and owner can view own profile"
+-- A user may always view their own profile.
+CREATE POLICY "Users can view own profile"
     ON profiles FOR SELECT
-    USING (id = auth.uid());
+    USING (auth.uid() = profiles.user_id);
 
-CREATE POLICY "Owner can manage admins"
+-- Members with a school-manage role may manage profiles in their school.
+CREATE POLICY "School admins can manage profiles"
     ON profiles FOR UPDATE
     USING (
         EXISTS (
-            SELECT 1 FROM profiles p 
-            WHERE p.id = auth.uid() 
-            AND p.role = 'OWNER' 
-            AND p.school_id = profiles.school_id
+            SELECT 1 FROM public.school_members sm
+            JOIN public.roles r ON r.id = sm.role_id
+            WHERE sm.user_id = auth.uid()
+              AND sm.school_id = profiles.school_id
+              AND sm.is_active = true
+              AND r.system_role IN ('OWNER', 'ADMIN')
         )
     )
     WITH CHECK (
         EXISTS (
-            SELECT 1 FROM profiles p 
-            WHERE p.id = auth.uid() 
-            AND p.role = 'OWNER' 
-            AND p.school_id = profiles.school_id
-        )
-    );
-
-CREATE POLICY "Owner can insert admins"
-    ON profiles FOR INSERT
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM profiles p 
-            WHERE p.id = auth.uid() 
-            AND p.role = 'OWNER' 
-            AND p.school_id = profiles.school_id
+            SELECT 1 FROM public.school_members sm
+            JOIN public.roles r ON r.id = sm.role_id
+            WHERE sm.user_id = auth.uid()
+              AND sm.school_id = profiles.school_id
+              AND sm.is_active = true
+              AND r.system_role IN ('OWNER', 'ADMIN')
         )
     );
 
@@ -232,10 +261,22 @@ CREATE POLICY "Owner can insert admins"
 -- Create function to log admin status changes
 CREATE OR REPLACE FUNCTION log_admin_status_change()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_actor_id UUID;
 BEGIN
+    -- Under WorkOS, auth.uid() is not populated; fall back to the NEW.user_id
+    -- when the row carries one, else the system UUID.
+    v_actor_id := auth.uid();
+    IF v_actor_id IS NULL THEN
+        v_actor_id := NEW.user_id;
+    END IF;
+    IF v_actor_id IS NULL THEN
+        v_actor_id := '00000000-0000-0000-0000-000000000000'::UUID;
+    END IF;
+
     IF OLD.admin_status IS DISTINCT FROM NEW.admin_status THEN
         INSERT INTO audit_logs (school_id, actor_id, action, entity, entity_id, metadata)
-        VALUES (NEW.school_id, auth.uid(), 'ADMIN_' || UPPER(NEW.admin_status), 'profile', NEW.id,
+        VALUES (NEW.school_id, v_actor_id, 'ADMIN_' || UPPER(NEW.admin_status), 'profile', NEW.id,
             jsonb_build_object('previous_status', OLD.admin_status));
     END IF;
     RETURN NEW;

@@ -1,5 +1,5 @@
 -- ==========================================================
--- CAPSTONE SOFTWARE SOLUTIONS LTD
+-- CAPFLUX — FHILZAB NIG LTD
 -- Migration: 202607100004_functions.sql
 -- Purpose: Helper functions for multi-tenant access, audit logging, and ledger calculations
 -- ==========================================================
@@ -10,19 +10,31 @@ BEGIN;
 -- TENANT CONTEXT HELPERS
 -- ==========================================================
 
+-- Resolve the caller's school from authenticated membership.
+-- NOTE: CAPFLUX uses WorkOS identity (auth.users is NOT populated), so the
+-- legacy `jwt.claims.school_id` approach is invalid. School scope is derived
+-- from `school_members` via the WorkOS user id supplied in `p_user_id`.
+-- These helpers are used by SECURITY DEFINER functions that receive the
+-- caller's user id as an explicit argument.
 CREATE OR REPLACE FUNCTION current_school_id()
 RETURNS UUID LANGUAGE SQL STABLE AS $$
     SELECT current_setting('jwt.claims.school_id', true)::uuid;
 $$;
 
-CREATE OR REPLACE FUNCTION current_profile_id()
+CREATE OR REPLACE FUNCTION school_id_for_user(p_user_id UUID)
 RETURNS UUID LANGUAGE SQL STABLE AS $$
-    SELECT current_setting('jwt.claims.profile_id', true)::uuid;
+    SELECT school_id
+    FROM public.school_members
+    WHERE user_id = p_user_id AND is_active = true
+    LIMIT 1;
 $$;
 
-CREATE OR REPLACE FUNCTION current_profile_role()
-RETURNS profile_role LANGUAGE SQL STABLE AS $$
-    SELECT current_setting('jwt.claims.role', true)::profile_role;
+CREATE OR REPLACE FUNCTION organization_id_for_user(p_user_id UUID)
+RETURNS UUID LANGUAGE SQL STABLE AS $$
+    SELECT organization_id
+    FROM public.organization_members
+    WHERE user_id = p_user_id AND is_active = true
+    LIMIT 1;
 $$;
 
 CREATE OR REPLACE FUNCTION tenant_matches_school(target_school_id UUID)
@@ -89,7 +101,8 @@ CREATE OR REPLACE FUNCTION log_audit_action(
     action_text TEXT,
     entity_name TEXT,
     entity_uuid UUID,
-    metadata_json JSONB DEFAULT '{}'::jsonb
+    metadata_json JSONB DEFAULT '{}'::jsonb,
+    p_school_id UUID DEFAULT NULL
 )
 RETURNS VOID LANGUAGE SQL VOLATILE AS $$
     INSERT INTO audit_logs (
@@ -103,7 +116,7 @@ RETURNS VOID LANGUAGE SQL VOLATILE AS $$
         created_at
     ) VALUES (
         gen_random_uuid(),
-        school_id_for_profile(actor_uuid),
+        COALESCE(p_school_id, school_id_for_user(actor_uuid)),
         actor_uuid,
         action_text,
         entity_name,

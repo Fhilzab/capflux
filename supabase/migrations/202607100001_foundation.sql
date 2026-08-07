@@ -1,5 +1,5 @@
 -- ==========================================================
--- CAPSTONE SOFTWARE SOLUTIONS LTD
+-- CAPFLUX — FHILZAB NIG LTD
 -- Migration: 202607100001_foundation.sql
 -- Purpose: Database foundation (extensions and shared types)
 -- ==========================================================
@@ -20,11 +20,10 @@ CREATE EXTENSION IF NOT EXISTS citext;
 -- ENUM TYPES
 -- ==========================================================
 
--- School subscription status
-CREATE TYPE subscription_status AS ENUM (
-    'ACTIVE',
-    'SUSPENDED'
-);
+-- NOTE: subscription_status was removed. CAPFLUX is free and has no
+-- subscription lifecycle. School operational lifecycle is tracked by
+-- `school_status` (see migration 022) and payment activation by
+-- `payment_status` (see migration 022).
 
 -- User roles
 CREATE TYPE profile_role AS ENUM (

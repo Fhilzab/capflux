@@ -1,14 +1,11 @@
 /**
  * DefaultOrganizationProvider
- * Supabase-backed implementation of OrganizationProvider
- * Only file that knows about Supabase for organization data
- * 
- * // TODO (Milestone 5):
- * // Replace DefaultOrganizationProvider with WorkOSOrganizationProvider
- * // when AuthKit Organizations are enabled.
+ * Backend-backed implementation of OrganizationProvider.
+ * Resolves organization context via the CAPFLUX backend (/api/context/org),
+ * which derives membership from the authenticated WorkOS session.
  */
 
-import { supabase, hasSupabaseConfig } from '../services/api/supabase';
+import { apiClient } from '../services/api/client';
 import { OrganizationProvider } from './OrganizationProvider';
 import type { Organization, OrganizationMembership, OrganizationContext, OrganizationResult, OrganizationError } from './types';
 
@@ -23,36 +20,6 @@ function mapError(error: unknown, fallbackMessage: string): OrganizationError {
   };
 }
 
-/**
- * Transform raw profile data to Organization and Membership
- */
-function transformProfile(profile: Record<string, unknown>): OrganizationContext | null {
-  if (!profile) return null;
-  
-  const orgId = profile.school_id as string | undefined;
-  const role = profile.role as string | undefined;
-  
-  if (!orgId) return null;
-  
-  const organization: Organization = {
-    id: orgId,
-    name: (profile.school_name as string) || 'Unknown School',
-    domain: profile.school_domain as string | undefined,
-    subscriptionStatus: profile.subscription_status as string | undefined,
-    createdAt: profile.created_at as string | undefined,
-    updatedAt: profile.updated_at as string | undefined,
-  };
-  
-  const membership: OrganizationMembership = {
-    organizationId: orgId,
-    role: (role === 'OWNER' || role === 'ADMIN') ? role : 'ADMIN',
-    status: (profile.admin_status as string) || 'ACTIVE',
-    createdAt: profile.created_at as string | undefined,
-  };
-  
-  return { organization, membership };
-}
-
 export class DefaultOrganizationProvider extends OrganizationProvider {
   private config: Record<string, unknown>;
 
@@ -62,46 +29,29 @@ export class DefaultOrganizationProvider extends OrganizationProvider {
   }
 
   async initialize(): Promise<OrganizationResult<OrganizationContext>> {
-    if (!hasSupabaseConfig) {
-      // Local dev fallback: no organization context
-      return { data: null, error: null };
-    }
-
     return this.getContext();
   }
 
   async getContext(): Promise<OrganizationResult<OrganizationContext>> {
     try {
-      const { useAuthStore } = await import('../../stores/authStore');
-      const user = useAuthStore().user;
-      if (!user) {
-        return { data: null, error: { code: 'UNAUTHORIZED', message: 'No authenticated user' } };
+      const response = await apiClient.http.get('/context/org');
+      const data = response.data?.data;
+      if (data?.organization) {
+        const organization: Organization = {
+          id: data.organization.id,
+          name: data.organization.name,
+          domain: data.organization.slug || undefined,
+          createdAt: data.organization.created_at,
+          updatedAt: data.organization.updated_at,
+        };
+        const membership: OrganizationMembership = {
+          organizationId: data.membership?.organizationId || organization.id,
+          role: (data.membership?.role?.system_role as 'OWNER' | 'ADMIN') || 'ADMIN',
+          status: 'ACTIVE',
+          createdAt: data.membership?.joinedAt,
+        };
+        return { data: { organization, membership }, error: null };
       }
-
-      // Try RPC first
-      const { data: profile, error } = await supabase.rpc('get_profile', { user_id: user.id });
-      
-      if (!error && profile) {
-        const context = transformProfile(profile as Record<string, unknown>);
-        if (context) {
-          return { data: context, error: null };
-        }
-      }
-
-      // Fallback to direct query
-      const result = await supabase
-        .from('profiles')
-        .select('school_id, role, admin_status, school_name, school_domain, subscription_status')
-        .eq('id', user.id)
-        .single();
-
-      if (result.data) {
-        const context = transformProfile(result.data);
-        if (context) {
-          return { data: context, error: null };
-        }
-      }
-
       return { data: null, error: null };
     } catch (error) {
       return { data: null, error: mapError(error, 'Unable to fetch organization context') };
@@ -109,84 +59,18 @@ export class DefaultOrganizationProvider extends OrganizationProvider {
   }
 
   async getCurrentOrganization(): Promise<OrganizationResult<Organization>> {
-    if (!hasSupabaseConfig) {
-      return { data: null, error: null };
-    }
-
     try {
-      const { useAuthStore } = await import('../../stores/authStore');
-      const user = useAuthStore().user;
-      if (!user) {
-        return { data: null, error: { code: 'UNAUTHORIZED', message: 'No authenticated user' } };
-      }
-
-      // Try RPC first
-      const { data: profile, error } = await supabase.rpc('get_profile', { user_id: user.id });
-      
-      if (!error && profile) {
-        const context = transformProfile(profile as Record<string, unknown>);
-        if (context) {
-          return { data: context.organization, error: null };
-        }
-      }
-
-      // Fallback to direct query
-      const result = await supabase
-        .from('profiles')
-        .select('school_id, role, admin_status, school_name, school_domain, subscription_status')
-        .eq('id', user.id)
-        .single();
-
-      if (result.data) {
-        const context = transformProfile(result.data);
-        if (context) {
-          return { data: context.organization, error: null };
-        }
-      }
-
-      return { data: null, error: null };
+      const context = await this.getContext();
+      return { data: context.data?.organization ?? null, error: context.error };
     } catch (error) {
       return { data: null, error: mapError(error, 'Unable to fetch organization') };
     }
   }
 
   async getMembership(): Promise<OrganizationResult<OrganizationMembership>> {
-    if (!hasSupabaseConfig) {
-      return { data: null, error: null };
-    }
-
     try {
-      const { useAuthStore } = await import('../../stores/authStore');
-      const user = useAuthStore().user;
-      if (!user) {
-        return { data: null, error: { code: 'UNAUTHORIZED', message: 'No authenticated user' } };
-      }
-
-      // Try RPC first
-      const { data: profile, error } = await supabase.rpc('get_profile', { user_id: user.id });
-      
-      if (!error && profile) {
-        const context = transformProfile(profile as Record<string, unknown>);
-        if (context) {
-          return { data: context.membership, error: null };
-        }
-      }
-
-      // Fallback to direct query
-      const result = await supabase
-        .from('profiles')
-        .select('school_id, role, admin_status')
-        .eq('id', user.id)
-        .single();
-
-      if (result.data) {
-        const context = transformProfile(result.data);
-        if (context) {
-          return { data: context.membership, error: null };
-        }
-      }
-
-      return { data: null, error: null };
+      const context = await this.getContext();
+      return { data: context.data?.membership ?? null, error: context.error };
     } catch (error) {
       return { data: null, error: mapError(error, 'Unable to fetch membership') };
     }
@@ -197,7 +81,7 @@ export class DefaultOrganizationProvider extends OrganizationProvider {
   }
 
   async clear(): Promise<void> {
-    // No local state to clear - Supabase handles session
+    // No local state to clear — the backend session cookie is authoritative.
   }
 
   async switchOrganization(_organizationId: string): Promise<OrganizationResult<OrganizationContext>> {
@@ -211,6 +95,6 @@ export class DefaultOrganizationProvider extends OrganizationProvider {
   }
 
   isConfigured(): boolean {
-    return hasSupabaseConfig;
+    return Boolean(import.meta.env.VITE_API_BASE_URL);
   }
 }

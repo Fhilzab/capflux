@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useReportingStore } from '../stores/reportingStore';
+import { useModuleLock } from '../composables/useModuleLock';
+import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const reportingStore = useReportingStore();
+const { paymentsLocked, loading: lockLoading } = useModuleLock();
 const loading = ref(false);
 const report = ref({
   totalCharges: 0,
@@ -62,6 +65,8 @@ onMounted(loadReport);
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-8">
+    <ModuleLockOverlay v-if="paymentsLocked && !lockLoading" variant="payment" />
+    <template v-else>
     <div class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card">
         <h1 class="text-headline mb-2">Revenue Dashboard</h1>
@@ -168,5 +173,6 @@ onMounted(loadReport);
         </div>
       </section>
     </div>
+    </template>
   </main>
 </template>

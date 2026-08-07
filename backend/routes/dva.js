@@ -10,8 +10,13 @@
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
 import { MonnifyGateway } from '../services/gateways/MonnifyGateway.js';
+import requireAuth from '../middleware/requireAuth.js';
 
 const router = express.Router();
+
+// All DVA routes require an authenticated WorkOS session.
+// DEPRECATED: prefer /api/payment-accounts for new integrations.
+router.use(requireAuth);
 
 // Get gateway instance
 const monnifyGateway = new MonnifyGateway();

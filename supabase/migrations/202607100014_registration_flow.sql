@@ -1,7 +1,10 @@
 -- ==========================================================
--- CAPSTONE SOFTWARE SOLUTIONS LTD
+-- CAPFLUX — FHILZAB NIG LTD
 -- Migration: 202607100014_registration_flow.sql
--- Purpose: Atomic student registration with DVA provisioning and tuition billing
+-- Purpose: Atomic student registration with guardian + tuition billing
+--
+-- NOTE: DVA provisioning is NOT performed here. Payment accounts are
+-- provisioned by CAPFLUX backend infrastructure (never by a client).
 -- ==========================================================
 
 BEGIN;
@@ -94,7 +97,8 @@ BEGIN
         jsonb_build_object(
             'academic_session', p_academic_session,
             'academic_term', p_academic_term,
-            'tuition_config_id', v_tuition_config_id
+            'tuition_config_id', v_tuition_config_id,
+            'guardian_phone', p_guardian_primary_phone
         ),
         v_client_sequence, 'registration-flow', now()
     ) RETURNING id INTO v_ledger_id;

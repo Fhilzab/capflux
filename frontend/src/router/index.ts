@@ -5,6 +5,9 @@ import { authorizeRoute } from '../shared/rbac/RouteGuard';
 import { PERMISSIONS, type PermissionCode } from '../shared/rbac/permissions';
 import type { SystemRole } from '../shared/rbac/types';
 import AuthView from '../features/auth/AuthView.vue';
+import KycDashboard from '../features/kyc/KycDashboard.vue';
+import KycSubmission from '../features/kyc/KycSubmission.vue';
+import KycStatus from '../features/kyc/KycStatus.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../features/dashboard/views/HomeView.vue';
 import StudentListView from '../views/StudentListView.vue';
@@ -151,6 +154,25 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../features/setup/SchoolSetupView.vue'),
     meta: { requiresAuth: true },
   },
+  // KYC routes (Milestone 5 — Financial Activation)
+  {
+    path: '/kyc',
+    name: 'KycDashboard',
+    component: KycDashboard,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/kyc/submit',
+    name: 'KycSubmission',
+    component: KycSubmission,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/kyc/status',
+    name: 'KycStatus',
+    component: KycStatus,
+    meta: { requiresAuth: true },
+  },
   // Catch-all 404
   {
     path: '/:pathMatch(.*)*',
@@ -170,11 +192,6 @@ const router = createRouter({
     return { top: 0 };
   },
 });
-
-const SCHOOL_SETUP_REQUIRED_ROUTES = [
-  'Students', 'Billing', 'Payments', 'VirtualAccounts',
-  'DailyCollections', 'OutstandingFees', 'RevenueDashboard'
-];
 
 router.beforeEach(authorizeRoute);
 

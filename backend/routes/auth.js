@@ -1,20 +1,36 @@
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
 import WorkOSAuthService from '../services/WorkOSAuthService.js';
+import sessionService from '../services/SessionService.js';
+import requireAuth from '../middleware/requireAuth.js';
 
 const router = express.Router();
 const authService = new WorkOSAuthService();
 
+const { name: SESSION_COOKIE_NAME, options: SESSION_COOKIE_OPTIONS } =
+  sessionService.cookieOptions();
+
 /**
- * Extract the bearer token from the Authorization header.
- * For /session and /me the frontend sends the WorkOS user ID as the bearer value.
+ * Set the canonical HttpOnly session cookie from a WorkOS authentication
+ * response.
  */
-const getBearerToken = (req) => {
-  const authorization = req.headers.authorization || req.headers.Authorization;
-  if (!authorization || typeof authorization !== 'string') return null;
-  const [scheme, token] = authorization.split(' ');
-  if (scheme?.toLowerCase() !== 'bearer') return null;
-  return token || null;
+const setSessionCookie = async (res, authResult) => {
+  if (!authResult?.accessToken) return;
+  try {
+    const cookieValue = await sessionService.createSessionCookieValue(authResult);
+    res.cookie(SESSION_COOKIE_NAME, cookieValue, SESSION_COOKIE_OPTIONS);
+  } catch (error) {
+    // Cookie sealing failure should not break the auth response, but must be
+    // logged — the client will simply not have a persisted session.
+    console.error('Failed to set session cookie:', error?.message || error);
+  }
+};
+
+const clearSessionCookie = (res) => {
+  res.clearCookie(SESSION_COOKIE_NAME, {
+    ...SESSION_COOKIE_OPTIONS,
+    maxAge: 0,
+  });
 };
 
 /**
@@ -62,6 +78,7 @@ router.post('/signin', async (req, res) => {
   try {
     const result = await authService.signInWithPassword(email, password);
     await upsertUserRecords(result.user);
+    await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
   } catch (error) {
     return handleError(res, error, 401);
@@ -77,6 +94,7 @@ router.post('/signup', async (req, res) => {
   try {
     const result = await authService.signUpWithPassword(email, password, fullName);
     await upsertUserRecords(result.user);
+    await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
   } catch (error) {
     return handleError(res, error, 400);
@@ -108,46 +126,47 @@ router.get('/callback', async (req, res) => {
   try {
     const result = await authService.handleOAuthCallback(code);
     await upsertUserRecords(result.user);
+    await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
   } catch (error) {
     return handleError(res, error, 400);
   }
 });
 
-router.get('/session', async (req, res) => {
-  const userId = getBearerToken(req);
-  if (!userId) {
-    return res.status(401).json({ error: 'Authorization bearer token is required.' });
-  }
+/**
+ * GET /api/auth/session
+ * Returns SAFE session information for the frontend.
+ * Requires the HttpOnly session cookie (validated server-side).
+ * NEVER returns refresh tokens, cookie values, or raw credentials.
+ */
+router.get('/session', requireAuth, async (req, res) => {
+  return res.json({
+    success: true,
+    session: sessionService.safeSessionPayload({
+      user: req.user,
+      sessionId: req.sessionId,
+    }),
+  });
+});
 
+router.get('/me', requireAuth, async (req, res) => {
+  // Identity comes from the verified WorkOS session cookie, not a client
+  // supplied user id. Upsert the identity records for the authenticated user.
   try {
-    const user = await authService.getCurrentUser(userId);
-    return res.json({ success: true, session: { user } });
+    await upsertUserRecords(req.user);
+    return res.json({ success: true, user: req.user });
   } catch (error) {
     return handleError(res, error, 401);
   }
 });
 
-router.get('/me', async (req, res) => {
-  const userId = getBearerToken(req);
-  if (!userId) {
-    return res.status(401).json({ error: 'Authorization bearer token is required.' });
-  }
-
+router.post('/signout', requireAuth, async (req, res) => {
   try {
-    const user = await authService.getCurrentUser(userId);
-    await upsertUserRecords(user);
-    return res.json({ success: true, user });
-  } catch (error) {
-    return handleError(res, error, 401);
-  }
-});
-
-router.post('/signout', async (req, res) => {
-  const { sessionId } = req.body;
-
-  try {
-    await authService.signOut(sessionId);
+    const sessionId = req.sessionId;
+    if (sessionId) {
+      await sessionService.revokeSession(sessionId);
+    }
+    clearSessionCookie(res);
     return res.json({ success: true });
   } catch (error) {
     return handleError(res, error, 500);
@@ -163,6 +182,7 @@ router.post('/refresh', async (req, res) => {
   try {
     const result = await authService.refreshToken(refreshToken);
     await upsertUserRecords(result.user);
+    await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
   } catch (error) {
     return handleError(res, error, 401);

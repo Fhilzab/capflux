@@ -1,7 +1,15 @@
 -- ==========================================================
--- CAPSTONE SOFTWARE SOLUTIONS LTD
+-- CAPFLUX — FHILZAB NIG LTD
 -- Migration: 202607100008_payment_routing.sql
--- Purpose: Payment gateway integration and Dedicated Virtual Account (DVA) management
+-- Purpose: Payment gateway configuration, Dedicated Virtual Account (DVA)
+--          management, and immutable payment transaction log.
+--
+-- IMPORTANT: Gateway credentials (api_key/secret_key) are CAPFLUX
+-- infrastructure secrets and are NOT stored per school in production.
+-- `payment_gateway_config` describes WHICH internally-assigned provider a
+-- school is routed to. Credentials live in CAPFLUX server environment.
+-- The legacy api_key/secret_key columns are retained for migration
+-- compatibility but must never be populated for new schools.
 -- ==========================================================
 
 BEGIN;
@@ -14,15 +22,18 @@ ALTER TYPE ledger_entry_category ADD VALUE IF NOT EXISTS 'PLATFORM_FEE';
 
 -- ==========================================================
 -- Payment Gateway Configuration (Per-School Sub-merchant Setup)
--- Each school has its own gateway credentials for split settlement
+-- Each school is routed to an internally-assigned provider.
+-- Schools NEVER select Paystack/Monnify and NEVER read credentials.
 -- ==========================================================
 
 CREATE TABLE IF NOT EXISTS payment_gateway_config (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     school_id UUID NOT NULL REFERENCES schools (id) ON DELETE CASCADE,
     provider TEXT NOT NULL CHECK (provider IN ('monnify', 'flutterwave', 'remita')),
-    api_key TEXT NOT NULL,
-    secret_key TEXT NOT NULL,
+    -- CAPFLUX-infrastructure secrets: must be NULL for all new rows.
+    -- Populated only for legacy seeded rows during migration; not exposed to tenants.
+    api_key TEXT,
+    secret_key TEXT,
     submerchant_code TEXT,
     settlement_account_number TEXT NOT NULL,
     settlement_account_bank TEXT NOT NULL,
@@ -75,6 +86,7 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
     settlement_status TEXT NOT NULL CHECK (settlement_status IN ('PENDING', 'SUCCESS', 'FAILED')),
     verified_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    idempotency_key TEXT,
     CONSTRAINT chk_amount_positive CHECK (amount > 0)
 );
 
@@ -83,6 +95,9 @@ CREATE INDEX IF NOT EXISTS idx_payment_transactions_reference ON payment_transac
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_gateway_ref ON payment_transactions (gateway_txn_ref);
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_settlement ON payment_transactions (settlement_status);
 CREATE UNIQUE INDEX IF NOT EXISTS unique_transaction_reference ON payment_transactions (reference);
+-- Ledger/payment idempotency: a gateway event with the same idempotency key
+-- must never create a duplicate payment record.
+CREATE UNIQUE INDEX IF NOT EXISTS unique_transaction_idempotency_key ON payment_transactions (idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 -- ==========================================================
 -- Settlement Records
@@ -92,7 +107,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS unique_transaction_reference ON payment_transa
 CREATE TABLE IF NOT EXISTS settlement_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     payment_transaction_id UUID NOT NULL REFERENCES payment_transactions (id) ON DELETE CASCADE,
-    destination TEXT NOT NULL CHECK (destination IN ('school', 'capstone')),
+    destination TEXT NOT NULL CHECK (destination IN ('school', 'capflux')),
     account_number TEXT NOT NULL,
     bank_name TEXT NOT NULL,
     amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
@@ -144,6 +159,7 @@ CREATE POLICY allow_authenticated_settlement_records ON settlement_records
 -- Helper Functions
 -- ==========================================================
 
+-- DEPRECATED (legacy DVA flow). New code uses payment_accounts directly.
 CREATE OR REPLACE FUNCTION provision_dva_for_student(
     p_school_id UUID,
     p_student_id UUID,

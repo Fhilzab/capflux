@@ -1,5 +1,5 @@
 -- ==========================================================
--- CAPSTONE SOFTWARE SOLUTIONS LTD
+-- CAPFLUX — FHILZAB NIG LTD
 -- Migration: 202607100019_onboarding.sql
 -- Purpose: Onboarding state tracking for new schools
 -- ==========================================================
@@ -10,10 +10,13 @@ BEGIN;
 -- ONBOARDING STATE TRACKING
 -- ==========================================================
 
--- Track onboarding progress for each school
+-- Track onboarding progress for each school.
+-- stage is a convenience display field; the canonical checklist is tracked
+-- by profile_completed/organization_completed/school_completed/owner_completed
+-- (added in migration 022). complete_onboarding() sets stage = 4.
 CREATE TABLE IF NOT EXISTS onboarding_progress (
     school_id UUID PRIMARY KEY REFERENCES schools (id) ON DELETE CASCADE,
-    stage INTEGER NOT NULL DEFAULT 1 CHECK (stage >= 1 AND stage <= 3),
+    stage INTEGER NOT NULL DEFAULT 1 CHECK (stage >= 1 AND stage <= 4),
     completed_steps JSONB NOT NULL DEFAULT '[]'::jsonb,
     business_verified BOOLEAN NOT NULL DEFAULT false,
     settlement_verified BOOLEAN NOT NULL DEFAULT false,
@@ -42,9 +45,10 @@ CREATE TRIGGER onboarding_progress_updated_at
 -- BUSINESS VERIFICATION FIELDS
 -- ==========================================================
 
--- Add business verification fields to schools table
-ALTER TABLE schools ADD COLUMN IF NOT EXISTS proprietor_bvn TEXT;
-ALTER TABLE schools ADD COLUMN IF NOT EXISTS proprietor_nin TEXT;
+-- Add business verification fields to schools table.
+-- NOTE: proprietor_bvn/proprietor_nin are intentionally NOT stored here in
+-- plaintext. BVN/NIN belong in kyc_records (encrypted). A legacy
+-- complete_business_verification() helper below keeps a metadata pointer.
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS business_type TEXT;
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS cac_number TEXT;
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS tax_identification_number TEXT;
@@ -57,7 +61,11 @@ ALTER TABLE schools ADD COLUMN IF NOT EXISTS settlement_verified BOOLEAN DEFAULT
 -- ONBOARDING FUNCTIONS
 -- ==========================================================
 
--- Create school with owner in one transaction
+-- LEGACY create_school_with_owner.
+-- Replaced by the canonical create_school_with_onboarding (migration 022).
+-- This function is retained ONLY for backward compatibility with callers
+-- that have not yet migrated; it creates the school directly using the
+-- canonical columns. Do not build new features on it.
 CREATE OR REPLACE FUNCTION create_school_with_owner(
     p_school_name TEXT,
     p_proprietor_name TEXT,
@@ -72,19 +80,18 @@ DECLARE
     v_school_id UUID;
     v_owner_id UUID;
 BEGIN
-    -- Create the school
+    -- Create the school using canonical columns (status/payment_status/org)
     INSERT INTO schools (
-        id, name, type, academic_session, current_term, created_at, updated_at
+        name, school_type, address, status, payment_status, created_at, updated_at
     ) VALUES (
-        gen_random_uuid(), p_school_name, p_school_type, 
-        p_academic_session, p_current_term, now(), now()
+        p_school_name, p_school_type, p_address, 'PENDING_SETUP', 'NOT_READY', now(), now()
     ) RETURNING id INTO v_school_id;
 
-    -- Create owner profile
+    -- Create owner profile (user_id optional for legacy callers)
     INSERT INTO profiles (
-        id, school_id, email, full_name, phone, role, admin_status, created_at, updated_at
+        school_id, email, full_name, phone, role, admin_status, created_at, updated_at
     ) VALUES (
-        gen_random_uuid(), v_school_id, p_email, p_proprietor_name, p_phone,
+        v_school_id, p_email, p_proprietor_name, p_phone,
         'OWNER', 'ACTIVE', now(), now()
     ) RETURNING id INTO v_owner_id;
 
@@ -113,19 +120,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Complete business verification
+-- Complete business verification (legacy KYC marker; BVN/NIN are encrypted
+-- in kyc_records, never stored here).
 CREATE OR REPLACE FUNCTION complete_business_verification(
     p_school_id UUID,
-    p_bvn TEXT,
-    p_nin TEXT,
     p_business_type TEXT,
     p_cac_number TEXT,
     p_tin TEXT
 ) RETURNS VOID AS $$
 BEGIN
     UPDATE schools SET
-        proprietor_bvn = p_bvn,
-        proprietor_nin = p_nin,
         business_type = p_business_type,
         cac_number = p_cac_number,
         tax_identification_number = p_tin
@@ -158,7 +162,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Activate collections
+-- Activate collections (legacy activation; canonical is complete_onboarding
+-- in migration 022, which transitions status=ACTIVE and payment_status=PENDING_KYC).
 CREATE OR REPLACE FUNCTION activate_collections(p_school_id UUID) RETURNS VOID AS $$
 BEGIN
     -- Mark payment service as ready and activated
