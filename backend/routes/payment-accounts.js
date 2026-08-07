@@ -13,15 +13,15 @@ import express from 'express';
 import { supabase } from '../supabaseClient.js';
 import { GatewayFactory } from '../services/gateways/GatewayFactory.js';
 import requireAuth from '../middleware/requireAuth.js';
+import requirePaymentReady from '../middleware/requirePaymentReady.js';
 
 const router = express.Router();
 
 // All payment-account routes require an authenticated WorkOS session.
 router.use(requireAuth);
 
-// POST /api/payment-accounts/provision
-// Creates a payment account for a student (provider-agnostic)
-router.post('/provision', async (req, res) => {
+// Payment-mutating routes also require payment readiness (ACTIVE + READY).
+router.post('/provision', requirePaymentReady, async (req, res) => {
   const { student_id, school_id } = req.body;
 
   if (!student_id || !school_id) {
@@ -161,7 +161,7 @@ router.get('/:student_id', async (req, res) => {
 
 // POST /api/payment-accounts/deactivate
 // Deactivate a payment account
-router.post('/deactivate', async (req, res) => {
+router.post('/deactivate', requirePaymentReady, async (req, res) => {
   const { account_id, school_id } = req.body;
 
   if (!account_id || !school_id) {
@@ -222,7 +222,7 @@ router.post('/deactivate', async (req, res) => {
 
 // POST /api/payment-accounts/bulk-provision
 // Provision payment accounts for multiple students
-router.post('/bulk-provision', async (req, res) => {
+router.post('/bulk-provision', requirePaymentReady, async (req, res) => {
   const { school_id } = req.body;
 
   if (!school_id) {

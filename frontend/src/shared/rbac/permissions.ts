@@ -78,9 +78,36 @@ export const PERMISSIONS = {
       MANAGE: 'platformlevy.manage',
     },
   },
+
+  KYC: {
+    VIEW: 'kyc.view',
+    REVIEW: 'kyc.review',
+    VERIFY: 'kyc.verify',
+    REJECT: 'kyc.reject',
+  },
+
+  IDENTITY: {
+    VERIFY: 'identity.verify',
+  },
+
+  SETTLEMENT: {
+    VIEW: 'settlement.view',
+    VERIFY: 'settlement.verify',
+  },
+
+  GATEWAY: {
+    ASSIGN: 'gateway.assign',
+  },
+
+  PAYMENT_ACTIVATION: {
+    ACTIVATE: 'payment.activate',
+  },
 } as const;
 
 export type PermissionCode =
   | typeof PERMISSIONS[keyof typeof PERMISSIONS][keyof (typeof PERMISSIONS)[keyof typeof PERMISSIONS]]
   | typeof PERMISSIONS['SCHOOL']['SETTINGS']['UPDATE']
-  | typeof PERMISSIONS['PLATFORM']['LEVY'][keyof typeof PERMISSIONS['PLATFORM']['LEVY']];
+  | typeof PERMISSIONS['PLATFORM']['LEVY'][keyof typeof PERMISSIONS['PLATFORM']['LEVY']]
+  | typeof PERMISSIONS['KYC'][keyof typeof PERMISSIONS['KYC']]
+  | typeof PERMISSIONS['SETTLEMENT'][keyof typeof PERMISSIONS['SETTLEMENT']]
+  | typeof PERMISSIONS['PAYMENT_ACTIVATION'][keyof typeof PERMISSIONS['PAYMENT_ACTIVATION']];

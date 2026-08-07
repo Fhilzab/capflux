@@ -8,6 +8,7 @@ import AuthView from '../features/auth/AuthView.vue';
 import KycDashboard from '../features/kyc/KycDashboard.vue';
 import KycSubmission from '../features/kyc/KycSubmission.vue';
 import KycStatus from '../features/kyc/KycStatus.vue';
+import SettlementView from '../features/kyc/SettlementView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../features/dashboard/views/HomeView.vue';
 import StudentListView from '../views/StudentListView.vue';
@@ -172,6 +173,25 @@ const routes: RouteRecordRaw[] = [
     name: 'KycStatus',
     component: KycStatus,
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/kyc/settlement',
+    name: 'Settlement',
+    component: SettlementView,
+    meta: { requiresAuth: true },
+  },
+  // Staff KYC review routes (financial activation)
+  {
+    path: '/staff/kyc',
+    name: 'StaffKycDashboard',
+    component: () => import('../features/admin/kyc/KycReviewDashboard.vue'),
+    meta: { requiresAuth: true, permission: PERMISSIONS.KYC.VIEW },
+  },
+  {
+    path: '/staff/kyc/:id',
+    name: 'StaffKycDetail',
+    component: () => import('../features/admin/kyc/KycReviewDetail.vue'),
+    meta: { requiresAuth: true, permission: PERMISSIONS.KYC.VIEW },
   },
   // Catch-all 404
   {

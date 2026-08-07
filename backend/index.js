@@ -9,6 +9,7 @@ import adminRoutes from './routes/admin.js';
 import onboardingRoutes from './routes/onboarding.js';
 import kycRoutes from './routes/kyc.js';
 import contextRoutes from './routes/context.js';
+import financialAdminRoutes from './routes/financial-admin.js';
 import requireAuth from './middleware/requireAuth.js';
 import sessionService from './services/SessionService.js';
 
@@ -114,6 +115,8 @@ app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/kyc', kycRoutes);
 // Authenticated context (user/org/school/rbac) for the frontend data plane
 app.use('/api/context', contextRoutes);
+// Financial activation staff operations (KYC review, settlement, gateway, activation)
+app.use('/api/admin', financialAdminRoutes);
 
 // Health check endpoint with detailed status
 app.get('/health', async (req, res) => {

@@ -6,7 +6,7 @@
  * KYC is a COMPLIANCE process, not onboarding.
  */
 import { defineStore } from 'pinia';
-import axios, { AxiosError } from 'axios';
+import { apiClient } from '../shared/services/api/client';
 import { useAuthStore } from './authStore';
 import type {
   SchoolStatus,
@@ -14,8 +14,6 @@ import type {
   OnboardingProgress,
   OnboardingStatus,
 } from '../shared/school/types';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
 interface OnboardingState {
   loading: boolean;
@@ -25,25 +23,21 @@ interface OnboardingState {
   completedSteps: number[];
 }
 
-// Helper to make API calls
+// Helper to make API calls via the cookie-authenticated apiClient.
 async function apiCall<T = unknown>(
   method: string,
   path: string,
   body?: unknown,
-  userId?: string | null,
 ): Promise<T> {
-  if (!userId) throw new Error('User not authenticated');
-
   try {
-    const response = await axios({
-      method,
-      url: `${API_BASE_URL}${path}`,
-      headers: { Authorization: `Bearer ${userId}` },
+    const response = await apiClient.http({
+      method: method as 'get' | 'post' | 'put' | 'patch' | 'delete',
+      url: path,
       data: body,
     });
     return response.data as T;
   } catch (raw) {
-    const err = raw as AxiosError<{ error?: string }>;
+    const err = raw as { response?: { data?: { error?: string } }; message?: string };
     const message = err.response?.data?.error || err.message || 'Network request failed';
     throw new Error(message);
   }
@@ -217,7 +211,6 @@ export const useOnboardingStore = defineStore('onboarding', {
           'GET',
           '/onboarding/status',
           undefined,
-          this.userId,
         );
         this.status = data.data;
 
@@ -248,7 +241,7 @@ export const useOnboardingStore = defineStore('onboarding', {
         await apiCall<{ success: boolean }>('POST', '/onboarding/profile', {
           fullName,
           phone,
-        }, this.userId);
+        });
         this.completedSteps = [...new Set([...this.completedSteps, 1])];
         await this.loadStatus();
       } catch (err) {
@@ -264,7 +257,7 @@ export const useOnboardingStore = defineStore('onboarding', {
       this.loading = true;
       this.error = null;
       try {
-        await apiCall<{ success: boolean }>('POST', '/onboarding/organization', { name }, this.userId);
+        await apiCall<{ success: boolean }>('POST', '/onboarding/organization', { name });
         this.completedSteps = [...new Set([...this.completedSteps, 2])];
         await this.loadStatus();
       } catch (err) {
@@ -288,7 +281,7 @@ export const useOnboardingStore = defineStore('onboarding', {
       this.loading = true;
       this.error = null;
       try {
-        await apiCall<{ success: boolean }>('POST', '/onboarding/school', school, this.userId);
+        await apiCall<{ success: boolean }>('POST', '/onboarding/school', school);
         this.completedSteps = [...new Set([...this.completedSteps, 3])];
         await this.loadStatus();
       } catch (err) {
@@ -308,7 +301,7 @@ export const useOnboardingStore = defineStore('onboarding', {
       this.loading = true;
       this.error = null;
       try {
-        await apiCall<{ success: boolean }>('POST', '/onboarding/owner-info', ownerInfo, this.userId);
+        await apiCall<{ success: boolean }>('POST', '/onboarding/owner-info', ownerInfo);
         this.completedSteps = [...new Set([...this.completedSteps, 4])];
         await this.loadStatus();
       } catch (err) {
@@ -327,7 +320,7 @@ export const useOnboardingStore = defineStore('onboarding', {
           organizationCompleted: this.organizationCompleted,
           schoolCompleted: this.schoolCompleted,
           ownerCompleted: this.ownerCompleted,
-        }, this.userId);
+        });
       } catch (err) {
         console.warn('Failed to save progress:', (err as Error)?.message);
       }
@@ -341,7 +334,7 @@ export const useOnboardingStore = defineStore('onboarding', {
         const response = await apiCall<{
           success: boolean;
           data: { school: unknown; activated: boolean };
-        }>('POST', '/onboarding/complete', undefined, this.userId);
+        }>('POST', '/onboarding/complete', undefined);
         await this.loadStatus();
         return response.data;
       } catch (err) {
@@ -360,7 +353,7 @@ export const useOnboardingStore = defineStore('onboarding', {
         const data = await apiCall<{
           success: boolean;
           data: { kyc: unknown; schoolStatus: string; paymentStatus: string };
-        }>('GET', '/kyc/status', undefined, this.userId);
+        }>('GET', '/kyc/status', undefined);
         return data.data;
       } catch (err) {
         this.error = (err as Error)?.message || 'Failed to load KYC status';
@@ -387,7 +380,6 @@ export const useOnboardingStore = defineStore('onboarding', {
           'POST',
           '/kyc/submit',
           kyc,
-          this.userId,
         );
         await this.loadStatus();
         return data.data;
@@ -416,7 +408,6 @@ export const useOnboardingStore = defineStore('onboarding', {
           'POST',
           '/kyc/resubmit',
           kyc,
-          this.userId,
         );
         await this.loadStatus();
         return data.data;
@@ -436,7 +427,6 @@ export const useOnboardingStore = defineStore('onboarding', {
           'GET',
           '/kyc/documents',
           undefined,
-          this.userId,
         );
         return data.data;
       } catch (err) {
@@ -455,7 +445,6 @@ export const useOnboardingStore = defineStore('onboarding', {
           'GET',
           '/kyc/history',
           undefined,
-          this.userId,
         );
         return data.data;
       } catch (err) {
