@@ -128,22 +128,22 @@ ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settlement_records ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY allow_authenticated_payment_gateway_config ON payment_gateway_config
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = payment_gateway_config.school_id)
     WITH CHECK (current_school_id() = payment_gateway_config.school_id);
 
 CREATE POLICY allow_authenticated_dva_assignments ON dva_assignments
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = dva_assignments.school_id)
     WITH CHECK (current_school_id() = dva_assignments.school_id);
 
 CREATE POLICY allow_authenticated_payment_transactions ON payment_transactions
-    FOR SELECT, INSERT
+    FOR ALL
     USING (current_school_id() = payment_transactions.school_id)
     WITH CHECK (current_school_id() = payment_transactions.school_id);
 
 CREATE POLICY allow_authenticated_settlement_records ON settlement_records
-    FOR SELECT, INSERT
+    FOR ALL
     USING (
         current_school_id() = (
             SELECT school_id FROM payment_transactions WHERE id = settlement_records.payment_transaction_id
@@ -160,7 +160,9 @@ CREATE POLICY allow_authenticated_settlement_records ON settlement_records
 -- ==========================================================
 
 -- DEPRECATED (legacy DVA flow). New code uses payment_accounts directly.
-CREATE OR REPLACE FUNCTION provision_dva_for_student(
+-- DROP first: CREATE OR REPLACE cannot remove parameter defaults.
+DROP FUNCTION IF EXISTS provision_dva_for_student(uuid, uuid, text, text, text, text, uuid);
+CREATE FUNCTION provision_dva_for_student(
     p_school_id UUID,
     p_student_id UUID,
     p_provider TEXT,

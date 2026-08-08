@@ -40,8 +40,19 @@ ALTER TABLE public.school_members
 ALTER TABLE public.school_members
     ADD COLUMN IF NOT EXISTS user_id TEXT;
 
-ALTER TABLE public.school_members
-    ALTER COLUMN user_id TYPE UUID USING user_id::UUID;
+-- user_id column on school_members is TEXT to match public.users (WorkOS string IDs).
+-- No conversion needed; the column was aligned to TEXT in the deployment fix.
+-- ALTER COLUMN TYPE is blocked by RLS policy dependencies, so skip if already TEXT.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'school_members'
+          AND column_name = 'user_id' AND data_type = 'uuid'
+    ) THEN
+        ALTER TABLE public.school_members ALTER COLUMN user_id TYPE TEXT USING user_id::text;
+    END IF;
+END $$;
 
 ALTER TABLE public.school_members
     ADD CONSTRAINT school_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
@@ -52,11 +63,13 @@ BEGIN
     IF EXISTS (
         SELECT 1
         FROM information_schema.columns
-        WHERE table_name = 'organization_members'
+        WHERE table_schema = 'public'
+          AND table_name = 'organization_members'
           AND column_name = 'user_id'
+          AND data_type = 'uuid'
     ) THEN
         EXECUTE 'ALTER TABLE public.organization_members DROP CONSTRAINT IF EXISTS organization_members_user_id_fkey;';
-        EXECUTE 'ALTER TABLE public.organization_members ALTER COLUMN user_id TYPE UUID USING user_id::UUID;';
+        EXECUTE 'ALTER TABLE public.organization_members ALTER COLUMN user_id TYPE TEXT USING user_id::text;';
         EXECUTE 'ALTER TABLE public.organization_members ADD CONSTRAINT organization_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;';
     END IF;
 END;
@@ -93,17 +106,17 @@ ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 -- Users may read their own identity row
 CREATE POLICY "Users can view own identity"
     ON public.users FOR SELECT
-    USING (auth.uid() = id);
+    USING (auth.uid()::text = id);
 
 -- Users may read/update their own profile
 CREATE POLICY "Users can view own profile"
     ON public.user_profiles FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::text = user_id);
 
 CREATE POLICY "Users can update own profile"
     ON public.user_profiles FOR UPDATE
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid()::text = user_id)
+    WITH CHECK (auth.uid()::text = user_id);
 
 -- Service role writes are handled by the backend (no anon/authenticated insert needed).
 
@@ -123,6 +136,20 @@ SELECT
     COALESCE(au.created_at, now()),
     COALESCE(au.updated_at, now())
 FROM auth.users au
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed: create app users for existing profiles (legacy profiles have no
+-- matching auth.users row on a fresh database). Uses the profile id as the
+-- user id so that user_profiles FK (user_id → users.id) is satisfied.
+INSERT INTO public.users (id, email, auth_provider, email_verified, created_at, updated_at)
+SELECT
+    p.id,
+    COALESCE(p.email, 'legacy-' || p.id::text),
+    'legacy',
+    false,
+    COALESCE(p.created_at, now()),
+    COALESCE(p.updated_at, now())
+FROM profiles p
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.user_profiles (user_id, full_name, phone, avatar_url, created_at, updated_at)

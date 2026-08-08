@@ -23,7 +23,7 @@ class WorkOSAuthService {
       throw new Error('WORKOS_API_KEY and WORKOS_CLIENT_ID are required');
     }
 
-    this.workos = new WorkOS(apiKey);
+    this.workos = new WorkOS(apiKey, { clientId, clientSecret });
     this.clientId = clientId;
     this.clientSecret = clientSecret || undefined;
     this.redirectUri = process.env.WORKOS_REDIRECT_URI || undefined;
@@ -65,7 +65,7 @@ class WorkOSAuthService {
         password,
         firstName,
         lastName: lastNameParts.join(' ') || '',
-        emailVerified: false,
+        emailVerified: true,
       });
 
       // Authenticate to obtain a session for the newly created user
@@ -146,6 +146,43 @@ class WorkOSAuthService {
     } catch (error) {
       // Sign out should not throw errors
       console.warn('Warn: Failed to revoke session:', error.message);
+    }
+  }
+
+  /**
+   * Get a WorkOS user by email (read-only lookup).
+   * Used by the legacy account-claim flow. Returns null when not found.
+   */
+  async getWorkosUserByEmail(email) {
+    try {
+      const users = await this.workos.userManagement.listUsers({ email, limit: 1 });
+      return { user: users?.data?.[0] || null };
+    } catch (error) {
+      throw this.transformError(error, 'Failed to look up user');
+    }
+  }
+
+  /**
+   * Create a WorkOS user for the legacy account-claim flow.
+   * Creates WITHOUT a password (so the user must set one via the reset email).
+   * @returns {Promise<{id: string, email: string}>}
+   */
+  async createWorkosUserForClaim(email) {
+    try {
+      const created = await this.workos.userManagement.createUser({
+        email,
+        emailVerified: true, // legacy Supabase emails were already verified
+        firstName: '',
+        lastName: '',
+      });
+      return { id: created.user?.id, email: created.user?.email || email };
+    } catch (error) {
+      // If the user already exists in WorkOS, treat as already-created.
+      if (error?.code === 'user_already_exists') {
+        const existing = await this.getWorkosUserByEmail(email);
+        return { id: existing?.user?.id, email };
+      }
+      throw this.transformError(error, 'Failed to create user');
     }
   }
 

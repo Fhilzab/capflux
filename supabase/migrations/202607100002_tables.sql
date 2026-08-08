@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     full_name TEXT NOT NULL,
     phone TEXT,
     role profile_role NOT NULL DEFAULT 'ADMIN',
-    admin_status admin_status NOT NULL DEFAULT 'ACTIVE',
+    admin_status TEXT NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS students (
     class_name TEXT NOT NULL,
     guardian_id UUID,
     guardian_phone TEXT,
+    dva_account_number TEXT,
+    dva_bank_name TEXT,
     status student_status NOT NULL DEFAULT 'ACTIVE',
     client_sequence INTEGER NOT NULL DEFAULT 0,
     device_id TEXT NOT NULL DEFAULT 'registration-flow',

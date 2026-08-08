@@ -241,4 +241,111 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/claim-account
+ * Legacy Supabase → WorkOS account-claim flow.
+ *
+ * Accepts an email. If it belongs to an eligible legacy identity
+ * (legacy_identity_migrations), CAPFLUX creates/locates the WorkOS user and
+ * sends a WorkOS password-setup email. The response is GENERIC regardless of
+ * whether the email is eligible, to prevent account enumeration:
+ *   "If this account is eligible, you will receive an email with instructions."
+ *
+ * NEVER stores or exposes passwords/hashes/tokens. NEVER reveals whether an
+ * arbitrary email exists.
+ */
+router.post('/claim-account', async (req, res) => {
+  const { email } = req.body || {};
+  const GENERIC = 'If this account is eligible, you will receive an email with instructions.';
+
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    // Still return the generic message so the endpoint never reveals validity.
+    return res.json({ success: true, message: GENERIC });
+  }
+
+  const normalized = email.trim().toLowerCase();
+  const idempotencyKey = `claim:${normalized}`;
+
+  try {
+    // 1. Look up the legacy migration record (eligible = PENDING or INVITED).
+    const { data: legacy, error: legacyError } = await supabase
+      .from('legacy_identity_migrations')
+      .select('id, email, workos_user_id, status')
+      .eq('email', normalized)
+      .maybeSingle();
+
+    // If the table doesn't exist (migrations not applied) or no record, still
+    // respond generically — never reveal eligibility.
+    if (legacyError || !legacy) {
+      return res.json({ success: true, message: GENERIC });
+    }
+
+    // Already migrated — idempotent, no duplicate email.
+    if (legacy.status === 'COMPLETED' || legacy.status === 'CLAIMED') {
+      return res.json({ success: true, message: GENERIC });
+    }
+
+    // 2. Ensure a WorkOS user exists for the email (create only if absent).
+    let workosUserId = legacy.workos_user_id || null;
+    if (!workosUserId) {
+      try {
+        const { user } = await authService.getWorkosUserByEmail(normalized);
+        workosUserId = user?.id || null;
+      } catch (_err) {
+        workosUserId = null;
+      }
+      if (!workosUserId) {
+        try {
+          const created = await authService.createWorkosUserForClaim(normalized);
+          workosUserId = created?.id || null;
+        } catch (_err) {
+          workosUserId = null;
+        }
+      }
+    }
+
+    // 3. Send WorkOS password-setup email (idempotent; safe to resend).
+    try {
+      await authService.sendPasswordResetEmail(normalized);
+    } catch (err) {
+      console.warn('[claim-account] password reset email failed:', err?.message || err);
+    }
+
+    // 4. Record INVITED state (idempotent via unique email).
+    await supabase
+      .from('legacy_identity_migrations')
+      .upsert(
+        {
+          email: normalized,
+          legacy_user_id: legacy.legacy_user_id || null,
+          workos_user_id: workosUserId || undefined,
+          status: 'INVITED',
+          idempotency_key: idempotencyKey,
+          claimed_at: new Date().toISOString(),
+        },
+        { onConflict: 'email' }
+      );
+
+    // 5. Audit (reference only, never email-dependent disclosure).
+    try {
+      await supabase.from('audit_logs').insert({
+        school_id: null,
+        actor_id: null,
+        action: 'LEGACY_ACCOUNT_CLAIMED',
+        entity: 'legacy_identity_migrations',
+        entity_id: legacy.id,
+        metadata: JSON.stringify({ status: 'INVITED', idempotency_key: idempotencyKey }),
+      });
+    } catch (_err) {
+      // Audit failure must not break the flow.
+    }
+
+    return res.json({ success: true, message: GENERIC });
+  } catch (error) {
+    console.error('[claim-account] error:', error?.message || error);
+    // Always return generic — never reveal failure reasons to the caller.
+    return res.json({ success: true, message: GENERIC });
+  }
+});
+
 export default router;

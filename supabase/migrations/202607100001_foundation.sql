@@ -27,7 +27,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 
 -- User roles
 CREATE TYPE profile_role AS ENUM (
-    'PROPRIETOR',
+    'OWNER',
     'ADMIN',
     'BURSAR'
 );

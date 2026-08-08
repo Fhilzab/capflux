@@ -72,10 +72,10 @@ SELECT
 FROM students s
 GROUP BY s.school_id,
     CASE
-        WHEN s.class_name ILIKE '%nursery%' OR s.class_name ILIKE '%playgroup%' THEN 'NURSERY'
-        WHEN s.class_name ILIKE '%primary%' OR s.class_name ILIKE '%basic%' THEN 'PRIMARY'
-        WHEN s.class_name ILIKE '%secondary%' OR s.class_name ILIKE '%high school%' THEN 'SECONDARY'
-        ELSE 'PRIMARY'
+        WHEN s.class_name ILIKE '%nursery%' OR s.class_name ILIKE '%playgroup%' THEN 'NURSERY'::student_category
+        WHEN s.class_name ILIKE '%primary%' OR s.class_name ILIKE '%basic%' THEN 'PRIMARY'::student_category
+        WHEN s.class_name ILIKE '%secondary%' OR s.class_name ILIKE '%high school%' THEN 'SECONDARY'::student_category
+        ELSE 'PRIMARY'::student_category
     END
 ON CONFLICT (school_id, academic_session, academic_term, category) DO NOTHING;
 

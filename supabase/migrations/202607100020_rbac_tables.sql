@@ -23,8 +23,8 @@ COMMENT ON TABLE public.roles IS 'Platform and organization roles';
 COMMENT ON COLUMN public.roles.system_role IS 'One of: SUPER_ADMIN, OWNER, ADMIN, BURSAR, PARENT';
 COMMENT ON COLUMN public.roles.is_system_role IS 'True for platform-defined roles that cannot be modified';
 
-CREATE INDEX idx_roles_organization ON public.roles(organization_id);
-CREATE INDEX idx_roles_system ON public.roles(system_role) WHERE is_system_role = true;
+CREATE INDEX IF NOT EXISTS idx_roles_organization ON public.roles(organization_id);
+CREATE INDEX IF NOT EXISTS idx_roles_system ON public.roles(system_role) WHERE is_system_role = true;
 
 -- ========================================
 -- PERMISSIONS
@@ -43,8 +43,8 @@ COMMENT ON COLUMN public.permissions.code IS 'Unique permission identifier in fo
 COMMENT ON COLUMN public.permissions.resource IS 'The resource being protected (billing, students, payments, etc.)';
 COMMENT ON COLUMN public.permissions.action IS 'The action allowed (create, view, edit, delete, etc.)';
 
-CREATE INDEX idx_permissions_resource ON public.permissions(resource);
-CREATE INDEX idx_permissions_code ON public.permissions(code);
+CREATE INDEX IF NOT EXISTS idx_permissions_resource ON public.permissions(resource);
+CREATE INDEX IF NOT EXISTS idx_permissions_code ON public.permissions(code);
 
 -- ========================================
 -- ROLE_PERMISSIONS
@@ -59,8 +59,8 @@ CREATE TABLE IF NOT EXISTS public.role_permissions (
 
 COMMENT ON TABLE public.role_permissions IS 'Many-to-many relationship between roles and permissions';
 
-CREATE INDEX idx_role_permissions_role ON public.role_permissions(role_id);
-CREATE INDEX idx_role_permissions_permission ON public.role_permissions(permission_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON public.role_permissions(role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_permission ON public.role_permissions(permission_id);
 
 -- ========================================
 -- SCHOOL_MEMBERS
@@ -82,10 +82,10 @@ CREATE TABLE IF NOT EXISTS public.school_members (
 COMMENT ON TABLE public.school_members IS 'User memberships within schools with assigned roles';
 COMMENT ON COLUMN public.school_members.is_active IS 'Soft delete flag; false when user leaves or is removed';
 
-CREATE INDEX idx_school_members_school ON public.school_members(school_id);
-CREATE INDEX idx_school_members_user ON public.school_members(user_id);
-CREATE INDEX idx_school_members_role ON public.school_members(role_id);
-CREATE INDEX idx_school_members_active ON public.school_members(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_school_members_school ON public.school_members(school_id);
+CREATE INDEX IF NOT EXISTS idx_school_members_user ON public.school_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_school_members_role ON public.school_members(role_id);
+CREATE INDEX IF NOT EXISTS idx_school_members_active ON public.school_members(is_active) WHERE is_active = true;
 
 -- ========================================
 -- ROW LEVEL SECURITY (RLS)
@@ -98,26 +98,26 @@ ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.school_members ENABLE ROW LEVEL SECURITY;
 
 -- PERMISSIONS: Readable by all authenticated users.
--- NOTE: auth.uid() is only present when a Supabase Auth JWT is used. Under
+-- NOTE: auth.uid()::text is only present when a Supabase Auth JWT is used. Under
 -- WorkOS, the backend service-role client bypasses RLS entirely; these
 -- policies are belt-and-suspenders for any direct anon/authenticated access.
 CREATE POLICY "Authenticated users can view permissions" ON public.permissions
-    FOR SELECT USING (auth.uid() IS NOT NULL);
+    FOR SELECT USING (auth.uid()::text IS NOT NULL);
 
 -- SCHOOL_MEMBERS: Users can view their own memberships
 CREATE POLICY "Users can view their own school memberships" ON public.school_members
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
-        user_id = auth.uid()
+        auth.uid()::text IS NOT NULL AND
+        user_id = auth.uid()::text
     );
 
 CREATE POLICY "School admins can view school members" ON public.school_members
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         EXISTS (
             SELECT 1 FROM public.school_members sm2
             JOIN public.roles r2 ON sm2.role_id = r2.id
-            WHERE sm2.user_id = auth.uid()
+            WHERE sm2.user_id = auth.uid()::text
             AND sm2.school_id = school_members.school_id
             AND sm2.is_active = true
             AND r2.system_role IN ('OWNER', 'ADMIN', 'BURSAR')
@@ -126,11 +126,11 @@ CREATE POLICY "School admins can view school members" ON public.school_members
 
 CREATE POLICY "SUPER_ADMIN can view all members" ON public.school_members
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         EXISTS (
             SELECT 1 FROM public.school_members sm3
             JOIN public.roles r3 ON sm3.role_id = r3.id
-            WHERE sm3.user_id = auth.uid()
+            WHERE sm3.user_id = auth.uid()::text
             AND sm3.is_active = true
             AND r3.system_role = 'SUPER_ADMIN'
         )
@@ -138,12 +138,12 @@ CREATE POLICY "SUPER_ADMIN can view all members" ON public.school_members
 
 CREATE POLICY "Authorized users can manage memberships" ON public.school_members
     FOR ALL USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         (
             EXISTS (
                 SELECT 1 FROM public.school_members sm4
                 JOIN public.roles r4 ON sm4.role_id = r4.id
-                WHERE sm4.user_id = auth.uid()
+                WHERE sm4.user_id = auth.uid()::text
                 AND sm4.school_id = school_members.school_id
                 AND sm4.is_active = true
                 AND r4.system_role IN ('OWNER', 'ADMIN')
@@ -152,7 +152,7 @@ CREATE POLICY "Authorized users can manage memberships" ON public.school_members
             EXISTS (
                 SELECT 1 FROM public.school_members sm5
                 JOIN public.roles r5 ON sm5.role_id = r5.id
-                WHERE sm5.user_id = auth.uid()
+                WHERE sm5.user_id = auth.uid()::text
                 AND sm5.is_active = true
                 AND r5.system_role = 'SUPER_ADMIN'
             )
@@ -309,7 +309,7 @@ END $$;
 -- ========================================
 
 -- Function to check if a user is SUPER_ADMIN
--- NOTE: takes an explicit user id (WorkOS user id). auth.uid() is empty
+-- NOTE: takes an explicit user id (WorkOS user id). auth.uid()::text is empty
 -- under WorkOS and must not be used for identity.
 CREATE OR REPLACE FUNCTION public.is_super_admin(p_user_id UUID)
 RETURNS BOOLEAN AS $$
@@ -357,6 +357,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS roles_updated_at ON public.roles;
 CREATE TRIGGER roles_updated_at
     BEFORE UPDATE ON public.roles
     FOR EACH ROW
@@ -365,6 +366,22 @@ CREATE TRIGGER roles_updated_at
 -- ========================================
 -- ENABLE REAL-TIME
 -- ========================================
+-- Use DO blocks: ALTER PUBLICATION DROP TABLE IF EXISTS is not supported in PG17.
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime DROP TABLE public.roles;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime DROP TABLE public.role_permissions;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime DROP TABLE public.school_members;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.roles;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.role_permissions;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.school_members;

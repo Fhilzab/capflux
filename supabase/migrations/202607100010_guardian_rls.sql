@@ -11,7 +11,7 @@ BEGIN;
 -- ==========================================================
 
 CREATE POLICY allow_authenticated_guardians ON guardians
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = guardians.school_id)
     WITH CHECK (current_school_id() = guardians.school_id);
 

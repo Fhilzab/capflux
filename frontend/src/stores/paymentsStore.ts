@@ -136,7 +136,7 @@ export const usePaymentsStore = defineStore('payments', {
       this.loading = true;
       this.error = null;
       try {
-        const data = await request<{ success: boolean; data: any[] }>('get', '/settlements');
+        const data = await request<{ success: boolean; data: any[] }>('get', '/operations/settlements');
         this.settlements = data.data || [];
       } catch (err) {
         this.error = (err as Error).message || 'Failed to load settlements';
@@ -149,7 +149,7 @@ export const usePaymentsStore = defineStore('payments', {
       this.loading = true;
       this.error = null;
       try {
-        const data = await request<{ success: boolean; data: typeof this.settlementSummary }>('get', '/settlements/summary');
+        const data = await request<{ success: boolean; data: typeof this.settlementSummary }>('get', '/operations/settlements/summary');
         this.settlementSummary = data.data;
       } catch (err) {
         this.error = (err as Error).message || 'Failed to load settlement summary';
@@ -162,7 +162,7 @@ export const usePaymentsStore = defineStore('payments', {
       this.loading = true;
       this.error = null;
       try {
-        const data = await request<{ success: boolean; data: typeof this.reconciliation }>('get', '/reconciliation');
+        const data = await request<{ success: boolean; data: typeof this.reconciliation }>('get', '/operations/reconciliation');
         this.reconciliation = data.data;
       } catch (err) {
         this.error = (err as Error).message || 'Failed to load reconciliation status';

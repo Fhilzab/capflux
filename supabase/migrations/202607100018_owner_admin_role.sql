@@ -23,8 +23,11 @@ UPDATE profiles SET role = 'OWNER'::profile_role WHERE role::text IN ('PROPRIETO
 UPDATE profiles SET role = 'ADMIN'::profile_role WHERE role::text = 'ADMIN';
 
 -- Drop the legacy role values from the enum so only OWNER/ADMIN remain.
-ALTER TYPE profile_role DROP VALUE IF EXISTS 'PROPRIETOR';
-ALTER TYPE profile_role DROP VALUE IF EXISTS 'BURSAR';
+-- NOTE: Supabase PostgreSQL does not support ALTER TYPE ... DROP VALUE.
+-- Since migration 0001 no longer defines 'PROPRIETOR', and 'BURSAR' is unused
+-- by any seed data or application code, the DROP is safely skipped.
+-- Legacy values that are unused cause no operational issues when present.
+
 
 -- ==========================================================
 -- ADD ADMIN STATUS TO PROFILES
@@ -41,7 +44,11 @@ END $$;
 
 -- Add the column as text first, then cast to the enum (idempotent).
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS admin_status TEXT NOT NULL DEFAULT 'ACTIVE';
+-- Drop default before type change (TEXT 'ACTIVE' can't auto-cast to enum),
+-- then restore it as the enum type.
+ALTER TABLE profiles ALTER COLUMN admin_status DROP DEFAULT;
 ALTER TABLE profiles ALTER COLUMN admin_status TYPE admin_status USING admin_status::admin_status;
+ALTER TABLE profiles ALTER COLUMN admin_status SET DEFAULT 'ACTIVE'::admin_status;
 
 -- ==========================================================
 -- ADD OWNER REFERENCE TO SCHOOLS
@@ -103,7 +110,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ADMIN MANAGEMENT FUNCTIONS
 -- NOTE: These operate on profiles for legacy compatibility. New
 -- authorization uses organization_members/school_members. Actor_id is
--- passed explicitly (never derived from auth.uid(), which is empty under
+-- passed explicitly (never derived from auth.uid()::text, which is empty under
 -- WorkOS).
 -- ==========================================================
 
@@ -203,7 +210,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- RLS POLICY UPDATES
 -- ==========================================================
 
--- Drop legacy auth.uid()-based policies (auth.uid() is NULL under WorkOS).
+-- Drop legacy auth.uid()::text-based policies (auth.uid()::text is NULL under WorkOS).
 DROP POLICY IF EXISTS "Profiles are viewable by authenticated users in same school" ON profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
@@ -213,48 +220,69 @@ DROP POLICY IF EXISTS "Owner can manage admins" ON profiles;
 DROP POLICY IF EXISTS "Owner can insert admins" ON profiles;
 
 -- Re-create with membership-based checks (WorkOS user id → school_members).
--- Members may view profiles within their school.
-CREATE POLICY "School members can view profiles"
-    ON profiles FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.school_members sm
-            WHERE sm.user_id = auth.uid()
-              AND sm.school_id = profiles.school_id
-              AND sm.is_active = true
-        )
-    );
+-- school_members/roles are created in migration 020; these policies depend on them.
+-- Wrap in conditional DO blocks so the migration is self-healing if tables are missing.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'school_members') THEN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'roles') THEN
+            DROP POLICY IF EXISTS "School members can view profiles" ON profiles;
+            EXECUTE $p$
+                CREATE POLICY "School members can view profiles"
+                    ON profiles FOR SELECT
+                    USING (
+                        EXISTS (
+                            SELECT 1 FROM public.school_members sm
+                            WHERE sm.user_id = auth.uid()::text
+                              AND sm.school_id = profiles.school_id
+                              AND sm.is_active = true
+                        )
+                    )
+            $p$;
+        END IF;
+    END IF;
+END
+$$;
 
--- A user may always view their own profile.
+-- A user may always view their own profile (no external table references).
 CREATE POLICY "Users can view own profile"
     ON profiles FOR SELECT
-    USING (auth.uid() = profiles.user_id);
+    USING (auth.uid()::text = profiles.user_id);
 
--- Members with a school-manage role may manage profiles in their school.
-CREATE POLICY "School admins can manage profiles"
-    ON profiles FOR UPDATE
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.school_members sm
-            JOIN public.roles r ON r.id = sm.role_id
-            WHERE sm.user_id = auth.uid()
-              AND sm.school_id = profiles.school_id
-              AND sm.is_active = true
-              AND r.system_role IN ('OWNER', 'ADMIN')
-        )
-    )
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.school_members sm
-            JOIN public.roles r ON r.id = sm.role_id
-            WHERE sm.user_id = auth.uid()
-              AND sm.school_id = profiles.school_id
-              AND sm.is_active = true
-              AND r.system_role IN ('OWNER', 'ADMIN')
-        )
-    );
+-- Members with a school-manage role: deferred to 020 via conditional DO.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'school_members') THEN
+        DROP POLICY IF EXISTS "School admins can manage profiles" ON profiles;
+        EXECUTE $p$
+            CREATE POLICY "School admins can manage profiles"
+                ON profiles FOR UPDATE
+                USING (
+                    EXISTS (
+                        SELECT 1 FROM public.school_members sm
+                        JOIN public.roles r ON r.id = sm.role_id
+                        WHERE sm.user_id = auth.uid()::text
+                          AND sm.school_id = profiles.school_id
+                          AND sm.is_active = true
+                          AND r.system_role IN ('OWNER', 'ADMIN')
+                    )
+                )
+                WITH CHECK (
+                    EXISTS (
+                        SELECT 1 FROM public.school_members sm
+                        JOIN public.roles r ON r.id = sm.role_id
+                        WHERE sm.user_id = auth.uid()::text
+                          AND sm.school_id = profiles.school_id
+                          AND sm.is_active = true
+                          AND r.system_role IN ('OWNER', 'ADMIN')
+                    )
+                )
+        $p$;
+    END IF;
+END
+$$;
 
--- ==========================================================
+-- =========================================================
 -- AUDIT LOGGING TRIGGERS
 -- ==========================================================
 
@@ -264,9 +292,9 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_actor_id UUID;
 BEGIN
-    -- Under WorkOS, auth.uid() is not populated; fall back to the NEW.user_id
+    -- Under WorkOS, auth.uid()::text is not populated; fall back to the NEW.user_id
     -- when the row carries one, else the system UUID.
-    v_actor_id := auth.uid();
+    v_actor_id := auth.uid()::text;
     IF v_actor_id IS NULL THEN
         v_actor_id := NEW.user_id;
     END IF;

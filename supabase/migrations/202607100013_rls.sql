@@ -20,7 +20,7 @@ ALTER TABLE payment_accounts ENABLE ROW LEVEL SECURITY;
 -- ==========================================================
 
 CREATE POLICY allow_authenticated_tuition_config ON tuition_configuration
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = tuition_configuration.school_id)
     WITH CHECK (current_school_id() = tuition_configuration.school_id);
 
@@ -30,7 +30,7 @@ CREATE POLICY allow_authenticated_tuition_config ON tuition_configuration
 -- ==========================================================
 
 CREATE POLICY allow_authenticated_fee_rules ON fee_rules
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = fee_rules.school_id)
     WITH CHECK (current_school_id() = fee_rules.school_id);
 
@@ -40,7 +40,7 @@ CREATE POLICY allow_authenticated_fee_rules ON fee_rules
 -- ==========================================================
 
 CREATE POLICY allow_authenticated_payment_accounts ON payment_accounts
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = payment_accounts.school_id)
     WITH CHECK (current_school_id() = payment_accounts.school_id);
 

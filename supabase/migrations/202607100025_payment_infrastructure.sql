@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_payment_accounts_status
 -- ==========================================================
 
 DO $$ BEGIN
-    CREATE TYPE payment_status AS ENUM (
+    CREATE TYPE payment_txn_status AS ENUM (
         'PENDING',
         'PROCESSING',
         'SUCCESS',
@@ -70,7 +70,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 ALTER TABLE payment_transactions
-    ADD COLUMN IF NOT EXISTS status payment_status NOT NULL DEFAULT 'PENDING',
+    ADD COLUMN IF NOT EXISTS status payment_txn_status NOT NULL DEFAULT 'PENDING',
     ADD COLUMN IF NOT EXISTS amount_minor BIGINT NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'NGN',
     ADD COLUMN IF NOT EXISTS provider_event_id TEXT,
@@ -255,6 +255,6 @@ CREATE INDEX IF NOT EXISTS idx_settlement_records_status
 -- ==========================================================
 
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_student
-    ON payment_transactions (student_id, created_at DESC);
+    ON payment_transactions (student_id, verified_at DESC);
 
 COMMIT;

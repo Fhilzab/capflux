@@ -1,42 +1,33 @@
+/**
+ * LEGACY Supabase client — NEUTRALIZED (Milestone 6.3).
+ *
+ * Supabase Auth and the direct Supabase data plane are no longer used.
+ * Authentication is WorkOS AuthKit via the backend (/api/*). Domain data flows
+ * through the backend service-role client.
+ *
+ * This module exists only so residual offline/sync code that still imports it
+ * fails SAFE (returns "not configured" errors) instead of reaching a Supabase
+ * project or fabricating sessions. It never authenticates and never connects.
+ *
+ * New code must NOT import this. Use @/shared/services/api/client instead.
+ */
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+// Always treated as unconfigured: Supabase Auth is not the identity provider.
+export const hasSupabaseConfig = false;
 
-const createFallbackClient = () => ({
+const errorResponse = async () => ({ data: null, error: new Error('Supabase is not configured. Use the CAPFLUX backend API.') });
+
+const createFailSafeClient = () => ({
   auth: {
     async signInWithPassword() {
-      return {
-        data: {
-          session: {
-            access_token: 'local-dev-token',
-            refresh_token: 'local-dev-refresh',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-            user: {
-              id: 'local-user',
-              email: 'demo@capflux.local',
-            },
-          },
-          user: {
-            id: 'local-user',
-            email: 'demo@capflux.local',
-          },
-        },
-        error: null,
-      };
+      return { data: { session: null, user: null }, error: new Error('Supabase Auth is disabled. Use WorkOS via /api/auth.') };
     },
     async signUp() {
-      return {
-        data: {
-          user: {
-            id: 'local-user',
-            email: 'demo@capflux.local',
-          },
-        },
-        error: null,
-      };
+      return { data: { user: null }, error: new Error('Supabase Auth is disabled. Use WorkOS via /api/auth.') };
     },
     async signOut() {
       return { data: null, error: null };
@@ -45,31 +36,16 @@ const createFallbackClient = () => ({
       return { data: { session: null }, error: null };
     },
     async refreshSession() {
-      return {
-        data: {
-          session: {
-            access_token: 'local-dev-token-refreshed',
-            refresh_token: 'local-dev-refresh',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-            user: {
-              id: 'local-user',
-              email: 'demo@capflux.local',
-            },
-          },
-        },
-        error: null,
-      };
+      return { data: { session: null }, error: null };
     },
     async getUser() {
       return { data: { user: null }, error: null };
     },
-    onAuthStateChange(callback) {
-      callback('SIGNED_OUT', null);
+    onAuthStateChange() {
       return { unsubscribe() {} };
     },
   },
   from() {
-    const errorResponse = async () => ({ data: null, error: new Error('Supabase is not configured in local dev') });
     const builder = {
       eq: () => builder,
       insert: errorResponse,
@@ -85,11 +61,11 @@ const createFallbackClient = () => ({
   },
   functions: {
     async invoke() {
-      return { data: null, error: new Error('Supabase is not configured in local dev') };
+      return { data: null, error: new Error('Supabase is not configured. Use the CAPFLUX backend API.') };
     },
   },
-  rpc: async () => ({ data: null, error: new Error('Supabase is not configured in local dev') }),
-  channel(_name: string) {
+  rpc: async () => ({ data: null, error: new Error('Supabase is not configured. Use the CAPFLUX backend API.') }),
+  channel() {
     return {
       on: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }),
       subscribe: () => ({ unsubscribe: () => {} }),
@@ -98,11 +74,5 @@ const createFallbackClient = () => ({
   },
 });
 
-export const supabase = hasSupabaseConfig
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
-    })
-  : createFallbackClient();
+// Never construct a real client: the canonical data plane is the backend API.
+export const supabase = createFailSafeClient();

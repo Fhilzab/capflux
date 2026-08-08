@@ -14,10 +14,20 @@ import contextRoutes from './routes/context.js';
 import financialAdminRoutes from './routes/financial-admin.js';
 import requireAuth from './middleware/requireAuth.js';
 import sessionService from './services/SessionService.js';
+import ProviderStatusService from './services/ProviderStatusService.js';
+import providerStatusRoutes from './routes/provider-status.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const isProduction = process.env.NODE_ENV === 'production';
+
+// Validate PAYMENTS_PROVIDER_MODE at startup.
+try {
+  ProviderStatusService.validateStartupMode();
+} catch (err) {
+  console.error('[startup] Provider mode validation failed:', err.message);
+  process.exit(1);
+}
 
 // ==========================================================
 // SECURITY MIDDLEWARE
@@ -108,8 +118,9 @@ app.use('/api/dva', dvaRoutes);
 app.use('/api/payment-accounts', paymentAccountRoutes);
 // Payment transaction routes
 app.use('/api/payments', paymentsRoutes);
-// Reconciliation + settlement routes
-app.use('/api', financialOperationsRoutes);
+// Reconciliation + settlement routes (scoped under /api/operations so their
+// router-level requireAuth never intercepts other /api/* paths such as /api/auth)
+app.use('/api/operations', financialOperationsRoutes);
 // Auth routes
 app.use('/api/auth', authRoutes);
 // Admin management routes (Owner/Admin authorization)
@@ -122,6 +133,8 @@ app.use('/api/kyc', kycRoutes);
 app.use('/api/context', contextRoutes);
 // Financial activation staff operations (KYC review, settlement, gateway, activation)
 app.use('/api/admin', financialAdminRoutes);
+// Provider status — safe configuration/capability info, no secrets.
+app.use('/api/providers', providerStatusRoutes);
 
 // Health check endpoint with detailed status
 app.get('/health', async (req, res) => {

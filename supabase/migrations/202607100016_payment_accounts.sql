@@ -51,37 +51,45 @@ CREATE INDEX IF NOT EXISTS idx_payment_accounts_primary ON payment_accounts (sch
 -- Preserve existing DVA assignments during schema transition
 -- ==========================================================
 
-INSERT INTO payment_accounts (
-    id,
-    school_id,
-    student_id,
-    provider,
-    provider_account_id,
-    provider_reference,
-    virtual_account_number,
-    account_name,
-    bank_name,
-    account_status,
-    is_primary,
-    created_at,
-    updated_at
-)
-SELECT
-    id,
-    school_id,
-    student_id,
-    provider,
-    dva_account_number AS provider_account_id,
-    dva_account_number AS provider_reference,
-    dva_account_number AS virtual_account_number,
-    dva_account_name AS account_name,
-    dva_bank_name AS bank_name,
-    CASE WHEN is_active THEN 'ACTIVE' ELSE 'INACTIVE' END AS account_status,
-    is_active AS is_primary,
-    created_at,
-    updated_at
-FROM dva_assignments
-ON CONFLICT (id) DO NOTHING;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'dva_assignments'
+    ) THEN
+        INSERT INTO payment_accounts (
+            id,
+            school_id,
+            student_id,
+            provider,
+            provider_account_id,
+            provider_reference,
+            virtual_account_number,
+            account_name,
+            bank_name,
+            account_status,
+            is_primary,
+            created_at,
+            updated_at
+        )
+        SELECT
+            id,
+            school_id,
+            student_id,
+            provider,
+            dva_account_number AS provider_account_id,
+            dva_account_number AS provider_reference,
+            dva_account_number AS virtual_account_number,
+            dva_account_name AS account_name,
+            dva_bank_name AS bank_name,
+            CASE WHEN is_active THEN 'ACTIVE' ELSE 'INACTIVE' END AS account_status,
+            is_active AS is_primary,
+            created_at,
+            updated_at
+        FROM dva_assignments
+        ON CONFLICT (id) DO NOTHING;
+    END IF;
+END $$;
 
 -- ==========================================================
 -- REMOVE DVA COLUMNS FROM STUDENTS TABLE
@@ -98,7 +106,12 @@ ALTER TABLE students
 -- Kept for backward compatibility during transition period
 -- ==========================================================
 
-COMMENT ON TABLE dva_assignments IS 'DEPRECATED: Use payment_accounts table instead. This table will be removed in a future migration.';
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dva_assignments') THEN
+        COMMENT ON TABLE dva_assignments IS 'DEPRECATED: Use payment_accounts table instead. This table will be removed in a future migration.';
+    END IF;
+END $$;
 
 -- ==========================================================
 -- ENABLE RLS ON PAYMENT ACCOUNTS TABLE
@@ -111,7 +124,7 @@ ALTER TABLE payment_accounts ENABLE ROW LEVEL SECURITY;
 -- drop it first so a fresh reset does not fail on a duplicate policy name.)
 DROP POLICY IF EXISTS allow_authenticated_payment_accounts ON payment_accounts;
 CREATE POLICY allow_authenticated_payment_accounts ON payment_accounts
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = payment_accounts.school_id)
     WITH CHECK (current_school_id() = payment_accounts.school_id);
 

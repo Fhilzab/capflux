@@ -39,10 +39,10 @@ const ipAllowlist = (req, res, next) => {
 router.post('/:provider', ipAllowlist, async (req, res) => {
   const { provider } = req.params;
   const rawPayload = JSON.stringify(req.body);
-  const signature = req.headers['x-monnify-signature'] || req.headers['monnify-signature'];
+  const signature = req.headers['x-monnify-signature'] || req.headers['monnify-signature'] || req.headers['x-paystack-signature'];
 
   // Validate provider
-  if (!['monnify', 'flutterwave', 'remita'].includes(provider)) {
+  if (!['monnify', 'paystack'].includes(provider)) {
     return res.status(400).json({ error: `Unknown provider: ${provider}` });
   }
 
@@ -57,7 +57,7 @@ router.post('/:provider', ipAllowlist, async (req, res) => {
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
 
-    const gateway = provider === 'monnify' ? webhookVerifier.providers.monnify : null;
+    const gateway = webhookVerifier.getGateway(provider);
     if (!gateway) {
       return res.status(400).json({ error: `Provider ${provider} not implemented` });
     }

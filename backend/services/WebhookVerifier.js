@@ -6,14 +6,18 @@
  */
 
 import { supabase } from '../supabaseClient.js';
-import { MonnifyGateway } from './gateways/MonnifyGateway.js';
+import { GatewayFactory } from './gateways/GatewayFactory.js';
 import crypto from 'crypto';
 
 export class WebhookVerifier {
-  constructor() {
-    this.providers = {
-      monnify: new MonnifyGateway(),
-    };
+  /**
+   * Resolve the gateway adapter for a provider.
+   * Uses GatewayFactory (provider-agnostic); no hardcoded provider instances.
+   * @param {string} provider
+   * @returns {Object|null} gateway adapter instance
+   */
+  getGateway(provider) {
+    return GatewayFactory.get(provider);
   }
 
   /**
@@ -50,7 +54,7 @@ export class WebhookVerifier {
    * credentials come from the server environment, never the database.
    */
   async verifyWithAPI(reference, provider, school_id) {
-    const gateway = this.providers[provider];
+    const gateway = this.getGateway(provider);
     if (!gateway) {
       throw new Error(`Unknown payment provider: ${provider}`);
     }
@@ -156,7 +160,7 @@ export class WebhookVerifier {
   async verifyWebhook(params) {
     const { payload, provider, school_id } = params;
     
-    const gateway = this.providers[provider];
+    const gateway = this.getGateway(provider);
     if (!gateway) {
       throw new Error(`Unknown payment provider: ${provider}`);
     }

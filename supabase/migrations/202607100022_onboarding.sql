@@ -109,10 +109,15 @@ ALTER TABLE schools ADD COLUMN IF NOT EXISTS slug TEXT;
 -- Convert the temporary TEXT status columns to the canonical enum types.
 -- (002 created status/payment_status as TEXT to avoid an enum-before-type
 -- ordering problem; this migration defines the enums above and casts.)
+-- Drop defaults before type conversion (TEXT defaults can't auto-cast to enum).
+ALTER TABLE schools ALTER COLUMN status DROP DEFAULT;
+ALTER TABLE schools ALTER COLUMN payment_status DROP DEFAULT;
+-- Now convert to enum types.
 ALTER TABLE schools ALTER COLUMN status TYPE school_status USING status::school_status;
 ALTER TABLE schools ALTER COLUMN payment_status TYPE payment_status USING payment_status::payment_status;
-ALTER TABLE schools ALTER COLUMN status SET DEFAULT 'PENDING_SETUP';
-ALTER TABLE schools ALTER COLUMN payment_status SET DEFAULT 'NOT_READY';
+-- Restore defaults with proper enum casting.
+ALTER TABLE schools ALTER COLUMN status SET DEFAULT 'PENDING_SETUP'::school_status;
+ALTER TABLE schools ALTER COLUMN payment_status SET DEFAULT 'NOT_READY'::payment_status;
 
 -- Deferred FKs (referenced tables are created earlier in this migration)
 ALTER TABLE schools DROP CONSTRAINT IF EXISTS schools_organization_id_fkey;
@@ -496,12 +501,12 @@ ALTER TABLE public.onboarding_progress ENABLE ROW LEVEL SECURITY;
 -- Organizations: users can view organizations they own or belong to
 CREATE POLICY "Users can view own organizations" ON public.organizations
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         (
-            owner_user_id = auth.uid()
+            owner_user_id = auth.uid()::text
             OR id IN (
                 SELECT organization_id FROM public.organization_members
-                WHERE user_id = auth.uid() AND is_active = true
+                WHERE user_id = auth.uid()::text AND is_active = true
             )
         )
     );
@@ -509,12 +514,12 @@ CREATE POLICY "Users can view own organizations" ON public.organizations
 -- Organization members can view their own memberships
 CREATE POLICY "Users can view own org memberships" ON public.organization_members
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         (
-            user_id = auth.uid()
+            user_id = auth.uid()::text
             OR organization_id IN (
                 SELECT organization_id FROM public.organization_members om2
-                WHERE om2.user_id = auth.uid() AND om2.is_active = true
+                WHERE om2.user_id = auth.uid()::text AND om2.is_active = true
             )
         )
     );
@@ -522,20 +527,20 @@ CREATE POLICY "Users can view own org memberships" ON public.organization_member
 -- Onboarding progress: accessible to school members
 CREATE POLICY "School members can view onboarding progress" ON public.onboarding_progress
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         school_id IN (
             SELECT school_id FROM public.school_members
-            WHERE user_id = auth.uid() AND is_active = true
+            WHERE user_id = auth.uid()::text AND is_active = true
         )
     );
 
 -- KYC records: school members can view their school's KYC — but NEVER see encrypted BVN/NIN
 CREATE POLICY "School members can view masked KYC" ON public.kyc_records
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         school_id IN (
             SELECT school_id FROM public.school_members
-            WHERE user_id = auth.uid() AND is_active = true
+            WHERE user_id = auth.uid()::text AND is_active = true
         )
     );
 
@@ -548,24 +553,24 @@ CREATE POLICY "School members can view masked KYC" ON public.kyc_records
 -- ROLES: Readable by authenticated users; writable by SUPER_ADMIN.
 CREATE POLICY "Users can view roles in their organization" ON public.roles
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         (
             organization_id IS NULL -- system roles
             OR
             organization_id IN (
                 SELECT organization_id FROM public.organization_members
-                WHERE user_id = auth.uid() AND is_active = true
+                WHERE user_id = auth.uid()::text AND is_active = true
             )
         )
     );
 
 CREATE POLICY "SUPER_ADMIN can manage roles" ON public.roles
     FOR ALL USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         EXISTS (
             SELECT 1 FROM public.school_members sm
             JOIN public.roles r ON sm.role_id = r.id
-            WHERE sm.user_id = auth.uid()
+            WHERE sm.user_id = auth.uid()::text
             AND sm.is_active = true
             AND r.system_role = 'SUPER_ADMIN'
         )
@@ -574,24 +579,24 @@ CREATE POLICY "SUPER_ADMIN can manage roles" ON public.roles
 -- ROLE_PERMISSIONS: Follow role policies.
 CREATE POLICY "Users can view role permissions in their org" ON public.role_permissions
     FOR SELECT USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         role_id IN (
             SELECT id FROM public.roles
             WHERE organization_id IS NULL
             OR organization_id IN (
                 SELECT organization_id FROM public.organization_members
-                WHERE user_id = auth.uid() AND is_active = true
+                WHERE user_id = auth.uid()::text AND is_active = true
             )
         )
     );
 
 CREATE POLICY "SUPER_ADMIN can manage role permissions" ON public.role_permissions
     FOR ALL USING (
-        auth.uid() IS NOT NULL AND
+        auth.uid()::text IS NOT NULL AND
         EXISTS (
             SELECT 1 FROM public.school_members sm
             JOIN public.roles r ON sm.role_id = r.id
-            WHERE sm.user_id = auth.uid()
+            WHERE sm.user_id = auth.uid()::text
             AND sm.is_active = true
             AND r.system_role = 'SUPER_ADMIN'
         )

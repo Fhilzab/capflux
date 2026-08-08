@@ -349,4 +349,62 @@ export class MonnifyGateway {
 
     return settlements;
   }
+
+  /**
+   * Normalize Monnify transaction status to canonical form.
+   */
+  normalizeTransactionStatus(status) {
+    const map = {
+      PENDING: 'PENDING', SUCCESS: 'SUCCESS', FAILED: 'FAILED',
+      REVERSED: 'REVERSED', EXPIRED: 'FAILED',
+    };
+    return map[status] || 'UNKNOWN';
+  }
+
+  /**
+   * Normalize Monnify settlement status to canonical form.
+   */
+  normalizeSettlementStatus(status) {
+    const map = {
+      PENDING: 'PENDING', SETTLED: 'SUCCESS', SUCCESS: 'SUCCESS',
+      FAILED: 'FAILED', REJECTED: 'FAILED',
+    };
+    return map[status] || 'UNKNOWN';
+  }
+
+  /**
+   * Verify webhook signature (HMAC SHA-512).
+   * @param {string} signature — from x-monnify-signature header
+   * @param {string} rawPayload — raw body string
+   * @returns {boolean}
+   */
+  verifyWebhookSignature(signature, rawPayload) {
+    const secret = process.env.MONNIFY_WEBHOOK_SECRET;
+    if (!secret) {
+      if (process.env.NODE_ENV === 'production') return false;
+      console.warn('[monnify] No webhook secret configured — signature verification disabled in dev');
+      return process.env.NODE_ENV !== 'production';
+    }
+    try {
+      const expected = crypto.createHmac('sha512', secret).update(rawPayload).digest('hex');
+      return signature === expected;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * List settlements in a date range.
+   */
+  async listSettlements({ start_date, end_date, gateway_config }) {
+    const accessToken = await this.getAccessToken(gateway_config);
+    const response = await axios.get(`${MONNIFY_BASE_URL}/v1/merchant/api/v2/transactions`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { startDate: start_date, endDate: end_date },
+    });
+    if (response.data?.requestSuccessful) {
+      return (response.data.responseBody || []).filter((t) => t.status === 'SUCCESS');
+    }
+    return [];
+  }
 }

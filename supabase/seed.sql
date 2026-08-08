@@ -1,0 +1,5 @@
+-- CAPFLUX seed data.
+-- Kept intentionally minimal. Demo/seed data for the canonical environment is
+-- applied via migrations (e.g. 202607100007_seed_data.sql) rather than here, so
+-- `supabase db reset` stays deterministic. This file exists because
+-- supabase/config.toml references ./seed.sql.

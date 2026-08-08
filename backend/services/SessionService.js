@@ -34,7 +34,7 @@ class SessionService {
       throw new Error('WORKOS_COOKIE_PASSWORD must be at least 32 characters');
     }
 
-    this.workos = new WorkOS(apiKey);
+    this.workos = new WorkOS(apiKey, { clientId: clientId });
     this.clientId = clientId;
     this.clientSecret = clientSecret || undefined;
     this.cookiePassword = cookiePassword;

@@ -32,32 +32,32 @@ CREATE POLICY allow_authenticated_profiles ON profiles
     USING (current_school_id() = profiles.school_id);
 
 CREATE POLICY allow_authenticated_students ON students
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = students.school_id)
     WITH CHECK (current_school_id() = students.school_id);
 
 CREATE POLICY allow_authenticated_ledger_entries ON ledger_entries
-    FOR SELECT, INSERT
+    FOR ALL
     USING (current_school_id() = ledger_entries.school_id)
     WITH CHECK (current_school_id() = ledger_entries.school_id);
 
 CREATE POLICY allow_authenticated_notifications ON notifications
-    FOR SELECT, INSERT, UPDATE
+    FOR ALL
     USING (current_school_id() = notifications.school_id)
     WITH CHECK (current_school_id() = notifications.school_id);
 
 CREATE POLICY allow_authenticated_audit_logs ON audit_logs
-    FOR SELECT, INSERT
+    FOR ALL
     USING (current_school_id() = audit_logs.school_id)
     WITH CHECK (current_school_id() = audit_logs.school_id);
 
 CREATE POLICY allow_authenticated_sync_queue ON sync_queue
-    FOR SELECT, INSERT, UPDATE, DELETE
+    FOR ALL
     USING (current_school_id() = sync_queue.school_id)
     WITH CHECK (current_school_id() = sync_queue.school_id);
 
 CREATE POLICY allow_authenticated_app_settings ON app_settings
-    FOR SELECT, INSERT, UPDATE, DELETE
+    FOR ALL
     USING (current_school_id() = app_settings.school_id)
     WITH CHECK (current_school_id() = app_settings.school_id);
 

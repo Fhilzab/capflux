@@ -22,19 +22,27 @@ RETURNS UUID LANGUAGE SQL STABLE AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION school_id_for_user(p_user_id UUID)
-RETURNS UUID LANGUAGE SQL STABLE AS $$
-    SELECT school_id
-    FROM public.school_members
-    WHERE user_id = p_user_id AND is_active = true
-    LIMIT 1;
+RETURNS UUID LANGUAGE plpgsql STABLE AS $$
+BEGIN
+    RETURN (
+        SELECT school_id
+        FROM public.school_members
+        WHERE user_id = p_user_id AND is_active = true
+        LIMIT 1
+    );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION organization_id_for_user(p_user_id UUID)
-RETURNS UUID LANGUAGE SQL STABLE AS $$
-    SELECT organization_id
-    FROM public.organization_members
-    WHERE user_id = p_user_id AND is_active = true
-    LIMIT 1;
+RETURNS UUID LANGUAGE plpgsql STABLE AS $$
+BEGIN
+    RETURN (
+        SELECT organization_id
+        FROM public.organization_members
+        WHERE user_id = p_user_id AND is_active = true
+        LIMIT 1
+    );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION tenant_matches_school(target_school_id UUID)
