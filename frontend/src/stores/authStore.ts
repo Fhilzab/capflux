@@ -128,6 +128,22 @@ export const useAuthStore = defineStore('auth', {
       this.adminStatus = 'ACTIVE';
     },
 
+    async initiateAuthKit(mode: 'login' | 'signup') {
+      this.loading = true;
+      this.error = null;
+
+      const { data, error } = await AuthService.initiateAuthKit(mode);
+
+      this.loading = false;
+
+      if (error) {
+        this.error = error.message;
+        return { url: null, error: error.message };
+      }
+
+      return { url: data?.url ?? null, error: null };
+    },
+
     async signIn({ email, password }: { email: string; password: string }) {
       this.loading = true;
       this.error = null;
@@ -189,11 +205,11 @@ export const useAuthStore = defineStore('auth', {
       return true;
     },
 
-    async handleOAuthCallback(code: string) {
+    async handleOAuthCallback(code: string, state?: string) {
       this.loading = true;
       this.error = null;
 
-      const { data, error } = await AuthService.handleOAuthCallback(code);
+      const { data, error } = await AuthService.handleOAuthCallback(code, state);
 
       this.loading = false;
 

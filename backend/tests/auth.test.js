@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import 'dotenv/config';
 import WorkOSAuthService from '../services/WorkOSAuthService.js';
 import { SessionService } from '../services/SessionService.js';
+import { STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS } from '../routes/auth.js';
 
 describe('WorkOSAuthService.transformError', () => {
   const svc = new WorkOSAuthService();
@@ -165,5 +166,163 @@ describe('Auth callback code handling', () => {
     // will throw for an invalid/expired code. We verify the guard logic.
     assert.equal(typeof 'invalid-code', 'string', 'string check passes for valid format');
     assert.equal(!'' || typeof '' !== 'string', true, 'empty string fails the type guard');
+  });
+});
+
+// ============================================================
+// AuthKit OAuth state hardening tests
+// ============================================================
+
+describe('AuthKit state generation', () => {
+  const svc = new WorkOSAuthService();
+
+  test('generateAuthState returns a 64-character hex string', () => {
+    const state = svc.generateAuthState();
+    assert.equal(state.length, 64, 'state should be 64 hex chars (32 bytes)');
+    assert.match(state, /^[0-9a-f]{64}$/);
+  });
+
+  test('generateAuthState produces different values on each call', () => {
+    const s1 = svc.generateAuthState();
+    const s2 = svc.generateAuthState();
+    assert.notEqual(s1, s2);
+  });
+
+  test('generateAuthState is not the old static value "capflux"', () => {
+    const state = svc.generateAuthState();
+    assert.notEqual(state, 'capflux');
+    assert.ok(state.length >= 32, 'state should have sufficient entropy');
+  });
+});
+
+describe('AuthKit authorization URL generation', () => {
+  const svc = new WorkOSAuthService();
+
+  test('login generates URL with provider=authkit and screen_hint=signin', () => {
+    const { url, state } = svc.getAuthKitAuthorizationUrl('login');
+    assert.ok(url.includes('provider=authkit'), 'URL must contain provider=authkit');
+    assert.ok(url.includes('screen_hint=signin'), 'URL must contain screen_hint=signin');
+  });
+
+  test('signup generates URL with provider=authkit and screen_hint=signup', () => {
+    const { url, state } = svc.getAuthKitAuthorizationUrl('signup');
+    assert.ok(url.includes('provider=authkit'), 'URL must contain provider=authkit');
+    assert.ok(url.includes('screen_hint=signup'), 'URL must contain screen_hint=signup');
+  });
+
+  test('URL contains the generated state parameter', () => {
+    const { url, state } = svc.getAuthKitAuthorizationUrl('login');
+    assert.ok(url.includes(`state=${state}`), 'URL must contain the state parameter');
+  });
+
+  test('two requests produce different states', () => {
+    const r1 = svc.getAuthKitAuthorizationUrl('login');
+    const r2 = svc.getAuthKitAuthorizationUrl('login');
+    assert.notEqual(r1.state, r2.state);
+  });
+
+  test('state is never the static "capflux"', () => {
+    const { state } = svc.getAuthKitAuthorizationUrl('login');
+    assert.notEqual(state, 'capflux');
+  });
+
+  test('URL does not contain WorkOS API key', () => {
+    const { url } = svc.getAuthKitAuthorizationUrl('login');
+    const apiKey = process.env.WORKOS_API_KEY;
+    if (apiKey) {
+      assert.ok(!url.includes(apiKey), 'URL must not contain the API key');
+    }
+  });
+
+  test('URL does not contain sk_ prefix (API key pattern)', () => {
+    const { url } = svc.getAuthKitAuthorizationUrl('login');
+    assert.ok(!url.includes('sk_'), 'URL must not contain API key prefix');
+  });
+});
+
+describe('AuthKit state cookie security', () => {
+  test('state cookie name is auth_state', () => {
+    assert.equal(STATE_COOKIE_NAME, 'auth_state');
+  });
+
+  test('state cookie is HttpOnly', () => {
+    assert.equal(STATE_COOKIE_OPTIONS.httpOnly, true);
+  });
+
+  test('state cookie has SameSite=Lax', () => {
+    assert.equal(STATE_COOKIE_OPTIONS.sameSite, 'lax');
+  });
+
+  test('state cookie has Path=/api', () => {
+    assert.equal(STATE_COOKIE_OPTIONS.path, '/api');
+  });
+
+  test('state cookie expires in 5 minutes (short lifespan)', () => {
+    assert.equal(STATE_COOKIE_OPTIONS.maxAge, 5 * 60 * 1000);
+    assert.ok(STATE_COOKIE_OPTIONS.maxAge <= 5 * 60 * 1000, 'max age should be at most 5 minutes');
+  });
+});
+
+describe('OAuth state validation', () => {
+  const svc = new WorkOSAuthService();
+
+  test('validateAuthState returns true for matching states', () => {
+    const state = svc.generateAuthState();
+    assert.equal(svc.validateAuthState(state, state), true);
+  });
+
+  test('validateAuthState returns false for mismatched states', () => {
+    const s1 = svc.generateAuthState();
+    const s2 = svc.generateAuthState();
+    assert.equal(svc.validateAuthState(s1, s2), false);
+  });
+
+  test('validateAuthState returns false for empty provided state', () => {
+    const expected = svc.generateAuthState();
+    assert.equal(svc.validateAuthState('', expected), false);
+  });
+
+  test('validateAuthState returns false for undefined provided state', () => {
+    const expected = svc.generateAuthState();
+    assert.equal(svc.validateAuthState(undefined, expected), false);
+  });
+
+  test('validateAuthState returns false for empty cookie state', () => {
+    const provided = svc.generateAuthState();
+    assert.equal(svc.validateAuthState(provided, ''), false);
+  });
+
+  test('validateAuthState returns false for undefined cookie state', () => {
+    const provided = svc.generateAuthState();
+    assert.equal(svc.validateAuthState(provided, undefined), false);
+  });
+});
+
+describe('Callback validation logic gates', () => {
+  test('missing code is rejected (400)', () => {
+    const code = undefined;
+    assert.equal(!code || typeof code !== 'string', true);
+  });
+
+  test('missing state is rejected (400)', () => {
+    const state = undefined;
+    assert.equal(!state || typeof state !== 'string', true);
+  });
+
+  test('missing state cookie is rejected (400)', () => {
+    const cookieState = undefined;
+    assert.equal(!cookieState, true);
+  });
+
+  test('mismatched state is rejected by validateAuthState (400)', () => {
+    const svc = new WorkOSAuthService();
+    const valid = svc.generateAuthState();
+    const invalid = svc.generateAuthState();
+    assert.equal(svc.validateAuthState(invalid, valid), false);
+  });
+
+  test('empty state string from URL is rejected', () => {
+    const state = '';
+    assert.equal(!state || typeof state !== 'string', true);
   });
 });

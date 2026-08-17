@@ -12,6 +12,7 @@
  */
 
 import { WorkOS } from '@workos-inc/node';
+import crypto from 'node:crypto';
 
 class WorkOSAuthService {
   constructor() {
@@ -254,6 +255,59 @@ class WorkOSAuthService {
       });
     } catch (error) {
       throw this.transformError(error, `Failed to get ${provider} authorization URL`);
+    }
+  }
+
+  /**
+   * Generate a cryptographically random OAuth state value.
+   * Uses crypto.randomBytes(32) for 256 bits of entropy.
+   * @returns {string} 64-character hex string
+   */
+  generateAuthState() {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Timing-safe comparison of state values to prevent timing attacks.
+   * @param {string} provided - The state returned by WorkOS in the callback.
+   * @param {string} expected - The state stored in the HttpOnly cookie.
+   * @returns {boolean} True if states match, false otherwise.
+   */
+  validateAuthState(provided, expected) {
+    if (!provided || !expected) return false;
+    const prov = Buffer.from(provided, 'utf8');
+    const exp = Buffer.from(expected, 'utf8');
+    if (prov.length !== exp.length || prov.length === 0) return false;
+    return crypto.timingSafeEqual(prov, exp);
+  }
+
+  /**
+   * Build the AuthKit Hosted UI authorization URL.
+   * Uses WorkOS AuthKit (provider: 'authkit') with a screenHint of
+   * 'signin' or 'signup' to direct the WorkOS hosted UI to the
+   * correct screen.
+   * @param {('login'|'signup')} mode
+   * @param {string} [state] - Optional OAuth state value. If omitted, a random
+   *   state is generated. The caller should persist it for validation at callback.
+   * @returns {{url: string, state: string}} The AuthKit authorization URL and state
+   */
+  getAuthKitAuthorizationUrl(mode, state) {
+    const screenHint = mode === 'signup' ? 'signup' : 'signin';
+    const redirectUri =
+      process.env.WORKOS_AUTHKIT_REDIRECT_URI ||
+      `http://localhost:5173/auth/callback`;
+    const generatedState = state || this.generateAuthState();
+    try {
+      const url = this.workos.userManagement.getAuthorizationUrl({
+        clientId: this.clientId,
+        redirectUri,
+        provider: 'authkit',
+        screenHint,
+        state: generatedState,
+      });
+      return { url, state: generatedState };
+    } catch (error) {
+      throw this.transformError(error, 'Failed to generate AuthKit authorization URL');
     }
   }
 

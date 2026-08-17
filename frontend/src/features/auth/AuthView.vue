@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import type { AuthState } from './useAuthState';
@@ -58,8 +58,9 @@ watch(
   () => route.query,
   async (query) => {
     const code = getQueryParam(query.code);
+    const state = getQueryParam(query.state);
     if (code) {
-      const success = await authStore.handleOAuthCallback(code);
+      const success = await authStore.handleOAuthCallback(code, state);
       if (success) {
         router.push({ name: 'Home' });
       }
@@ -67,6 +68,22 @@ watch(
   },
   { immediate: true },
 );
+
+// AuthKit Hosted UI: when entering login or signup mode (and no OAuth
+// callback code is present), redirect the browser to the WorkOS-hosted
+// sign-in or sign-up screen.
+onMounted(async () => {
+  const mode = currentMode.value;
+  if (mode !== 'login' && mode !== 'signup') return;
+
+  const code = getQueryParam(route.query.code);
+  if (code) return; // Callback flow is already handled by the watch above.
+
+  const { url, error } = await authStore.initiateAuthKit(mode);
+  if (url) {
+    window.location.href = url;
+  }
+});
 
 // If the URL contains ?provider=google (Google OAuth redirect), auto-click
 // the Google button so the flow completes seamlessly.

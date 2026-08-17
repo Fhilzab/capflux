@@ -18,6 +18,19 @@ export const AuthService = {
   _provider: new AuthKitProvider() as AuthKitProvider,
 
   /**
+   * Initiate AuthKit Hosted UI: fetch the authorization URL from the backend
+   * and return it for browser redirect.
+   */
+  async initiateAuthKit(mode: 'login' | 'signup'): Promise<{ data: { url: string } | null; error: AuthErrorData | null }> {
+    try {
+      const result = await this._provider.initiateAuthKit(mode);
+      return { data: result.data, error: result.error };
+    } catch (rawError) {
+      return { data: null, error: mapProviderError(rawError) };
+    }
+  },
+
+  /**
    * Initialize the auth provider and check for existing session
    * Returns session or null if none exists
    */
@@ -79,9 +92,9 @@ export const AuthService = {
     }
   },
 
-  async handleOAuthCallback(code: string): Promise<{ data: { session: Session | null; user: User | null }; error: AuthErrorData | null }> {
+  async handleOAuthCallback(code: string, state?: string): Promise<{ data: { session: Session | null; user: User | null }; error: AuthErrorData | null }> {
     try {
-      const result = await this._provider.handleOAuthCallback(code);
+      const result = await this._provider.handleOAuthCallback(code, state);
       return {
         data: {
           session: result.data?.session ?? null,
