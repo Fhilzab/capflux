@@ -44,15 +44,20 @@ export interface AuthProviderConfig {
 /**
  * Auth error codes for centralized error handling
  */
-export type AuthErrorCode = 
+export type AuthErrorCode =
   | 'INVALID_CREDENTIALS'
   | 'EMAIL_NOT_VERIFIED'
   | 'SESSION_EXPIRED'
   | 'NETWORK_ERROR'
   | 'UNAUTHORIZED'
   | 'USER_ALREADY_EXISTS'
+  | 'DUPLICATE_ACCOUNT'
   | 'RATE_LIMITED'
   | 'NOT_FOUND'
+  | 'VALIDATION_ERROR'
+  | 'WEAK_PASSWORD'
+  | 'BREACHED_PASSWORD'
+  | 'SERVER_ERROR'
   | 'UNKNOWN';
 
 /**

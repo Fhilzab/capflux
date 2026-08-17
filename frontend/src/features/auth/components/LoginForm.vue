@@ -1,36 +1,41 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../../stores/authStore';
-import CmInput from '../../../components/ui/CmInput.vue';
 import CmButton from '../../../components/ui/CmButton.vue';
+import CmInput from '../../../components/ui/CmInput.vue';
 import CmAlert from '../../../components/ui/CmAlert.vue';
+import type { AuthState } from '../useAuthState';
 
 interface Emits {
-  (e: 'switch-state', state: 'signup' | 'forgot-password'): void;
+  (e: 'switch-state', state: AuthState): void;
 }
 
-defineEmits<Emits>();
-
-const authStore = useAuthStore();
+const emit = defineEmits<Emits>();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
-const isOffline = ref(!navigator.onLine);
+const submitted = ref(false);
 
-// Handle offline/online status
-window.addEventListener('online', () => isOffline.value = false);
-window.addEventListener('offline', () => isOffline.value = true);
+// Basic client-side UX validation only — WorkOS is authoritative.
+const isEmailValid = computed(() => {
+  const e = email.value.trim();
+  return e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+});
+
+const canSubmit = computed(() => {
+  return email.value.length > 0 && password.value.length > 0 && isEmailValid.value;
+});
 
 const handleSignIn = async () => {
-  if (isOffline.value) {
-    return;
-  }
+  if (!canSubmit.value || authStore.loading) return;
 
+  submitted.value = true;
   const success = await authStore.signIn({
-    email: email.value,
+    email: email.value.trim(),
     password: password.value,
   });
 
@@ -39,138 +44,118 @@ const handleSignIn = async () => {
   }
 };
 
-const handleGoogleSignIn = async () => {
-  if (isOffline.value) {
-    return;
-  }
+const switchToSignup = () => {
+  emit('switch-state', 'signup');
+};
 
-  const success = await authStore.signInWithProvider('google');
-  if (success) {
-    router.push({ name: 'Home' });
-  }
+const switchToForgotPassword = () => {
+  emit('switch-state', 'forgot-password');
 };
 </script>
 
 <template>
-  <div class="w-full">
-    <!-- Form Header -->
-    <div class="mb-8 text-center">
-      <h2 class="text-headline mb-2">Sign in to your account</h2>
-      <p class="text-text-secondary">Access your financial workspace</p>
+  <div class="w-full space-y-6">
+    <div class="text-center">
+      <h2 class="text-headline mb-1">Welcome back</h2>
+      <p class="text-subheadline text-text-secondary">Sign in to your CAPFLUX account</p>
     </div>
 
-    <!-- Offline Notice -->
-    <CmAlert
-      v-if="isOffline"
-      variant="warning"
-      title="Offline"
-      description="You're currently offline. Internet access is required to sign in."
-      class="mb-6"
-    />
-
-    <!-- Error Alert -->
     <CmAlert
       v-if="authStore.error"
       variant="danger"
-      title="Sign In Failed"
+      title="Sign-in error"
       :description="authStore.error"
-      class="mb-6"
+      class="mb-4"
     />
 
-    <!-- Login Form -->
-    <form @submit.prevent="handleSignIn" class="space-y-6">
-      <!-- Email Field -->
-      <CmInput
-        v-model="email"
-        label="Email Address"
-        type="email"
-        placeholder="proprietor@school.edu.ng"
-        autocomplete="username"
-        required
-        :disabled="isOffline"
-      />
-
-      <!-- Password Field with Toggle -->
-      <div class="space-y-2">
-        <CmInput
-          v-model="password"
-          label="Password"
-          :type="showPassword ? 'text' : 'password'"
-          placeholder="Enter your password"
-          autocomplete="current-password"
-          required
-          :disabled="isOffline"
-        />
-        <CmButton
-          variant="link"
-          type="button"
-          @click="showPassword = !showPassword"
-          :disabled="isOffline"
-          aria-label="Toggle password visibility"
-        >
-          {{ showPassword ? 'Hide' : 'Show' }} password
-        </CmButton>
-      </div>
-
-      <!-- Remember Me & Forgot Password -->
-      <div class="flex items-center justify-between">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            class="w-4 h-4 rounded border-border text-brand focus:ring-brand focus-ring"
-            :disabled="isOffline"
-          />
-          <span class="text-sm text-text-secondary">Remember me</span>
+    <form @submit.prevent="handleSignIn" data-testid="login-form" class="space-y-4">
+      <div>
+        <label for="login-email" class="block text-sm font-medium text-text-primary mb-1">
+          Email address
         </label>
-        <CmButton
-          variant="link"
-          type="button"
-          @click="$emit('switch-state', 'forgot-password')"
-          :disabled="isOffline"
-        >
-          Forgot password?
-        </CmButton>
+        <CmInput
+          id="login-email"
+          type="email"
+          v-model="email"
+          :error="submitted && !isEmailValid ? 'Enter a valid email address' : undefined"
+          placeholder="you@school.edu.ng"
+          autocomplete="email"
+        />
       </div>
 
-      <!-- Sign In Button -->
+      <div>
+        <label for="login-password" class="block text-sm font-medium text-text-primary mb-1">
+          Password
+        </label>
+        <div class="relative">
+          <CmInput
+            :type="showPassword ? 'text' : 'password'"
+            v-model="password"
+            :error="submitted && !password ? 'Password is required' : undefined"
+            placeholder="••••••••"
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            @click="showPassword = !showPassword"
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary"
+            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+          >
+            {{ showPassword ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </div>
+
       <CmButton
         type="submit"
         variant="primary"
         :loading="authStore.loading"
-        :disabled="isOffline || !email || !password"
+        :disabled="!canSubmit || authStore.loading"
+        data-testid="signin-button"
         class="w-full"
       >
         Sign In
       </CmButton>
     </form>
 
-    <!-- Divider -->
-    <div class="my-6 flex items-center">
-      <div class="flex-1 border-t border-divider"></div>
-      <span class="px-4 text-sm text-text-muted">OR</span>
-      <div class="flex-1 border-t border-divider"></div>
+    <div class="flex justify-between text-sm">
+      <button
+        type="button"
+        @click="switchToForgotPassword"
+        data-testid="forgot-password-link"
+        class="text-sm text-text-secondary hover:text-text-primary"
+      >
+        Forgot password?
+      </button>
+      <button
+        type="button"
+        @click="switchToSignup"
+        data-testid="create-account-link"
+        class="text-sm font-medium text-text-secondary hover:text-text-primary"
+      >
+        Create Account
+      </button>
     </div>
 
-    <!-- Google Sign In -->
+    <div class="relative my-6">
+      <div class="absolute inset-0 flex items-center">
+        <div class="w-full border-t border-divider"></div>
+      </div>
+      <div class="relative flex justify-center">
+        <span class="px-3 text-xs text-text-muted">Or continue with</span>
+      </div>
+    </div>
+
     <CmButton
-      @click="handleGoogleSignIn"
+      type="button"
       variant="secondary"
-      :disabled="isOffline"
+      :disabled="authStore.loading"
       class="w-full"
+      data-testid="google-signin"
+      data-google-auth
+      @click="authStore.signInWithProvider('google')"
     >
       Continue with Google
-    </CmButton>
-  </div>
-
-  <!-- Footer Links -->
-  <div class="mt-6 pt-6 border-t border-divider text-center">
-    <span class="text-text-secondary">Don't have an account?</span>
-    <CmButton
-      variant="link"
-      type="button"
-      @click="$emit('switch-state', 'signup')"
-    >
-      Create Account
     </CmButton>
   </div>
 </template>

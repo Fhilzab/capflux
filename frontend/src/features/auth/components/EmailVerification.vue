@@ -1,100 +1,96 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../../stores/authStore';
 import CmButton from '../../../components/ui/CmButton.vue';
 import CmAlert from '../../../components/ui/CmAlert.vue';
+import type { AuthState } from '../useAuthState';
 
-interface Emits {
-  (e: 'switch-state', state: 'login' | 'signup'): void;
+interface Props {
+  email: string;
 }
 
-defineEmits<Emits>();
+interface Emits {
+  (e: 'switch-state', state: AuthState): void;
+}
 
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
 const authStore = useAuthStore();
-const router = useRouter();
 
-const isOffline = ref(!navigator.onLine);
-const loading = ref(false);
+const isResending = ref(false);
+const resendSuccess = ref(false);
+const countdown = ref(0);
 
-const handleResendEmail = async () => {
-  if (isOffline.value) return;
-  loading.value = true;
-  // Supabase resend logic would go here
-  loading.value = false;
+const startCountdown = () => {
+  countdown.value = 30;
+  const timer = setInterval(() => {
+    countdown.value--;
+    if (countdown.value <= 0) {
+      clearInterval(timer);
+    }
+  }, 1000);
 };
 
-const handleOpenEmailApp = () => {
-  window.location.href = 'mailto:';
+const handleResend = async () => {
+  isResending.value = true;
+  const { error } = await authStore.resendVerification(props.email);
+  isResending.value = false;
+  if (!error) {
+    resendSuccess.value = true;
+    startCountdown();
+    setTimeout(() => { resendSuccess.value = false; }, 3000);
+  }
 };
 
-// Handle offline/online status
-window.addEventListener('online', () => isOffline.value = false);
-window.addEventListener('offline', () => isOffline.value = true);
+onMounted(() => {
+  startCountdown();
+});
+
+const isCountdownReady = computed(() => countdown.value === 0);
 </script>
 
 <template>
-  <div class="w-full text-center">
-    <!-- Mail Icon -->
-    <div class="mb-8">
-      <div class="flex h-20 w-20 items-center justify-center rounded-full bg-success/10 mx-auto mb-4">
-        <svg class="h-10 w-10 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      </div>
-
-      <h1 class="text-headline mb-2">Check your inbox</h1>
-      <p class="text-text-secondary mb-2">We've sent a verification link to your email.</p>
-      <p class="font-medium text-text-primary">Click the link to verify your account.</p>
+  <div class="w-full text-center space-y-6">
+    <div>
+      <h2 class="text-headline mb-1">Check your email</h2>
+      <p class="text-subheadline text-text-secondary">
+        We've sent a verification link to <span class="font-medium">{{ props.email }}</span>.
+      </p>
     </div>
 
-    <!-- Offline Notice -->
     <CmAlert
-      v-if="isOffline"
-      variant="warning"
-      title="Offline"
-      description="Internet access is required to verify your email."
-      class="mb-6"
+      v-if="resendSuccess"
+      variant="success"
+      title="Email sent"
+      :description="isCountdownReady ? 'Your verification email has been sent.' : `Resend available in ${countdown}s`"
     />
 
-    <!-- Action Buttons -->
-    <div class="space-y-3">
+    <CmAlert
+      v-if="authStore.error"
+      variant="danger"
+      title="Verification error"
+      :description="authStore.error"
+    />
+
+    <div class="space-y-4">
       <CmButton
-        @click="handleOpenEmailApp"
+        type="button"
         variant="secondary"
+        :loading="isResending"
+        :disabled="!isCountdownReady || isResending"
         class="w-full"
+        @click="handleResend"
       >
-        Open Email App
+        Resend verification email
       </CmButton>
 
       <CmButton
-        @click="handleResendEmail"
-        variant="secondary"
-        class="w-full"
-        :disabled="isOffline || loading"
-        :loading="loading"
-      >
-        Resend Email
-      </CmButton>
-    </div>
-
-    <!-- Links -->
-    <div class="mt-6 pt-6 border-t border-divider space-y-3">
-      <CmButton
+        type="button"
         variant="link"
-        @click="$emit('switch-state', 'signup')"
+        @click="emit('switch-state', 'login')"
       >
-        Change Email
+        Back to sign in
       </CmButton>
-
-      <div class="text-center">
-        <CmButton
-          variant="link"
-          @click="$emit('switch-state', 'login')"
-        >
-          Back to Login
-        </CmButton>
-      </div>
     </div>
   </div>
 </template>

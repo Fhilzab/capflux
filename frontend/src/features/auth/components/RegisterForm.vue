@@ -2,260 +2,220 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../../stores/authStore';
-import CmInput from '../../../components/ui/CmInput.vue';
 import CmButton from '../../../components/ui/CmButton.vue';
+import CmInput from '../../../components/ui/CmInput.vue';
+import CmCheckbox from '../../../components/ui/CmCheckbox.vue';
 import CmAlert from '../../../components/ui/CmAlert.vue';
+import type { AuthState } from '../useAuthState';
 
 interface Emits {
-  (e: 'switch-state', state: 'login' | 'verify-email'): void;
+  (e: 'switch-state', state: AuthState): void;
 }
 
 const emit = defineEmits<Emits>();
-
-const authStore = useAuthStore();
 const router = useRouter();
+const authStore = useAuthStore();
 
-const fullName = ref('');
+const firstName = ref('');
+const lastName = ref('');
 const email = ref('');
 const password = ref('');
-const showPassword = ref(false);
 const agreeToTerms = ref(false);
-const isOffline = ref(!navigator.onLine);
+const showPassword = ref(false);
+const submitted = ref(false);
 
-// Password strength calculation
-const passwordStrength = computed(() => {
-  const pwd = password.value;
-  if (!pwd) return 0;
-
-  let strength = 0;
-  if (pwd.length >= 8) strength += 1;
-  if (/[A-Z]/.test(pwd)) strength += 1;
-  if (/[0-9]/.test(pwd)) strength += 1;
-  if (/[^A-Za-z0-9]/.test(pwd)) strength += 1;
-
-  return strength;
+// Basic UX validation only — WorkOS is the authority on password policy.
+// The submit button is disabled only for obvious local requirements.
+const isEmailValid = computed(() => {
+  const e = email.value.trim();
+  return e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 });
 
-const strengthLabel = computed(() => {
-  const labels = ['Weak', 'Fair', 'Good', 'Strong'];
-  return labels[passwordStrength.value - 1] || '';
+const canSubmit = computed(() => {
+  return (
+    firstName.value.trim().length > 0 &&
+    lastName.value.trim().length > 0 &&
+    email.value.trim().length > 0 &&
+    password.value.length > 0 &&
+    isEmailValid.value &&
+    agreeToTerms.value
+  );
 });
 
-const strengthColor = computed(() => {
-  const colors = ['bg-danger', 'bg-warning', 'bg-info', 'bg-success'];
-  return colors[passwordStrength.value - 1] || 'bg-border';
+const fullName = computed(() => {
+  return `${firstName.value.trim()} ${lastName.value.trim()}`.trim();
 });
-
-// Validation
-const error = ref<string | null>(null);
-
-const validate = (): boolean => {
-  if (!fullName.value) {
-    error.value = 'Full name is required';
-    return false;
-  }
-  if (!email.value) {
-    error.value = 'Email is required';
-    return false;
-  }
-  if (!email.value.includes('@')) {
-    error.value = 'Please enter a valid email address';
-    return false;
-  }
-  if (!password.value) {
-    error.value = 'Password is required';
-    return false;
-  }
-  if (password.value.length < 8) {
-    error.value = 'Password must be at least 8 characters';
-    return false;
-  }
-  if (!agreeToTerms.value) {
-    error.value = 'Please accept the Terms of Service and Privacy Policy';
-    return false;
-  }
-  error.value = null;
-  return true;
-};
 
 const handleSignUp = async () => {
-  if (!validate()) return;
+  if (!canSubmit.value || authStore.loading) return;
 
-  if (isOffline.value) return;
-
+  submitted.value = true;
   const response = await authStore.signUp({
     fullName: fullName.value,
-    email: email.value,
+    email: email.value.trim(),
     password: password.value,
   });
 
   if (response?.error) {
-    error.value = response.error.message || 'Failed to create account';
+    // Error is already set in authStore and surfaced via authStore.error
     return;
   }
 
-  // After successful signup, transition to verify-email state
-  emit('switch-state', 'verify-email');
+  // On success, redirect to dashboard
+  router.push({ name: 'Home' });
 };
 
-const handleGoogleSignIn = async () => {
-  if (isOffline.value) {
-    return;
-  }
-
-  const success = await authStore.signInWithProvider('google');
-  if (success) {
-    router.push({ name: 'Home' });
-  }
+const switchToLogin = () => {
+  emit('switch-state', 'login');
 };
-
-// Handle offline/online status
-window.addEventListener('online', () => isOffline.value = false);
-window.addEventListener('offline', () => isOffline.value = true);
 </script>
 
 <template>
-  <div class="w-full">
-    <!-- Form Header -->
-    <div class="mb-8 text-center">
-      <h2 class="text-headline mb-2">Create your account</h2>
-      <p class="text-text-secondary">Start managing your school's finances today</p>
+  <div class="w-full space-y-6">
+    <div class="text-center">
+      <h2 class="text-headline mb-1">Create your CAPFLUX account</h2>
+      <p class="text-subheadline text-text-secondary">Start managing your school's finances today</p>
     </div>
 
-    <!-- Offline Notice -->
     <CmAlert
-      v-if="isOffline"
-      variant="warning"
-      title="Offline"
-      description="Internet access is required to create an account."
-      class="mb-6"
-    />
-
-    <!-- Error Alert -->
-    <CmAlert
-      v-if="error"
+      v-if="authStore.error"
       variant="danger"
-      title="Sign Up Failed"
-      :description="error"
-      class="mb-6"
+      title="Unable to create account"
+      :description="authStore.error"
+      class="mb-4"
     />
 
-    <!-- Register Form -->
-    <form @submit.prevent="handleSignUp" class="space-y-6">
-      <!-- Full Name -->
-      <CmInput
-        v-model="fullName"
-        label="Full Name"
-        placeholder="John Doe"
-        autocomplete="name"
-        required
-        :disabled="isOffline"
-      />
-
-      <!-- Email -->
-      <CmInput
-        v-model="email"
-        label="Email Address"
-        type="email"
-        placeholder="you@yourschool.edu.ng"
-        autocomplete="email"
-        required
-        :disabled="isOffline"
-      />
-
-      <!-- Password -->
-      <div class="space-y-2">
-        <CmInput
-          v-model="password"
-          label="Password"
-          :type="showPassword ? 'text' : 'password'"
-          placeholder="••••••••"
-          autocomplete="new-password"
-          required
-          :disabled="isOffline"
-        />
-        <CmButton
-          variant="link"
-          type="button"
-          @click="showPassword = !showPassword"
-          :disabled="isOffline"
-          aria-label="Toggle password visibility"
-        >
-          {{ showPassword ? 'Hide' : 'Show' }} password
-        </CmButton>
+    <form @submit.prevent="handleSignUp" data-testid="register-form" class="space-y-4">
+      <!-- First Name & Last Name — horizontal two-column layout -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="signup-first-name" class="block text-sm font-medium text-text-primary mb-1">
+            First name
+          </label>
+          <CmInput
+            id="signup-first-name"
+            type="text"
+            v-model="firstName"
+            :error="submitted && !firstName.trim() ? 'First name is required' : undefined"
+            placeholder="Jane"
+            autocomplete="given-name"
+          />
+        </div>
+        <div>
+          <label for="signup-last-name" class="block text-sm font-medium text-text-primary mb-1">
+            Last name
+          </label>
+          <CmInput
+            id="signup-last-name"
+            type="text"
+            v-model="lastName"
+            :error="submitted && !lastName.trim() ? 'Last name is required' : undefined"
+            placeholder="Doe"
+            autocomplete="family-name"
+          />
+        </div>
       </div>
 
-      <!-- Password Strength -->
-      <div v-if="password" class="space-y-1">
-        <div class="flex gap-1">
-          <div
-            v-for="i in 4"
-            :key="i"
-            class="flex-1 h-1 rounded-full transition-colors"
-            :class="i <= passwordStrength ? strengthColor : 'bg-border'"
-          ></div>
+      <div>
+        <label for="signup-email" class="block text-sm font-medium text-text-primary mb-1">
+          Email address
+        </label>
+        <CmInput
+          id="signup-email"
+          type="email"
+          v-model="email"
+          :error="submitted && !isEmailValid ? 'Enter a valid email address' : undefined"
+          placeholder="you@school.edu.ng"
+          autocomplete="email"
+        />
+      </div>
+
+      <div>
+        <label for="signup-password" class="block text-sm font-medium text-text-primary mb-1">
+          Password
+        </label>
+        <div class="relative">
+          <CmInput
+            :type="showPassword ? 'text' : 'password'"
+            v-model="password"
+            :error="submitted && !password ? 'Password is required' : undefined"
+            placeholder="At least 8 characters"
+            autocomplete="new-password"
+          />
+          <button
+            type="button"
+            @click="showPassword = !showPassword"
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary"
+            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+          >
+            {{ showPassword ? 'Hide' : 'Show' }}
+          </button>
         </div>
-        <p class="text-xs text-text-muted">
-          Password strength: <span class="font-medium">{{ strengthLabel }}</span>
+        <p class="mt-1 text-xs text-text-muted">
+          CAPFLUX follows WorkOS password requirements. Your password must be at least 8
+          characters and not appear in known data breaches.
         </p>
       </div>
 
-      <!-- Terms & Privacy -->
-      <label class="flex items-start gap-2 cursor-pointer">
-        <input
-          v-model="agreeToTerms"
-          type="checkbox"
-          class="mt-0.5 w-4 h-4 rounded border-border text-brand focus:ring-brand focus-ring"
-          :disabled="isOffline"
-        />
-        <span class="text-sm text-text-secondary">
+      <div class="flex items-start">
+        <div class="flex items-start">
+          <CmCheckbox
+            id="signup-terms"
+            v-model:checked="agreeToTerms"
+            :error="submitted && !agreeToTerms ? 'You must accept the terms to continue' : undefined"
+          />
+        </div>
+        <label for="signup-terms" class="ml-2 block text-sm text-text-secondary">
           I agree to the
-          <a href="#" class="font-medium text-brand hover:text-brand/80 transition-colors">Terms of Service</a>
+          <a href="/terms" class="text-primary hover:underline">Terms of Service</a>
           and
-          <a href="#" class="font-medium text-brand hover:text-brand/80 transition-colors">Privacy Policy</a>
-        </span>
-      </label>
+          <a href="/privacy" class="text-primary hover:underline">Privacy Policy</a>
+        </label>
+      </div>
 
-      <!-- Sign Up Button -->
       <CmButton
         type="submit"
         variant="primary"
         :loading="authStore.loading"
-        :disabled="isOffline || !fullName || !email || !password || !agreeToTerms"
+        :disabled="!canSubmit || authStore.loading"
+        data-testid="signup-button"
         class="w-full"
       >
-        Create Free Account
+        Create Account
       </CmButton>
     </form>
 
-    <!-- Divider -->
-    <div class="my-6 flex items-center">
-      <div class="flex-1 border-t border-divider"></div>
-      <span class="px-4 text-sm text-text-muted">OR</span>
-      <div class="flex-1 border-t border-divider"></div>
+    <div class="text-center text-sm">
+      <span class="text-text-secondary">Already have an account?</span>
+      <button
+        type="button"
+        @click="switchToLogin"
+        data-testid="login-link"
+        class="ml-1 font-medium text-primary hover:underline"
+      >
+        Log In
+      </button>
     </div>
 
-    <!-- Google Sign In -->
+    <div class="relative my-6">
+      <div class="absolute inset-0 flex items-center">
+        <div class="w-full border-t border-divider"></div>
+      </div>
+      <div class="relative flex justify-center">
+        <span class="px-3 text-xs text-text-muted">Or continue with</span>
+      </div>
+    </div>
+
     <CmButton
-      @click="handleGoogleSignIn"
+      type="button"
       variant="secondary"
-      :disabled="isOffline"
+      :disabled="authStore.loading"
       class="w-full"
+      data-testid="google-signup"
       data-google-auth
+      @click="authStore.signInWithProvider('google')"
     >
       Continue with Google
-    </CmButton>
-  </div>
-
-  <!-- Footer Links -->
-  <div class="mt-6 pt-6 border-t border-divider text-center">
-    <span class="text-text-secondary">Already have an account?</span>
-    <CmButton
-      variant="link"
-      type="button"
-      @click="$emit('switch-state', 'login')"
-    >
-      Log In
     </CmButton>
   </div>
 </template>

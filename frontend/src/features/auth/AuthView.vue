@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
-import { useAuthState } from './useAuthState';
+import type { AuthState } from './useAuthState';
 import AuthLayout from './components/AuthLayout.vue';
 import AuthIllustration from './components/AuthIllustration.vue';
 import LoginForm from './components/LoginForm.vue';
@@ -17,39 +17,60 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
-const { state, transition } = useAuthState();
-
-// Helper to normalize query param (can be string or string[])
 const getQueryParam = (param: string | string[] | undefined): string => {
   if (Array.isArray(param)) return param[0] || '';
   return param || '';
 };
 
-// Set initial state from URL query params on mount
-watch(() => route.query, async (query) => {
-  const mode = getQueryParam(query.mode) as string;
-  const code = getQueryParam(query.code) as string;
+// --- Single reactive source of truth: the route query drives the mode. ---
+const currentMode = computed<AuthState>(() => {
+  const mode = getQueryParam(route.query.mode);
+  if (['login', 'signup', 'verify-email', 'forgot-password', 'reset-password'].includes(mode)) {
+    return mode as AuthState;
+  }
+  return 'login';
+});
 
-  if (code) {
-    const success = await authStore.handleOAuthCallback(code);
-    if (success) {
-      router.push({ name: 'Home' });
-      return;
+// Map each auth state to its embedded form component.
+const formComponents: Record<AuthState, any> = {
+  login: LoginForm,
+  signup: RegisterForm,
+  'verify-email': EmailVerification,
+  'forgot-password': ForgotPassword,
+  'reset-password': ResetPassword,
+};
+
+// Transition updates the URL query — the same source of truth that drives
+// currentMode. No competing component-local state is maintained.
+const transition = (newState: AuthState) => {
+  if (getQueryParam(route.query.mode) !== newState) {
+    router.replace({ query: { ...route.query, mode: newState } });
+  }
+};
+
+// Handle OAuth callback (Google OAuth redirect with authorization code).
+watch(
+  () => route.query,
+  async (query) => {
+    const code = getQueryParam(query.code);
+    if (code) {
+      const success = await authStore.handleOAuthCallback(code);
+      if (success) {
+        router.push({ name: 'Home' });
+      }
     }
-  }
+  },
+  { immediate: true },
+);
 
-  if (mode && ['login', 'signup', 'verify-email', 'forgot-password', 'reset-password'].includes(mode)) {
-    transition(mode as any);
-  }
-}, { immediate: true });
-
-// Handle Google OAuth redirect from URL query
+// If the URL contains ?provider=google (Google OAuth redirect), auto-click
+// the Google button so the flow completes seamlessly.
 if (props.provider === 'google') {
-  // Will trigger Google OAuth on next tick
   setTimeout(() => {
     const googleButton = document.querySelector('[data-google-auth]');
     if (googleButton) {
@@ -60,92 +81,40 @@ if (props.provider === 'google') {
 </script>
 
 <template>
-  <AuthLayout>
-    <!-- Left Panel - Illustration (Desktop) -->
-    <template #illustration>
-      <AuthIllustration />
-    </template>
+  <div class="min-h-screen flex flex-col">
+    <!-- CAPFLUX branded auth card: layout + illustration + dynamic form -->
+    <AuthLayout>
+      <template #illustration>
+        <AuthIllustration />
+      </template>
 
-    <!-- Mobile Illustration -->
-    <template #illustration-mobile>
-      <AuthIllustration />
-    </template>
+      <template #illustration-mobile>
+        <AuthIllustration />
+      </template>
 
-    <!-- Right Panel - Forms -->
-    <template #form>
-      <Transition
-        name="auth"
-        mode="out-in"
-      >
-        <LoginForm
-          v-if="state === 'login'"
-          @switch-state="transition"
-          :key="'login'"
-        />
-
-        <RegisterForm
-          v-else-if="state === 'signup'"
-          @switch-state="transition"
-          :key="'signup'"
-        />
-
-        <EmailVerification
-          v-else-if="state === 'verify-email'"
-          @switch-state="transition"
-          :key="'verify-email'"
-        />
-
-        <ForgotPassword
-          v-else-if="state === 'forgot-password'"
-          @switch-state="transition"
-          :key="'forgot-password'"
-        />
-
-        <ResetPassword
-          v-else-if="state === 'reset-password'"
-          @switch-state="transition"
-          :key="'reset-password'"
-        />
-      </Transition>
-    </template>
-
-    <!-- Footer -->
-    <template #footer>
-      <div class="mt-6 text-center text-xs text-text-muted">
-        <p>&copy; 2024 FHILZAB NIG LTD. All rights reserved.</p>
-      </div>
-    </template>
-  </AuthLayout>
+      <template #form>
+        <div class="w-full max-w-md mx-auto">
+          <Transition name="auth" mode="out-in">
+            <component
+              :is="formComponents[currentMode]"
+              :key="currentMode"
+              @switch-state="transition"
+            />
+          </Transition>
+        </div>
+      </template>
+    </AuthLayout>
+  </div>
 </template>
 
-<style>
-/* Auth transition - fade + slide + scale */
+<style scoped>
 .auth-enter-active,
 .auth-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-
-.auth-enter-from {
-  opacity: 0;
-  transform: translateY(10px) scale(0.98);
-}
-
+.auth-enter-from,
 .auth-leave-to {
   opacity: 0;
-  transform: translateY(-10px) scale(0.98);
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  .auth-enter-active,
-  .auth-leave-active {
-    transition: none;
-  }
-
-  .auth-enter-from,
-  .auth-leave-to {
-    opacity: 1;
-    transform: none;
-  }
+  transform: translateY(8px);
 }
 </style>

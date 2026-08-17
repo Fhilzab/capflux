@@ -54,9 +54,14 @@ class SessionService {
    */
   cookieOptions() {
     const isProduction = process.env.NODE_ENV === 'production';
-    const secure = isProduction
-      ? true
-      : process.env.COOKIE_SECURE === 'true'; // dev opt-in must be explicit
+    const cookieSecureEnv = process.env.COOKIE_SECURE;
+    // An explicit COOKIE_SECURE value always wins. When unset, Secure is only
+    // enabled in production (served over HTTPS); development stays off so that
+    // http://localhost can receive/send the cookie. Relying on NODE_ENV alone
+    // is unsafe because NODE_ENV=development is frequently not set in the
+    // shell, which would otherwise force Secure=true under local HTTP.
+    const secure =
+      cookieSecureEnv !== undefined ? cookieSecureEnv === 'true' : isProduction;
 
     return {
       name: SESSION_COOKIE_NAME,

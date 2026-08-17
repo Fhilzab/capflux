@@ -66,7 +66,8 @@ const upsertUserRecords = async (user) => {
 const handleError = (res, error, fallbackStatus = 500) => {
   const status = error?.statusCode || fallbackStatus;
   const message = error?.message || 'Internal server error';
-  return res.status(status).json({ error: message });
+  const code = error?.code || 'AUTH_ERROR';
+  return res.status(status).json({ error: message, code });
 };
 
 router.post('/signin', async (req, res) => {

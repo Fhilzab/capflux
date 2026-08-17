@@ -1,119 +1,132 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import CmInput from '../../../components/ui/CmInput.vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import { useAuthStore } from '../../../stores/authStore';
 import CmButton from '../../../components/ui/CmButton.vue';
+import CmInput from '../../../components/ui/CmInput.vue';
 import CmAlert from '../../../components/ui/CmAlert.vue';
+import type { AuthState } from '../useAuthState';
 
 interface Emits {
-  (e: 'switch-state', state: 'login'): void;
+  (e: 'switch-state', state: AuthState): void;
 }
 
-defineEmits<Emits>();
+const emit = defineEmits<Emits>();
+const route = useRoute();
+const authStore = useAuthStore();
 
-const router = useRouter();
-
+const token = ref('');
 const newPassword = ref('');
-const confirmPassword = ref('');
-const showPassword = ref(false);
-const isOffline = ref(!navigator.onLine);
-const loading = ref(false);
-const error = ref<string | null>(null);
+const confirmPassword = ref(false);
+const submitted = ref(false);
+const isReset = ref(false);
 
-const handleSubmit = async () => {
-  if (isOffline.value) return;
-
-  error.value = null;
-  if (newPassword.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match';
-    return;
+onMounted(() => {
+  const t = route.query.token;
+  if (typeof t === 'string' && t) {
+    token.value = t;
   }
-  if (newPassword.value.length < 8) {
-    error.value = 'Password must be at least 8 characters';
-    return;
+});
+
+const isPasswordValid = computed(() => newPassword.value.length >= 8);
+
+const passwordsMatch = computed(() => {
+  return confirmPassword.value && newPassword.value.length > 0 &&
+    confirmPassword.value === newPassword.value;
+});
+
+const canSubmit = computed(() => {
+  return token.value.length > 0 && isPasswordValid.value && passwordsMatch.value;
+});
+
+const handleReset = async () => {
+  if (!canSubmit.value || authStore.loading) return;
+  submitted.value = true;
+
+  const { error } = await authStore.resetPassword(token.value, newPassword.value);
+
+  if (!error) {
+    isReset.value = true;
   }
-
-  loading.value = true;
-
-  // Supabase reset password logic would go here
-
-  loading.value = false;
-  router.push({ name: 'Auth' });
 };
 
-// Handle offline/online status
-window.addEventListener('online', () => isOffline.value = false);
-window.addEventListener('offline', () => isOffline.value = true);
+const switchToLogin = () => {
+  emit('switch-state', 'login');
+};
 </script>
 
 <template>
-  <div class="w-full">
-    <!-- Form Header -->
-    <div class="mb-8 text-center">
-      <h2 class="text-headline mb-2">Set new password</h2>
-      <p class="text-text-secondary">Enter your new password below</p>
+  <div class="w-full text-center space-y-6">
+    <div v-if="!isReset">
+      <h2 class="text-headline mb-1">Set your new password</h2>
+      <p class="text-subheadline text-text-secondary">
+        Enter a new password to continue.
+      </p>
     </div>
 
-    <!-- Offline Notice -->
     <CmAlert
-      v-if="isOffline"
-      variant="warning"
-      title="Offline"
-      description="Internet access is required to reset your password."
-      class="mb-6"
+      v-if="isReset"
+      variant="success"
+      title="Password updated"
+      description="Your password has been reset successfully. You can now sign in."
     />
 
-    <!-- Error Alert -->
     <CmAlert
-      v-if="error"
+      v-if="authStore.error && !isReset"
       variant="danger"
-      title="Reset Failed"
-      :description="error"
-      class="mb-6"
+      title="Reset error"
+      :description="authStore.error"
     />
 
-    <!-- Reset Form -->
-    <form @submit.prevent="handleSubmit" class="space-y-6">
-      <CmInput
-        v-model="newPassword"
-        label="New Password"
-        :type="showPassword ? 'text' : 'password'"
-        placeholder="••••••••"
-        autocomplete="new-password"
-        required
-        :disabled="isOffline"
-      />
+    <form v-if="!isReset" @submit.prevent="handleReset" class="space-y-4">
+      <input type="hidden" v-model="token" />
 
-      <CmInput
-        v-model="confirmPassword"
-        label="Confirm Password"
-        :type="showPassword ? 'text' : 'password'"
-        placeholder="••••••••"
-        autocomplete="new-password"
-        required
-        :disabled="isOffline"
-      />
+      <div>
+        <label for="reset-password" class="block text-sm font-medium text-text-primary mb-1">
+          New password
+        </label>
+        <CmInput
+          id="reset-password"
+          type="password"
+          v-model="newPassword"
+          :error="submitted && !isPasswordValid ? 'Password must be at least 8 characters' : undefined"
+          placeholder="••••••••"
+          autocomplete="new-password"
+        />
+      </div>
+
+      <div>
+        <label for="reset-confirm" class="block text-sm font-medium text-text-primary mb-1">
+          Confirm password
+        </label>
+        <CmInput
+          id="reset-confirm"
+          type="password"
+          v-model="confirmPassword"
+          :error="submitted && !passwordsMatch ? 'Passwords do not match' : undefined"
+          placeholder="••••••••"
+          autocomplete="new-password"
+        />
+      </div>
 
       <CmButton
         type="submit"
         variant="primary"
-        :loading="loading"
-        :disabled="isOffline || !newPassword || !confirmPassword"
+        :loading="authStore.loading"
+        :disabled="!canSubmit || authStore.loading"
         class="w-full"
       >
         Reset Password
       </CmButton>
     </form>
 
-    <!-- Back to Login -->
-    <div class="mt-6 pt-6 border-t border-divider text-center">
-      <CmButton
-        variant="link"
-        type="button"
-        @click="$emit('switch-state', 'login')"
-      >
-        Back to Login
-      </CmButton>
-    </div>
+    <CmButton
+      v-if="!isReset"
+      type="button"
+      variant="link"
+      @click="switchToLogin"
+    >
+      Back to sign in
+    </CmButton>
   </div>
 </template>

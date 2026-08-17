@@ -17,15 +17,19 @@ class WorkOSAuthService {
   constructor() {
     const apiKey = process.env.WORKOS_API_KEY;
     const clientId = process.env.WORKOS_CLIENT_ID;
-    const clientSecret = process.env.WORKOS_CLIENT_SECRET;
+    const rawSecret = process.env.WORKOS_CLIENT_SECRET;
+    // Only treat it as a real secret if it's not a placeholder value.
+    const clientSecret = (rawSecret && rawSecret !== 'your-workos-client-secret') ? rawSecret : undefined;
 
     if (!apiKey || !clientId) {
       throw new Error('WORKOS_API_KEY and WORKOS_CLIENT_ID are required');
     }
 
-    this.workos = new WorkOS(apiKey, { clientId, clientSecret });
+    const workosOpts = { clientId };
+    if (clientSecret) workosOpts.clientSecret = clientSecret;
+    this.workos = new WorkOS(apiKey, workosOpts);
     this.clientId = clientId;
-    this.clientSecret = clientSecret || undefined;
+    this.clientSecret = clientSecret;
     this.redirectUri = process.env.WORKOS_REDIRECT_URI || undefined;
   }
 
@@ -295,24 +299,54 @@ class WorkOSAuthService {
    * @private
    */
   transformError(error, defaultMessage) {
-    const code = error.code || error.message || '';
-    const rawMessage = error.message || defaultMessage;
+     const sdkCode = error.code || '';
+    const rawMessage = error.message || defaultMessage || 'Authentication error';
+    const lowerRaw = rawMessage.toLowerCase();
 
-    const errorMap = {
-      invalid_credentials: 'INVALID_CREDENTIALS',
-      user_already_exists: 'USER_ALREADY_EXISTS',
-      invalid_password: 'INVALID_PASSWORD',
-      email_verification_required: 'EMAIL_NOT_VERIFIED',
-      session_expired: 'SESSION_EXPIRED',
-      unauthorized: 'UNAUTHORIZED',
-      not_found: 'NOT_FOUND',
+    // Distinguish password-policy failures from other errors so the frontend
+    // can surface a useful message instead of masking as a generic error.
+    let appErrorCode;
+    if (lowerRaw.includes('breach') ||
+        lowerRaw.includes('compromised') ||
+        lowerRaw.includes('pwned') ||
+        lowerRaw.includes('commonly used')) {
+      appErrorCode = 'BREACHED_PASSWORD';
+    } else if (sdkCode === 'invalid_password' ||
+               lowerRaw.includes('password does not meet') ||
+               lowerRaw.includes('password must') ||
+               lowerRaw.includes('does not meet any password')) {
+      appErrorCode = 'WEAK_PASSWORD';
+    } else {
+      const errorMap = {
+        invalid_credentials: 'INVALID_CREDENTIALS',
+        user_already_exists: 'USER_ALREADY_EXISTS',
+        invalid_password: 'WEAK_PASSWORD',
+        email_verification_required: 'EMAIL_NOT_VERIFIED',
+        session_expired: 'SESSION_EXPIRED',
+        unauthorized: 'UNAUTHORIZED',
+        not_found: 'NOT_FOUND',
+      };
+      appErrorCode = errorMap[sdkCode] || 'AUTH_ERROR';
+    }
+
+    // WorkOS SDK exceptions expose the HTTP status on `.status` (e.g.
+    // UnauthorizedException.status = 401, ConflictException.status = 409),
+    // not on `.statusCode`. Map well-known codes to canonical HTTP statuses
+    // so the frontend can distinguish invalid credentials, duplicates, etc.
+    const statusByCode = {
+      INVALID_CREDENTIALS: 401,
+      USER_ALREADY_EXISTS: 409,
+      EMAIL_NOT_VERIFIED: 403,
+      UNAUTHORIZED: 401,
+      NOT_FOUND: 404,
+      WEAK_PASSWORD: 400,
+      BREACHED_PASSWORD: 400,
     };
-
-    const appErrorCode = errorMap[code] || 'AUTH_ERROR';
 
     const err = new Error(rawMessage);
     err.code = appErrorCode;
-    err.statusCode = error.statusCode || 500;
+    err.statusCode =
+      statusByCode[appErrorCode] || error.status || error.statusCode || 500;
 
     return err;
   }

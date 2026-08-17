@@ -14,6 +14,21 @@ defineProps<{
     <!-- Right Panel - Form (60%) -->
     <div class="flex w-full flex-col items-center justify-center lg:w-[60%] p-6 lg:p-12 overflow-y-auto">
       <div class="w-full max-w-md">
+        <!-- Mobile / compact branded home link -->
+        <div class="mb-6 lg:hidden">
+          <RouterLink
+            to="/"
+            aria-label="Go to CAPFLUX home"
+            class="inline-flex items-center gap-2 text-text-primary font-bold text-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
+          >
+            <svg class="h-8 w-auto" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <text x="0" y="24" font-family="var(--font-family-sans)" font-weight="700" font-size="24" class="fill-text-primary">
+                CAPFLUX
+              </text>
+            </svg>
+          </RouterLink>
+        </div>
+
         <!-- Mobile Header -->
         <div class="lg:hidden text-center mb-8">
           <h2 class="text-headline mb-2">Every Naira Accounted For.</h2>

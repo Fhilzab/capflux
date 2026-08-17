@@ -2,11 +2,17 @@
   <div class="flex h-full w-full flex-col justify-center p-8 lg:p-16">
     <!-- Logo -->
     <div class="mb-12">
-      <svg class="h-10 w-auto" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <text x="0" y="24" font-family="var(--font-family-sans)" font-weight="700" font-size="24" class="fill-text-primary">
-          CAPFLUX
-        </text>
-      </svg>
+      <RouterLink
+        to="/"
+        aria-label="Go to CAPFLUX home"
+        class="inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
+      >
+        <svg class="h-10 w-auto" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <text x="0" y="24" font-family="var(--font-family-sans)" font-weight="700" font-size="24" class="fill-text-primary">
+            CAPFLUX
+          </text>
+        </svg>
+      </RouterLink>
     </div>
 
     <!-- Headline -->
