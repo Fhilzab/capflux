@@ -150,6 +150,7 @@ export class SupabaseAuthProvider extends AuthProvider {
         const err = new Error('Sign in did not return a valid session');
         return { data: null, error: this._mapError(err) };
       }
+      persistSessionHint(session);
       return { data: { session, user }, error: null };
     } catch (err) {
       return { data: null, error: this._mapError(err as Error) };
@@ -284,7 +285,7 @@ export class SupabaseAuthProvider extends AuthProvider {
       }
 
       if (!email) {
-        const err = new Error('Cannot resend verification: no authenticated user');
+        const err = new Error('User not found: no authenticated session to resend verification');
         return { data: null, error: this._mapError(err) };
       }
 
