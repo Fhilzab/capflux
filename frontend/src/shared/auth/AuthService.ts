@@ -4,7 +4,7 @@
  * Used by authStore.js - maintains compatibility with existing store API
  */
 
-import { AuthKitProvider } from './AuthKitProvider';
+import { SupabaseAuthProvider } from './SupabaseAuthProvider';
 import type { User, Session, AuthResult, AuthErrorData } from './types';
 import { mapProviderError } from './AuthError';
 
@@ -15,11 +15,11 @@ import { mapProviderError } from './AuthError';
  * - No provider-specific logic outside this file
  */
 export const AuthService = {
-  _provider: new AuthKitProvider() as AuthKitProvider,
+  _provider: new SupabaseAuthProvider() as SupabaseAuthProvider,
 
   /**
-   * Initiate AuthKit Hosted UI: fetch the authorization URL from the backend
-   * and return it for browser redirect.
+   * Initiate provider auth flow. With Supabase Auth there is no hosted UI
+   * redirect — returns an empty URL so the caller renders inline forms.
    */
   async initiateAuthKit(mode: 'login' | 'signup'): Promise<{ data: { url: string } | null; error: AuthErrorData | null }> {
     try {

@@ -156,13 +156,14 @@ const routes: RouteRecordRaw[] = [
       provider: route.query.provider || null,
     }),
   },
-  // AuthKit callback: WorkOS redirects here with ?code=<code>. Redirect to
-  // /auth so AuthView can pick up the code via its route-query watcher.
+  // Supabase OAuth callback: Google redirects here with ?code=<code>&state=<state>.
+  // detectSessionInUrl (enabled in lib/supabase.ts) auto-exchanges the code;
+  // AuthView's query watcher also calls handleOAuthCallback as a fallback.
   {
     path: '/auth/callback',
     redirect: (route: RouteLocationNormalized) => ({
       path: '/auth',
-       query: { code: route.query.code, state: route.query.state },
+      query: { code: route.query.code, state: route.query.state },
     }),
   },
   {

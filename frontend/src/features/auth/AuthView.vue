@@ -54,6 +54,8 @@ const transition = (newState: AuthState) => {
 };
 
 // Handle OAuth callback (Google OAuth redirect with authorization code).
+// Supabase client with detectSessionInUrl may have already exchanged the
+// code automatically; handleOAuthCallback falls back to getSession() if so.
 watch(
   () => route.query,
   async (query) => {
@@ -69,9 +71,9 @@ watch(
   { immediate: true },
 );
 
-// AuthKit Hosted UI: when entering login or signup mode (and no OAuth
-// callback code is present), redirect the browser to the WorkOS-hosted
-// sign-in or sign-up screen.
+// Supabase Auth: no hosted UI redirect. When entering login or signup mode
+// (and no OAuth callback code is present), we render the inline form
+// components directly instead of redirecting to a provider-hosted page.
 onMounted(async () => {
   const mode = currentMode.value;
   if (mode !== 'login' && mode !== 'signup') return;
@@ -79,10 +81,9 @@ onMounted(async () => {
   const code = getQueryParam(route.query.code);
   if (code) return; // Callback flow is already handled by the watch above.
 
-  const { url, error } = await authStore.initiateAuthKit(mode);
-  if (url) {
-    window.location.href = url;
-  }
+  // initiateAuthKit returns an empty URL for Supabase Auth — forms render
+  // inline, no redirect needed.
+  await authStore.initiateAuthKit(mode);
 });
 
 // If the URL contains ?provider=google (Google OAuth redirect), auto-click

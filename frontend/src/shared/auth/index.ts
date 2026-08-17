@@ -5,6 +5,7 @@
 
 export { AuthProvider, type AuthStateChangeListener, type AuthSubscription } from './AuthProvider';
 export { AuthKitProvider } from './AuthKitProvider';
+export { SupabaseAuthProvider } from './SupabaseAuthProvider';
 export { mapProviderError, getErrorMessage } from './AuthError';
 export { AuthService } from './AuthService';
 export type { 

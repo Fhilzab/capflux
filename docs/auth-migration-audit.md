@@ -2,8 +2,9 @@
 
 > **Phase 1: Audit Only** • Repository: `/root/workspace/capflux`  
 > Date: 2026-08-17  
-> Branch: `main` (uncommitted changes present)  
-> Baseline test results: Backend 107/107 pass, Frontend 47/47 pass, Frontend build OK
+> Branch: `migration/supabase-auth`  
+> Baseline test results: Backend 107/107 pass, Frontend 47/47 pass, Frontend build OK  
+> Status: Phase 1 complete — Phase 2 in progress
 
 ---
 
@@ -760,3 +761,158 @@ The migration path requires:
 7. Updating all RLS policies to use `auth.uid()` (UUID) instead of `auth.uid()::text`
 8. Configuring Google OAuth in `supabase/config.toml`
 9. Removing WorkOS dependencies, cookies, routes, and env vars
+
+---
+
+## 21. Phase 2 — Decisions & Implementation
+
+### 21.1. User ID Model (DECISION 1)
+
+**Decision**: Revert `school_members.user_id` from TEXT to UUID.
+
+**Rationale**: 
+- `public.users.id` is UUID
+- `organization_members.user_id` is UUID (created by migration 022)
+- `profiles.user_id` is UUID (FK added by migration 021)
+- `auth.users.id` is UUID (Supabase built-in)
+- Only `school_members.user_id` is TEXT — an anomaly from migration 021's WorkOS conversion
+
+**Data safety**: WorkOS user IDs are UUID format strings. The TEXT values in `school_members.user_id` are UUID strings that were converted from UUID to TEXT by migration 021. Converting back with `::uuid` is safe IF all values match the UUID regex. A validation step in the migration checks for non-UUID values before converting and raises an exception if any are found.
+
+**Type conflict found**: `school_members.invited_by` still references `auth.users(id)` (UUID) but was NOT converted to TEXT. This is a pre-existing inconsistency — the FK is being fixed to reference `public.users(id)` in the Phase 2 migration.
+
+**Note**: Actual row inspection could not be performed (no Docker/local Supabase available in this environment). The migration includes runtime validation that aborts if any non-UUID value is found.
+
+### 21.2. Profile Authority (DECISION 2)
+
+**Decision**: `public.user_profiles` is the authoritative profile table.
+
+**Rationale**: `backend/routes/context.js` already uses `user_profiles` for `GET /api/context/me`. The provisioning trigger writes to both `public.users` and `public.user_profiles`.
+
+**Fields comparison**:
+
+| Field | `profiles` (migration 002) | `user_profiles` (migration 021) |
+|---|---|---|
+| `user_id` | UUID UNIQUE | UUID PK |
+| `school_id` | UUID FK → schools | — (not needed; derived from school_members) |
+| `email` | TEXT | — (on public.users) |
+| `full_name` | TEXT NOT NULL | TEXT |
+| `phone` | TEXT | TEXT |
+| `role` | profile_role | — (on roles/school_members) |
+| `admin_status` | TEXT | — (managed via profiles/legacy) |
+| `avatar_url` | — | TEXT |
+
+**Migration strategy**: `profiles` is NOT dropped in Phase 2. Fields `role`, `admin_status`, `school_id`, and `email` from `profiles` are either deprecated (role/admin_status live in RBAC tables) or derivable (email from `public.users`). The `profiles` table will be retired in a later phase after all consumers are migrated.
+
+### 21.3. Supabase Auth Provisioning
+
+**Strategy**: PostgreSQL trigger on `auth.users` → `public.users` + `public.user_profiles`.
+
+**Implementation**: `handle_new_supabase_user()` function (SECURITY DEFINER) that:
+- On INSERT to `auth.users`: creates `public.users` row (id, email, auth_provider='supabase', email_verified) with `ON CONFLICT DO UPDATE`
+- Creates/updates `public.user_profiles` row (full_name, phone, avatar_url from `raw_user_meta_data`) with `ON CONFLICT DO UPDATE`
+- Does NOT touch `school_members`, `organization_members`, or any tenant association
+- Is idempotent (ON CONFLICT handles re-inserts)
+- Logs warnings (not errors) on failure to avoid blocking authentication
+
+This replaces the manual `upsertUserRecords()` in `routes/auth.js`.
+
+### 21.4. RLS Migration Strategy
+
+**Current**: All policies use `auth.uid()::text` which returns NULL under WorkOS (backend bypasses via service-role key).
+
+**Target**: `auth.uid()` (UUID, no cast) after the UUID conversion of `school_members.user_id`.
+
+**Policies to update** (Phase 6 — NOT applied in Phase 2):
+- `public.users`: `"Users can view own identity"` — `auth.uid()::text = id` → `auth.uid() = id`
+- `public.user_profiles`: `"Users can view own profile"` / `"Users can update own profile"` — same pattern
+- `public.school_members` (migration 020): all policies using `auth.uid()::text`
+- `public.roles`, `public.permissions`, `public.role_permissions` (migration 020)
+- `public.organizations`, `public.organization_members`, `public.onboarding_progress`, `public.kyc_records` (migration 022)
+
+### 21.5. Authentication Architecture After Phase 2
+
+```
+Vue Frontend
+    ↓ (supabase.auth.* — direct)
+Supabase Auth (auth.users, JWT)
+    ↓ (access_token)
+Axios /api/*  ← Authorization: Bearer <access_token> interceptor
+    ↓
+Express
+    ↓
+requireAuthSupabase middleware (validates token via supabase.auth.getUser)
+    ↓
+AuthorizationService (school_members → roles → permissions)
+    ↓
+Supabase service-role client (bypasses RLS for domain data)
+    ↓
+Supabase/PostgreSQL
+```
+
+WorkOS `requireAuth` + `SessionService` + `WorkOSAuthService` remain in place (not deleted).
+
+### 21.6. Files Created (Phase 2)
+
+| File | Purpose |
+|---|---|
+| `frontend/src/lib/supabase.ts` | Centralized Supabase client (real, with auth enabled) |
+| `frontend/src/shared/auth/SupabaseAuthProvider.ts` | SupabaseAuthProvider implementing AuthProvider abstract class |
+| `backend/middleware/requireAuthSupabase.js` | Supabase Bearer token validation middleware |
+| `supabase/migrations/202607100027_supabase_auth_uuid.sql` | UUID conversion + provisioning trigger + RLS migration doc |
+
+### 21.7. Files Modified (Phase 2)
+
+| File | Change |
+|---|---|
+| `frontend/src/shared/services/api/supabase.ts` | Replaced neutered client with re-export from `lib/supabase.ts` |
+| `frontend/src/shared/auth/AuthService.ts` | Swapped `AuthKitProvider` → `SupabaseAuthProvider` |
+| `frontend/src/shared/auth/index.ts` | Added `SupabaseAuthProvider` to barrel exports |
+| `frontend/src/shared/services/api/client.ts` | Added Bearer token interceptor (reads Supabase session) |
+| `frontend/src/features/auth/AuthView.vue` | Removed AuthKit redirect, render forms inline |
+| `frontend/src/router/index.ts` | Updated `/auth/callback` route comment (Supabase OAuth) |
+| `frontend/.env` | Standardized `VITE_SUPABASE_PUBLISHABLE_KEY` → `VITE_SUPABASE_ANON_KEY` |
+
+### 21.8. Files NOT Modified (Phase 2)
+
+| File | Reason |
+|---|---|
+| `backend/middleware/requireAuth.js` | WorkOS requireAuth preserved |
+| `backend/services/SessionService.js` | WorkOS session service preserved |
+| `backend/services/WorkOSAuthService.js` | WorkOS auth service preserved |
+| `backend/routes/auth.js` | WorkOS routes preserved |
+| `frontend/src/shared/auth/AuthKitProvider.ts` | Preserved (reference for Phase 8 removal) |
+| `frontend/src/stores/authStore.ts` | No changes needed (uses AuthService which now uses SupabaseAuthProvider) |
+| `supabase/config.toml` | Google OAuth not configured in Phase 2 |
+| All existing RLS policies | Planned (Phase 6) but not applied |
+| `frontend/src/offline/*` | Not modified (offline-first preserved) |
+
+### 21.9. Test Results After Phase 2
+
+| Suite | Before | After |
+|---|---|---|
+| Backend tests | 107/107 pass | 107/107 pass |
+| Frontend tests | 47/47 pass | 47/47 pass |
+| Frontend build | OK | OK (new 209KB supabase chunk bundled) |
+
+---
+
+## 22. Remaining Risks
+
+1. **Database data verification**: The UUID conversion migration includes runtime validation but could not be tested locally (no Docker). The migration aborts if any `school_members.user_id` value is not a valid UUID.
+2. **Bundle size**: The real Supabase JS client adds ~209KB (gzipped) to the frontend bundle. The existing auth chunk was already using it for data operations.
+3. **Duplicate profile tables**: `profiles` and `user_profiles` both exist. The provisioning trigger writes to `user_profiles` only. Legacy code using `profiles` (migration 018 admin functions) may need migration.
+4. **RLS `auth.uid()` vs `auth.uid()::text`**: Current policies use `::text` cast. After UUID conversion, they must switch to `auth.uid()` (UUID) — this is planned for Phase 6 but not yet applied.
+5. **Google OAuth**: Not configured in `supabase/config.toml` — requires Supabase project dashboard setup.
+6. **Frontend env var**: `.env.local` (not in git) still needs updating if it exists. The committed `.env` has been updated.
+
+---
+
+## 23. Next Step — Phase 3
+
+Phase 3 should:
+1. Verify the centralized Supabase client works (unit test with mocked client)
+2. Write unit tests for `SupabaseAuthProvider` (signUp, signIn, signOut, session restoration)
+3. Write tests for `requireAuthSupabase` middleware (missing token, invalid token, valid token)
+4. Verify the provisioning trigger logic (test with SQL)
+5. Then proceed to Phase 4 (backend middleware integration) only after tests pass
