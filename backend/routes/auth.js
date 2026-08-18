@@ -1,3 +1,14 @@
+/**
+ * Auth routes — LEGACY (WorkOS).
+ *
+ * Phase 4: Supabase Auth is the active authentication authority.
+ * The frontend authenticates directly against Supabase Auth via
+ * SupabaseAuthProvider. These WorkOS-based routes are preserved as a
+ * rollback path and are NOT called by the current frontend.
+ *
+ * Do NOT delete until the migration is fully verified and WorkOS is
+ * removed in a later phase.
+ */
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
 import WorkOSAuthService from '../services/WorkOSAuthService.js';

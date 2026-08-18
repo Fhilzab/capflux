@@ -3,7 +3,7 @@
  *
  * Staff review workflows (KYC review, settlement verification, gateway
  * assignment, payment activation). Every endpoint requires:
- *   requireAuth (verified WorkOS session)
+ *   requireAuthSupabase (verified Supabase JWT)
  *   requireStaff(permission) (platform staff permission)
  *
  * Identity/school scope is NEVER taken from client headers; the target school
@@ -11,7 +11,7 @@
  */
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
-import requireAuth from '../middleware/requireAuth.js';
+import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
 import { requireStaff } from '../middleware/staffAuth.js';
 import { decryptField, maskIdentifier } from '../services/cryptoFields.js';
 import identityVerificationService from '../services/IdentityVerificationService.js';
@@ -22,7 +22,8 @@ import { namesPlausiblyMatch, isValidCacNumber } from '../services/validators.js
 import { getCacSignedUrl } from '../services/storage.js';
 
 const router = express.Router();
-router.use(requireAuth);
+// Phase 4: Switch to Supabase Auth (JWT Bearer token).
+router.use(requireAuthSupabase);
 
 const handleError = (res, error, fallbackStatus = 500) => {
   const status = error?.statusCode || fallbackStatus;

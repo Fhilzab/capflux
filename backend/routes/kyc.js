@@ -1,6 +1,6 @@
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
-import requireAuth from '../middleware/requireAuth.js';
+import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
 import {
   encryptField,
   decryptField,
@@ -35,8 +35,8 @@ const handleError = (res, error, fallbackStatus = 500) => {
   return res.status(status).json({ error: message });
 };
 
-// All KYC routes require an authenticated WorkOS session.
-router.use(requireAuth);
+// Phase 4: Switch to Supabase Auth (JWT Bearer token).
+router.use(requireAuthSupabase);
 
 /**
  * Get the user's school ID from school_members

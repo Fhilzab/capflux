@@ -12,7 +12,7 @@ import onboardingRoutes from './routes/onboarding.js';
 import kycRoutes from './routes/kyc.js';
 import contextRoutes from './routes/context.js';
 import financialAdminRoutes from './routes/financial-admin.js';
-import requireAuth from './middleware/requireAuth.js';
+import requireAuthSupabase from './middleware/requireAuthSupabase.js';
 import sessionService from './services/SessionService.js';
 import ProviderStatusService from './services/ProviderStatusService.js';
 import providerStatusRoutes from './routes/provider-status.js';
@@ -190,8 +190,8 @@ const PERMITTED_RPC_FUNCTIONS = [
   'get_onboarding_status',
 ];
 
-// RPC proxy endpoint — requires an authenticated WorkOS session.
-app.post('/rpc', requireAuth, async (req, res) => {
+// RPC proxy endpoint — requires a valid Supabase JWT (Bearer token).
+app.post('/rpc', requireAuthSupabase, async (req, res) => {
   if (!hasSupabaseConfig) {
     return res.status(500).json({ error: 'Supabase backend is not configured.' });
   }

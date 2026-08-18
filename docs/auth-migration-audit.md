@@ -4,7 +4,7 @@
 > Date: 2026-08-17  
 > Branch: `migration/supabase-auth`  
 > Baseline test results: Backend 107/107 pass, Frontend 47/47 pass, Frontend build OK  
-> Status: Phase 1 complete — Phase 2 in progress
+> Status: Phase 4 complete — Phase 5 in progress
 
 ---
 
@@ -908,11 +908,23 @@ WorkOS `requireAuth` + `SessionService` + `WorkOSAuthService` remain in place (n
 
 ---
 
-## 23. Next Step — Phase 3
+## 23. Next Step — Phase 4
 
-Phase 3 should:
-1. Verify the centralized Supabase client works (unit test with mocked client)
-2. Write unit tests for `SupabaseAuthProvider` (signUp, signIn, signOut, session restoration)
-3. Write tests for `requireAuthSupabase` middleware (missing token, invalid token, valid token)
-4. Verify the provisioning trigger logic (test with SQL)
-5. Then proceed to Phase 4 (backend middleware integration) only after tests pass
+**Phase 3 was completed** — SupabaseAuthProvider tests (34) and requireAuthSupabase tests (15) exist and pass.
+
+**Phase 4 was completed** — Backend integration:
+1. Route audit created: `docs/auth-phase4-route-audit.md`
+2. All 9 domain route files switched from WorkOS `requireAuth` to `requireAuthSupabase`:
+   `context.js`, `onboarding.js`, `kyc.js`, `admin.js`, `payments.js`, `dva.js`, `payment-accounts.js`, `financial-operations.js`, `financial-admin.js`
+3. `/rpc` endpoint in `index.js` switched to `requireAuthSupabase`
+4. WorkOS `requireAuth` preserved on `/api/auth/*` (session, me, signout) — marked as legacy
+5. RLS migration SQL created: `supabase/migrations/202607100028_supabase_rls_migration.sql`
+6. RLS documentation created: `docs/auth-rls-migration.md`
+7. Cross-school isolation tests created: `backend/tests/schoolIsolation.test.js` (6 tests)
+8. Current test status: Backend 128/128 pass, Frontend 81/81 pass, Frontend build OK
+
+**Phase 4 next steps:**
+1. Apply UUID conversion migration (027) and RLS migration (028) against a local Supabase instance (requires Docker)
+2. Run integration tests against a live database
+3. Switch frontend authStore to use Supabase Auth exclusively (remove WorkOS authStore calls)
+4. Remove WorkOS routes and dependencies in a later phase
