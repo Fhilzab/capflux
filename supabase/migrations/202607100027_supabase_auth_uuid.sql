@@ -1,78 +1,99 @@
--- ==========================================================
--- CAPFLUX — FHILZAB NIG LTD
+-- ===============================================================
+-- CAPFLUX — SUPABASE AUTH MIGRATION
 -- Migration: 202607100027_supabase_auth_uuid.sql
 -- Purpose: Prepare schema for Supabase Auth identity model.
---   1. Revert school_members.user_id from TEXT back to UUID
---   2. Fix school_members.invited_by FK to reference public.users
---   3. Add auth.users → public.users provisioning trigger
---   4. Ensure user_profiles has all fields needed by the app
--- ==========================================================
+--
+-- LIVE DATABASE STATUS (Phase 5 verified):
+--   - school_members.user_id is currently TEXT
+--   - Contains WorkOS-style IDs (user_01KZ...) that are NOT valid UUIDs
+--   - public.users.id is TEXT (mixed UUID and WorkOS IDs)
+--   - auth.users is empty (no Supabase Auth users exist yet)
+--
+-- STRATEGY:
+--   If all school_members.user_id values are valid UUIDs → convert to UUID.
+--   If any values are non-UUID (WorkOS IDs) → skip UUID conversion,
+--   keep TEXT, and use auth.uid()::text in RLS policies (migration 028).
+--   The provisioning trigger works with both UUID and TEXT columns.
+-- ===============================================================
 
 BEGIN;
 
 -- ==========================================================
--- 1. REVERT school_members.user_id FROM TEXT TO UUID
+-- 1. CONDITIONAL UUID CONVERSION: school_members.user_id TEXT→UUID
 -- ==========================================================
--- Migration 021 converted user_id to TEXT to accommodate WorkOS string IDs.
--- Supabase Auth uses UUID, so we revert to UUID for type consistency with
--- public.users.id (UUID), organization_members.user_id (UUID), and
--- profiles.user_id (UUID).
---
--- SAFETY: Only proceed if every existing value is a valid UUID string.
--- ==========================================================
+-- Migration 021 converted user_id from UUID to TEXT to accommodate
+-- WorkOS string IDs. If all current values are valid UUIDs, we can
+-- safely revert to UUID for type consistency. If WorkOS IDs exist,
+-- we skip conversion and rely on auth.uid()::text in RLS policies.
 
 DO $$
 DECLARE
     v_invalid_count INTEGER;
+    v_valid_count INTEGER;
+    v_total_count INTEGER;
     v_invalid_sample TEXT;
+    v_col_type TEXT;
 BEGIN
-    -- Count rows where user_id is NOT a valid UUID.
-    -- uuid 'text' cast fails for non-UUID strings, so we catch the exception.
-    SELECT COUNT(*) INTO v_invalid_count
-    FROM public.school_members sm
-    WHERE sm.user_id IS NOT NULL
-      AND sm.user_id::text !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
+    -- Check if the column is still TEXT (if already UUID, skip everything)
+    SELECT data_type INTO v_col_type
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'school_members'
+      AND column_name = 'user_id';
 
-    IF v_invalid_count > 0 THEN
-        SELECT string_agg(sm.user_id, ', ' LIMIT 10) INTO v_invalid_sample
+    SELECT COUNT(*) INTO v_total_count FROM public.school_members;
+
+    IF v_col_type = 'uuid' THEN
+        RAISE NOTICE 'school_members.user_id is already UUID — skipping conversion.';
+    ELSIF v_col_type = 'text' THEN
+        -- Count rows with invalid UUID values.
+        SELECT COUNT(*) INTO v_invalid_count
         FROM public.school_members sm
         WHERE sm.user_id IS NOT NULL
-          AND sm.user_id::text !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
-        LIMIT 10;
+          AND sm.user_id !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
 
-        RAISE EXCEPTION 'school_members.user_id has % non-UUID value(s): % — conversion aborted. Investigate before retrying.',
-            v_invalid_count, v_invalid_sample
-        USING HINT = 'These WorkOS user IDs do not match UUID format. Add a supabase_uid mapping column before converting.';
+        IF v_invalid_count > 0 THEN
+            SELECT string_agg(sm.user_id, ', ' ORDER BY sm.user_id) INTO v_invalid_sample
+            FROM public.school_members sm
+            WHERE sm.user_id IS NOT NULL
+              AND sm.user_id !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
+
+            RAISE WARNING 'school_members.user_id has % non-UUID value(s): %. Skipping UUID conversion — column stays TEXT. RLS policies will use auth.uid()::text.',
+                v_invalid_count, LEFT(v_invalid_sample, 200);
+            -- Skip conversion; do nothing here.
+        ELSE
+            SELECT COUNT(*) INTO v_valid_count
+            FROM public.school_members
+            WHERE user_id IS NOT NULL;
+
+            RAISE NOTICE 'All % school_members.user_id values are valid UUIDs. Converting to UUID.', v_valid_count;
+
+            -- Safe to convert: drop FK, convert column, restore FK.
+            ALTER TABLE public.school_members
+                DROP CONSTRAINT IF EXISTS school_members_user_id_fkey;
+
+            ALTER TABLE public.school_members
+                ALTER COLUMN user_id TYPE UUID USING user_id::uuid;
+
+            ALTER TABLE public.school_members
+                ADD CONSTRAINT school_members_user_id_fkey
+                FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+            DROP INDEX IF EXISTS idx_school_members_user;
+            CREATE INDEX IF NOT EXISTS idx_school_members_user
+                ON public.school_members(user_id);
+        END IF;
+
+        -- Always fix invited_by FK to reference public.users (not auth.users),
+        -- regardless of UUID conversion.
+        ALTER TABLE public.school_members
+            DROP CONSTRAINT IF EXISTS school_members_invited_by_fkey;
+
+        ALTER TABLE public.school_members
+            ADD CONSTRAINT school_members_invited_by_fkey
+            FOREIGN KEY (invited_by) REFERENCES public.users(id) ON DELETE SET NULL;
     END IF;
-
-    -- All values are valid UUID strings — safe to convert.
-    RAISE NOTICE 'All school_members.user_id values are valid UUIDs. Proceeding with conversion.';
 END $$;
-
--- Drop the TEXT foreign key and constraints, then convert to UUID.
-ALTER TABLE public.school_members
-    DROP CONSTRAINT IF EXISTS school_members_user_id_fkey;
-
-ALTER TABLE public.school_members
-    ALTER COLUMN user_id TYPE UUID USING user_id::uuid;
-
--- Restore the FK to public.users(id).
-ALTER TABLE public.school_members
-    ADD CONSTRAINT school_members_user_id_fkey
-    FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
--- Also fix invited_by to reference public.users (not auth.users) for consistency.
-ALTER TABLE public.school_members
-    DROP CONSTRAINT IF EXISTS school_members_invited_by_fkey;
-
-ALTER TABLE public.school_members
-    ADD CONSTRAINT school_members_invited_by_fkey
-    FOREIGN KEY (invited_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
--- Index for fast membership lookups (UUID is faster than TEXT).
-DROP INDEX IF EXISTS idx_school_members_user;
-CREATE INDEX IF NOT EXISTS idx_school_members_user
-    ON public.school_members(user_id);
 
 -- ==========================================================
 -- 2. PROVISIONING TRIGGER: auth.users → public.users + user_profiles
@@ -80,11 +101,13 @@ CREATE INDEX IF NOT EXISTS idx_school_members_user
 -- When a new user signs up via Supabase Auth, automatically create the
 -- corresponding CAPFLUX application records.
 --
--- This replaces the manual upsertUserRecords() in the Express route handler.
--- The trigger is idempotent (INSERT ... ON CONFLICT DO NOTHING).
+-- The trigger is idempotent (INSERT ... ON CONFLICT DO UPDATE).
 -- It does NOT touch school_members, organization_members, or any tenant
 -- association — those are resolved by the application layer.
--- ==========================================================
+--
+-- NOTE: NEW.id is a UUID from auth.users. If public.users.id is TEXT,
+-- PostgreSQL implicitly casts the UUID to TEXT. This works for both
+-- UUID and TEXT column types.
 
 CREATE OR REPLACE FUNCTION public.handle_new_supabase_user()
 RETURNS TRIGGER
@@ -164,36 +187,66 @@ CREATE TRIGGER supabase_auth_update_hook
 -- 3. ENSURE user_profiles SCHEMA IS SUFFICIENT
 -- ==========================================================
 -- user_profiles already has: user_id, full_name, phone, avatar_url, timestamps.
--- No structural changes needed for Phase 2 — it covers the fields written by
--- the provisioning trigger. The legacy `profiles` table is NOT modified.
--- ==========================================================
+-- No structural changes needed — it covers the fields written by the provisioning
+-- trigger. The legacy `profiles` table is NOT modified.
 
 -- ==========================================================
--- 4. DOCUMENT RLS MIGRATION (not applied in Phase 2)
+-- 4. FIX is_super_admin FUNCTION
+-- ==========================================================
+-- The is_super_admin function (created in migration 020) takes
+-- p_user_id UUID but school_members.user_id is TEXT. This causes
+-- "operator does not exist: text = uuid" errors.
+--
+-- Fix: change parameter to TEXT and use ::text for the comparison.
+-- This works for both TEXT and UUID column types.
+
+CREATE OR REPLACE FUNCTION public.is_super_admin(p_user_id TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.school_members sm
+        JOIN public.roles r ON sm.role_id = r.id
+        WHERE sm.user_id::text = p_user_id
+        AND sm.is_active = true
+        AND r.system_role = 'SUPER_ADMIN'
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+COMMENT ON FUNCTION public.is_super_admin(TEXT) IS 'Returns true if the given user is a SUPER_ADMIN';
+
+-- ==========================================================
+-- 5. DOCUMENT RLS MIGRATION (applied by migration 028)
 -- ==========================================================
 -- The following policies currently use auth.uid()::text and need updating
--- to auth.uid() (UUID) after this migration is applied:
+-- to use auth.uid()::text consistently (which works for both TEXT and UUID
+-- column types after this migration):
 --
 --   public.users (migration 021):
 --     "Users can view own identity" — USING (auth.uid()::text = id)
---     Should become: USING (auth.uid() = id)
 --
 --   public.user_profiles (migration 021):
 --     "Users can view own profile" — USING (auth.uid()::text = user_id)
---     Should become: USING (auth.uid() = user_id)
---     "Users can update own profile" — same pattern
+--     "Users can update own profile" — USING (auth.uid()::text = user_id)
+--                                   WITH CHECK (auth.uid()::text = user_id)
 --
 --   public.school_members (migration 020):
---     "Users can view their own school memberships"
---     — user_id = auth.uid()::text → user_id = auth.uid()
+--     All policies use auth.uid()::text → remain auth.uid()::text
+--     (no change needed if column stays TEXT)
 --
 --   public.roles, public.role_permissions (migration 020):
---     All policies use auth.uid()::text → should use auth.uid()
+--     All policies use auth.uid()::text
 --
---   public.organizations, public.organization_members (migration 022):
---     All policies use auth.uid()::text → should use auth.uid()
+--   public.profiles (migration 018):
+--     All policies use auth.uid()::text
 --
--- These RLS changes are applied in Phase 6 after verifying the UUID conversion
--- is safe and the provisioning trigger is working.
+--   public.organizations, public.organization_members,
+--   public.onboarding_progress, public.kyc_records (migration 022):
+--     All policies use auth.uid()::text
+--
+-- If the UUID conversion succeeded, school_members.user_id is UUID
+-- and auth.uid()::text = user_id still works (UUID is cast to TEXT).
+-- If the conversion was skipped, school_members.user_id remains TEXT
+-- and auth.uid()::text = user_id is a direct TEXT comparison.
 
 COMMIT;
