@@ -38,11 +38,24 @@ router.get('/status', async (req, res) => {
 // Update user profile (full name, phone)
 // ==========================================================
 router.post('/profile', async (req, res) => {
-  const { fullName, phone } = req.body;
+  const {
+    fullName,
+    firstName,
+    middleName,
+    lastName,
+    phone,
+    dateOfBirth,
+    country,
+    state,
+    lga,
+    residentialAddress,
+  } = req.body;
 
-  if (!fullName) {
-    return res.status(400).json({ error: 'Full name is required.' });
+  if (!fullName && !(firstName && lastName)) {
+    return res.status(400).json({ error: 'Full name or first + last name is required.' });
   }
+
+  const resolvedFullName = fullName || [firstName, middleName, lastName].filter(Boolean).join(' ');
 
   try {
     // Update user_profiles
@@ -50,8 +63,16 @@ router.post('/profile', async (req, res) => {
       .from('user_profiles')
       .upsert({
         user_id: req.user.id,
-        full_name: fullName,
+        full_name: resolvedFullName,
+        first_name: firstName || null,
+        middle_name: middleName || null,
+        last_name: lastName || null,
         phone: phone || null,
+        date_of_birth: dateOfBirth || null,
+        country: country || null,
+        state_of_origin: state || null,
+        lga_of_origin: lga || null,
+        residential_address: residentialAddress || null,
       });
 
     if (profileError) {
@@ -158,6 +179,9 @@ router.post('/school', async (req, res) => {
     lga,
     country,
     schoolType,
+    schoolCategory,
+    gender,
+    schoolLevels,
     academicCalendar,
   } = req.body;
 
@@ -206,6 +230,18 @@ router.post('/school', async (req, res) => {
     if (error) {
       return res.status(500).json({ error: error.message });
     }
+
+    // Extend the school with Phase 8.4 fields (levels, category, gender)
+    // The create_school_with_onboarding RPC (migration 022) predates these
+    // columns; set them here as additive columns added in migration 030.
+    await supabase
+      .from('schools')
+      .update({
+        school_levels: schoolLevels || [],
+        school_category: schoolCategory || null,
+        gender: gender || 'MIXED',
+      })
+      .eq('id', schoolId);
 
     // Mark school step as completed
     await supabase

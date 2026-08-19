@@ -40,15 +40,26 @@ http.interceptors.request.use(async (config) => {
 http.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Enrich the ORIGINAL axios error rather than replacing it with `new Error()`.
+    // The previous implementation did `new Error(message)` which discarded
+    // `error.response`, causing every HTTP status (401/403/404/500) to be
+    // misclassified downstream as a NETWORK_ERROR ("Connection problem").
     const status = error.response?.status;
-    const message = error.response?.data?.error || error.message || 'Network request failed';
-    const apiError = new Error(message);
-    (apiError as Error & { status?: number }).status = status;
+    const backendMessage = error.response?.data?.error || error.response?.data?.message;
+
+    if (backendMessage) {
+      error.message = backendMessage;
+    }
+    error.status = status;
+    error.backendMessage = backendMessage;
+    error.isNetworkError = !error.response;
+
     // 401 from a domain call typically means the session expired or token is invalid.
     if (status === 401) {
-      (apiError as Error & { code?: string }).code = 'SESSION_EXPIRED';
+      error.code = 'SESSION_EXPIRED';
     }
-    return Promise.reject(apiError);
+
+    return Promise.reject(error);
   },
 );
 

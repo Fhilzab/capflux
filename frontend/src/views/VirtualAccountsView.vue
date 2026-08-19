@@ -8,7 +8,7 @@ import CmButton from '@/components/ui/CmButton.vue';
 import CmStatusChip from '@/components/ui/CmStatusChip.vue';
 
 const store = usePaymentsStore();
-const { paymentsLocked, loading: lockLoading } = useModuleLock();
+const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 
 const accounts = computed(() => store.dvAccounts);
 const loading = computed(() => store.loading);
@@ -40,7 +40,10 @@ onMounted(() => {
 
 <template>
   <div class="p-6">
-    <ModuleLockOverlay v-if="paymentsLocked && !lockLoading" variant="payment" />
+    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
+    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
+    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
+    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
     <template v-else>
       <div class="mb-6">
         <h1 class="text-headline">Virtual Accounts</h1>

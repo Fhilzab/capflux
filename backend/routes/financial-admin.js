@@ -18,8 +18,14 @@ import identityVerificationService from '../services/IdentityVerificationService
 import settlementVerificationService from '../services/SettlementVerificationService.js';
 import gatewayAssignmentService from '../services/GatewayAssignmentService.js';
 import paymentActivationService from '../services/PaymentActivationService.js';
-import { namesPlausiblyMatch, isValidCacNumber } from '../services/validators.js';
+import { isValidCacNumber } from '../services/validators.js';
 import { getCacSignedUrl } from '../services/storage.js';
+import {
+  compareIdentityAgainstSubmission,
+  evaluateSettlementEligibility,
+  FieldState,
+  sanitizeIdentityResult,
+} from '../services/verification-matching.js';
 
 const router = express.Router();
 // Phase 4: Switch to Supabase Auth (JWT Bearer token).
@@ -171,25 +177,42 @@ router.post('/kyc/:id/verify', requireStaff('kyc.verify'), async (req, res) => {
 
     if (ninPlain) {
       const resNin = await identityVerificationService.verifyIdentity({ type: 'NIN', value: ninPlain, metadata: { name: kyc.principal_name } });
-      identityResults.push({ type: 'NIN', ...resNin });
+      const match = compareIdentityAgainstSubmission({
+        submitted: { name: kyc.principal_name },
+        verification: resNin,
+      });
+      identityResults.push({ type: 'NIN', ...sanitizeIdentityResult(resNin), match });
       await audit(schoolId, actorId, resNin.verified ? 'NIN_VERIFICATION_SUCCESS' : 'NIN_VERIFICATION_FAILED', 'kyc_record', kyc.id, {
         provider: resNin.provider,
         provider_reference: resNin.reference,
+        match: match.overall,
       });
     }
     if (bvnPlain) {
       const resBvn = await identityVerificationService.verifyIdentity({ type: 'BVN', value: bvnPlain, metadata: { name: kyc.principal_name } });
-      identityResults.push({ type: 'BVN', ...resBvn });
+      const match = compareIdentityAgainstSubmission({
+        submitted: { name: kyc.principal_name },
+        verification: resBvn,
+      });
+      identityResults.push({ type: 'BVN', ...sanitizeIdentityResult(resBvn), match });
       await audit(schoolId, actorId, resBvn.verified ? 'BVN_VERIFICATION_SUCCESS' : 'BVN_VERIFICATION_FAILED', 'kyc_record', kyc.id, {
         provider: resBvn.provider,
         provider_reference: resBvn.reference,
+        match: match.overall,
       });
     }
 
-    // Approval requires at least one identity verification success.
-    const identityVerified = identityResults.some((r) => r.verified);
+    // Approval requires a confirmed identity MATCH (capability-aware). An explicit
+    // MISMATCH or FAILED blocks approval; fields the provider cannot return are
+    // NOT_PROVIDED / NOT_VERIFIED and do NOT produce false mismatches.
+    const identityVerified = identityResults.some(
+      (r) => r.verified && r.match.overall !== 'MISMATCH' && r.match.overall !== 'FAILED'
+    );
     if (!identityVerified) {
-      await audit(schoolId, actorId, 'KYC_REJECTED', 'kyc_record', kyc.id, { reason: 'IDENTITY_VERIFICATION_FAILED' });
+      await audit(schoolId, actorId, 'KYC_REJECTED', 'kyc_record', kyc.id, {
+        reason: 'IDENTITY_VERIFICATION_FAILED',
+        matches: identityResults.map((r) => `${r.type}:${r.match.overall}`),
+      });
       await supabase.from('kyc_records').update({
         status: 'REJECTED',
         rejection_reason: 'Identity verification failed.',
@@ -198,7 +221,16 @@ router.post('/kyc/:id/verify', requireStaff('kyc.verify'), async (req, res) => {
       }).eq('id', kyc.id);
       return res.status(400).json({
         error: 'KYC rejected: identity verification failed.',
-        identityResults,
+        identityResults: identityResults.map((r) => ({
+          type: r.type,
+          verified: r.verified,
+          verificationStatus: r.verificationStatus,
+          provider: r.provider,
+          provider_reference: r.reference,
+          failureReason: r.failureReason,
+          verifiedAt: r.verifiedAt,
+          match: { overall: r.match.overall, fields: r.match.fields },
+        })),
       });
     }
 
@@ -219,20 +251,30 @@ router.post('/kyc/:id/verify', requireStaff('kyc.verify'), async (req, res) => {
     }
 
     // Record identity verification rows (idempotent per kyc record + type).
+    // The capability-aware outcome is derived from the provider-verified fields +
+    // match (comparison), NOT from a bare `verified` flag. raw_response stays empty
+    // (no raw provider payloads persisted); verified_fields + comparison are auditable,
+    // sanitized evidence.
     for (const r of identityResults) {
       const idemKey = `kyc:${kyc.id}:${r.type}`;
+      const matchOutcome =
+        r.match.overall === 'MATCH' ? 'VERIFIED' :
+        r.match.overall === 'MISMATCH' ? 'FAILED' :
+        (r.verified ? 'VERIFIED' : 'FAILED');
       await supabase.from('kyc_verifications').upsert({
         kyc_record_id: kyc.id,
         school_id: schoolId,
         verification_type: r.type,
         provider: r.provider,
         provider_reference: r.reference,
-        status: r.verified ? 'VERIFIED' : 'FAILED',
+        status: matchOutcome,
         failure_reason: r.failureReason,
         verified_at: r.verifiedAt,
         verified_by: actorId,
         idempotency_key: idemKey,
         raw_response: {},
+        verified_fields: r.verifiedFields || {},
+        comparison: { overall: r.match.overall, fields: r.match.fields },
       }, { onConflict: 'idempotency_key' });
     }
 
@@ -242,8 +284,8 @@ router.post('/kyc/:id/verify', requireStaff('kyc.verify'), async (req, res) => {
       reviewed_at: new Date().toISOString(),
       reviewed_by: actorId,
       rejection_reason: null,
-      bvn_verification_status: identityResults.find((r) => r.type === 'BVN')?.verified ? 'VERIFIED' : kyc.bvn_verification_status,
-      nin_verification_status: identityResults.find((r) => r.type === 'NIN')?.verified ? 'VERIFIED' : kyc.nin_verification_status,
+      bvn_verification_status: identityResults.find((r) => r.type === 'BVN')?.match?.overall === 'MATCH' ? 'VERIFIED' : kyc.bvn_verification_status,
+      nin_verification_status: identityResults.find((r) => r.type === 'NIN')?.match?.overall === 'MATCH' ? 'VERIFIED' : kyc.nin_verification_status,
       cac_document_status: 'VERIFIED',
       cac_verified_at: new Date().toISOString(),
       cac_verified_by: actorId,
@@ -401,16 +443,23 @@ router.post('/settlements/:id/verify', requireStaff('settlement.verify'), async 
       return res.status(400).json({ error: 'Settlement account verification failed.', reason: result.failureReason });
     }
 
-    // Name match: compare provider name against school/owner registered name.
-    const registeredName = account.schools?.name || '';
-    const nameMatches = namesPlausiblyMatch(result.accountName, registeredName);
+    // Capability-aware ownership authorization. Provider name enquiry is evidence;
+    // CAPFLUX applies its own rule. accountName is compared ONLY when the provider
+    // declares it can fetch a verified name (NOT_PROVIDED != MISMATCH). BVN ownership
+    // is a separate concept assessed in the identity step — not assumed here.
+    const eligibility = evaluateSettlementEligibility({
+      accountVerification: result,
+      registeredOwnerName: account.schools?.name || '',
+      submittedOwnerName: account.schools?.name || '',
+    });
 
-    if (!nameMatches) {
+    if (eligibility.account.accountName === FieldState.MISMATCH) {
       await supabase.from('settlement_accounts').update({
         status: 'REJECTED',
         rejection_reason: 'Account name does not match the registered school/owner.',
         verified_at: null,
         verified_by: null,
+        ownership_match_status: 'NAME_MISMATCH',
       }).eq('id', account.id);
 
       await supabase.from('settlement_account_verifications').insert({
@@ -419,11 +468,13 @@ router.post('/settlements/:id/verify', requireStaff('settlement.verify'), async 
         provider: result.provider,
         provider_reference: result.reference,
         account_number_last4: account.account_number.slice(-4),
-        account_name_returned: result.accountName,
+        account_name_returned: result.accountName || null,
         status: 'FAILED',
         failure_reason: 'NAME_MISMATCH',
         idempotency_key: `settle:${account.id}`,
         raw_response: {},
+        verified_fields: result.verifiedFields || {},
+        comparison: { overall: eligibility.overall, ownership: eligibility.ownership },
       });
 
       await audit(schoolId, actorId, 'SETTLEMENT_ACCOUNT_REJECTED', 'settlement_accounts', account.id, {
@@ -433,13 +484,45 @@ router.post('/settlements/:id/verify', requireStaff('settlement.verify'), async 
       return res.status(400).json({ error: 'Account name does not match the registered school/owner.' });
     }
 
-    // Verified.
+    if (!eligibility.eligible) {
+      await supabase.from('settlement_accounts').update({
+        status: 'REJECTED',
+        rejection_reason: 'Settlement ownership could not be confirmed.',
+        verified_at: null,
+        verified_by: null,
+        ownership_match_status: eligibility.overall,
+      }).eq('id', account.id);
+
+      await supabase.from('settlement_account_verifications').insert({
+        settlement_account_id: account.id,
+        school_id: schoolId,
+        provider: result.provider,
+        provider_reference: result.reference,
+        account_number_last4: account.account_number.slice(-4),
+        account_name_returned: result.accountName || null,
+        status: 'FAILED',
+        failure_reason: eligibility.overall,
+        idempotency_key: `settle:${account.id}`,
+        raw_response: {},
+        verified_fields: result.verifiedFields || {},
+        comparison: { overall: eligibility.overall, ownership: eligibility.ownership },
+      });
+
+      await audit(schoolId, actorId, 'SETTLEMENT_ACCOUNT_REJECTED', 'settlement_accounts', account.id, {
+        reason: eligibility.overall,
+      });
+
+      return res.status(400).json({ error: 'Settlement ownership could not be confirmed.', reason: eligibility.overall });
+    }
+
+    // Ownership authorized by CAPFLUX rules.
     await supabase.from('settlement_accounts').update({
       status: 'VERIFIED',
       account_name: result.accountName,
       verified_at: new Date().toISOString(),
       verified_by: actorId,
       rejection_reason: null,
+      ownership_match_status: 'OWNERSHIP_MATCH',
     }).eq('id', account.id);
 
     await supabase.from('settlement_account_verifications').insert({
@@ -448,10 +531,12 @@ router.post('/settlements/:id/verify', requireStaff('settlement.verify'), async 
       provider: result.provider,
       provider_reference: result.reference,
       account_number_last4: account.account_number.slice(-4),
-      account_name_returned: result.accountName,
+      account_name_returned: result.accountName || null,
       status: 'VERIFIED',
       idempotency_key: `settle:${account.id}`,
       raw_response: {},
+      verified_fields: result.verifiedFields || {},
+      comparison: { overall: eligibility.overall, ownership: eligibility.ownership },
     });
 
     await audit(schoolId, actorId, 'SETTLEMENT_ACCOUNT_VERIFIED', 'settlement_accounts', account.id, {

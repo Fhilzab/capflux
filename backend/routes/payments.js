@@ -18,6 +18,8 @@ import requirePaymentReady from '../middleware/requirePaymentReady.js';
 import { requireStaff } from '../middleware/staffAuth.js';
 import PaymentService from '../services/PaymentService.js';
 
+const router = express.Router();
+
 // Phase 4: Switch to Supabase Auth (JWT Bearer token).
 router.use(requireAuthSupabase);
 

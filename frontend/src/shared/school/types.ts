@@ -46,7 +46,7 @@ export interface OnboardingProgress {
 
 // Onboarding status response from backend
 export interface OnboardingStatus {
-  userId: string;
+  userId: string | null;
   organization: {
     id: string;
     name: string;
@@ -68,6 +68,8 @@ export interface OnboardingStatus {
     reviewedAt?: string;
     rejectionReason?: string;
   } | null;
+  /** True when the user has an active school membership (from get_onboarding_status). */
+  hasSchool?: boolean;
 }
 
 // Computed visibility helpers

@@ -9,9 +9,18 @@
  * All calls go through the cookie-authenticated apiClient. The store NEVER
  * exposes raw NIN/BVN or full settlement account numbers; the backend returns
  * masked values only.
+ *
+ * Resilience guarantees (Phase 8.3):
+ *   - Each load method deduplicates concurrent calls (no duplicate requests).
+ *   - `loading` reflects the true count of in-flight loads (parallel-safe).
+ *   - A failed load preserves previously cached data.
+ *   - 400/404 on GET status endpoints is treated as "prerequisite not met"
+ *     (no school yet) — not a display error — so new users see "Not started"
+ *     instead of a panic banner.
  */
 import { defineStore } from 'pinia';
 import { apiClient } from '../shared/services/api/client';
+import { categorizeApiError, ApiErrorCategory } from '../shared/services/api/errors';
 
 interface KycStatus {
   kyc: {
@@ -28,6 +37,9 @@ interface KycStatus {
     officialEmail?: string;
     officialPhone?: string;
     cacRegistrationNumber?: string;
+    identityDocumentType?: string;
+    identityMatchStates?: Record<string, string>;
+    verificationReference?: string;
   } | null;
   schoolStatus: string | null;
   paymentStatus: string | null;
@@ -41,6 +53,9 @@ interface SettlementStatus {
     bankName?: string;
     accountNumberLast4?: string | null;
     accountName?: string | null;
+    bvnLast4?: string | null;
+    ownershipMatchStatus?: string | null;
+    accountVerificationReference?: string | null;
     rejectionReason?: string | null;
     submittedAt?: string;
     verifiedAt?: string;
@@ -52,6 +67,26 @@ interface SettlementStatus {
   } | null;
 }
 
+interface Shareholder {
+  id: string;
+  fullName: string;
+  ownershipPercentage: number;
+  role: string;
+  phone?: string;
+  identityType: string;
+  identityDocumentType: string;
+  identityNinLast4?: string;
+  identityMatchStatus?: string;
+  verificationReference?: string;
+}
+
+interface Readiness {
+  ready: boolean;
+  reason: string | null;
+  conditions: Record<string, boolean>;
+  school: { id: string; status: string; paymentStatus: string } | null;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const response = await apiClient.http({
     method: method as 'get' | 'post' | 'put' | 'patch' | 'delete',
@@ -61,18 +96,33 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return response.data as T;
 }
 
+type EnhancedError = Error & {
+  status?: number;
+  isNetworkError?: boolean;
+  backendMessage?: string;
+  category?: ApiErrorCategory;
+  userMessage?: string;
+};
+
+/**
+ * Module-level request in-flight count so that parallel loads (loadAll firing
+ * four loads at once) keep `loading` true until ALL of them settle.
+ */
+let _activeLoadCount = 0;
+
+/** Module-level dedup map so concurrent calls to the same loader coalesce. */
+const _pendingLoads = new Map<string, Promise<void>>();
+
 export const useFinancialActivationStore = defineStore('financialActivation', {
   state: () => ({
-    loading: false,
+    _loadCount: 0,
     error: null as string | null,
-    kycStatus: null as KycStatus | null,
+    errorCategory: null as ApiErrorCategory | null,
+     kycStatus: null as KycStatus | null,
     settlementStatus: null as SettlementStatus | null,
-    readiness: null as {
-      ready: boolean;
-      reason: string | null;
-      conditions: Record<string, boolean>;
-      school: { id: string; status: string; paymentStatus: string } | null;
-    } | null,
+    readiness: null as Readiness | null,
+    shareholders: [] as Shareholder[],
+    principalInvitation: null as { email: string; status: string; expiresAt?: string } | null,
     cacDocument: null as {
       mime_type?: string;
       file_size?: number;
@@ -80,9 +130,17 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
       uploaded_at?: string;
       status?: string;
     } | null,
+    kycStatusLoaded: false,
+    settlementStatusLoaded: false,
+    readinessLoaded: false,
   }),
 
   getters: {
+    loading(state): boolean {
+      // Backing counter tracks parallel in-flight loads so the UI doesn't
+      // flash "loaded" while a sibling request is still in-flight.
+      return state._loadCount > 0;
+    },
     kycState(state): string {
       return state.kycStatus?.kyc?.status || 'NONE';
     },
@@ -107,6 +165,9 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
     settlementVerified(state): boolean {
       return state.settlementStatus?.settlement?.status === 'VERIFIED';
     },
+    settlement(state): SettlementStatus['settlement'] {
+      return state.settlementStatus?.settlement || null;
+    },
     gatewayAssigned(state): boolean {
       return Boolean(state.settlementStatus?.gateway);
     },
@@ -119,17 +180,37 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
   },
 
   actions: {
-    async loadKycStatus() {
-      this.loading = true;
-      this.error = null;
-      try {
-        const data = await request<{ success: boolean; data: KycStatus }>('get', '/kyc/status');
-        this.kycStatus = data.data;
-      } catch (err) {
-        this.error = (err as Error).message || 'Failed to load KYC status';
-      } finally {
-        this.loading = false;
+    /**
+     * Deduplicate concurrent loaders keyed by name. Returns the in-flight
+     * promise when a load is already running so the backend is never hit twice
+     * for the same resource within an overlapping window.
+     */
+    _withDedup<T>(key: string, fn: () => Promise<T>): Promise<T> {
+      if (_pendingLoads.has(key)) {
+        return _pendingLoads.get(key) as Promise<T>;
       }
+      _activeLoadCount++;
+      this._loadCount++;
+      const promise = fn().finally(() => {
+        _pendingLoads.delete(key);
+        _activeLoadCount--;
+        this._loadCount--;
+      });
+      _pendingLoads.set(key, promise as Promise<void>);
+      return promise;
+    },
+
+    async loadKycStatus() {
+      return this._withDedup('kycStatus', async () => {
+        try {
+          const data = await request<{ success: boolean; data: KycStatus }>('get', '/kyc/status');
+          this.kycStatus = data.data;
+        } catch (err) {
+          this._handleStatusError(err as EnhancedError, 'Failed to load KYC status');
+        } finally {
+          this.kycStatusLoaded = true;
+        }
+      });
     },
 
     async submitKyc(payload: {
@@ -140,18 +221,20 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
       cacRegistrationNumber?: string;
       bvn: string;
       nin: string;
+      identityDocumentType?: string;
+      personalInfo?: Record<string, unknown>;
     }) {
-      this.loading = true;
-      this.error = null;
       try {
         await request('post', '/kyc/submit', payload);
         await this.loadKycStatus();
       } catch (err) {
-        this.error = (err as Error).message || 'Failed to submit KYC';
+        this._setError(err as EnhancedError, 'Failed to submit KYC');
         throw err;
-      } finally {
-        this.loading = false;
       }
+    },
+
+    async fetchKycStatus() {
+      return this.loadKycStatus();
     },
 
     async resubmitKyc(payload: {
@@ -163,22 +246,16 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
       bvn: string;
       nin: string;
     }) {
-      this.loading = true;
-      this.error = null;
       try {
         await request('post', '/kyc/resubmit', payload);
         await this.loadKycStatus();
       } catch (err) {
-        this.error = (err as Error).message || 'Failed to resubmit KYC';
+        this._setError(err as EnhancedError, 'Failed to resubmit KYC');
         throw err;
-      } finally {
-        this.loading = false;
       }
     },
 
     async uploadCacDocument(file: File) {
-      this.loading = true;
-      this.error = null;
       try {
         const dataBase64 = await fileToBase64(file);
         const data = await request<{ success: boolean; data: Record<string, unknown> }>(
@@ -192,70 +269,142 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
         );
         this.cacDocument = data.data as typeof this.cacDocument;
       } catch (err) {
-        this.error = (err as Error).message || 'Failed to upload CAC certificate';
+        this._setError(err as EnhancedError, 'Failed to upload CAC certificate');
         throw err;
-      } finally {
-        this.loading = false;
       }
     },
 
     async loadKycDocuments() {
-      this.loading = true;
-      this.error = null;
-      try {
-        const data = await request<{
-          success: boolean;
-          data: { cacDocument: typeof this.cacDocument } | null;
-        }>('get', '/kyc/documents');
-        this.cacDocument = data.data?.cacDocument || null;
-      } catch (err) {
-        this.error = (err as Error).message || 'Failed to load KYC documents';
-      } finally {
-        this.loading = false;
-      }
+      return this._withDedup('kycDocuments', async () => {
+        try {
+          const data = await request<{
+            success: boolean;
+            data: { cacDocument: typeof this.cacDocument } | null;
+          }>('get', '/kyc/documents');
+          this.cacDocument = data.data?.cacDocument || null;
+        } catch (err) {
+          this._handleStatusError(err as EnhancedError, 'Failed to load KYC documents');
+        }
+      });
     },
 
     async loadSettlementStatus() {
-      this.loading = true;
-      this.error = null;
+      return this._withDedup('settlementStatus', async () => {
+        try {
+          const data = await request<{ success: boolean; data: SettlementStatus }>('get', '/kyc/settlement');
+          this.settlementStatus = data.data;
+        } catch (err) {
+          this._handleStatusError(err as EnhancedError, 'Failed to load settlement status');
+        } finally {
+          this.settlementStatusLoaded = true;
+        }
+      });
+    },
+
+    async submitSettlement(bankCode: string, accountNumber: string, bvn?: string) {
       try {
-        const data = await request<{ success: boolean; data: SettlementStatus }>('get', '/kyc/settlement');
-        this.settlementStatus = data.data;
+        await request('post', '/kyc/settlement', { bankCode, accountNumber, bvn });
+        await this.loadSettlementStatus();
       } catch (err) {
-        this.error = (err as Error).message || 'Failed to load settlement status';
-      } finally {
-        this.loading = false;
+        this._setError(err as EnhancedError, 'Failed to submit settlement account');
+        throw err;
       }
     },
 
-    async submitSettlement(bankCode: string, accountNumber: string) {
-      this.loading = true;
-      this.error = null;
+    async fetchKycDocuments() {
+      return this.loadKycDocuments();
+    },
+
+    async fetchKycHistory() {
+      return this._withDedup('kycHistory', async () => {
+        try {
+          const data = await request<{ success: boolean; data: unknown }>('get', '/kyc/history');
+          return data.data;
+        } catch (err) {
+          this._handleStatusError(err as EnhancedError, 'Failed to load KYC history');
+          return null;
+        }
+      });
+    },
+
+    async invitePrincipal(payload: {
+      email: string;
+      name: string;
+      role: string;
+    }) {
       try {
-        await request('post', '/kyc/settlement', { bankCode, accountNumber });
-        await this.loadSettlementStatus();
+        const data = await request<{ success: boolean; data: Record<string, unknown> }>(
+          'post',
+          '/kyc/principal-invitation',
+          payload
+        );
+        this.principalInvitation = {
+          email: payload.email,
+          status: data.data?.status || 'PENDING',
+          expiresAt: data.data?.expires_at,
+        };
       } catch (err) {
-        this.error = (err as Error).message || 'Failed to submit settlement account';
+        this._setError(err as EnhancedError, 'Failed to send principal invitation');
         throw err;
-      } finally {
-        this.loading = false;
+      }
+    },
+
+    async fetchShareholders() {
+      return this._withDedup('shareholders', async () => {
+        try {
+          const data = await request<{ success: boolean; data: Shareholder[] }>('get', '/kyc/shareholders');
+          this.shareholders = data.data || [];
+        } catch (err) {
+          this._handleStatusError(err as EnhancedError, 'Failed to load shareholders');
+        }
+      });
+    },
+
+    async addShareholder(payload: {
+      fullName: string;
+      ownershipPercentage: number;
+      role: string;
+      phone?: string;
+      dateOfBirth?: string;
+      identityType: string;
+      identityDocumentType: string;
+      ninNumber?: string;
+      identityDocument?: unknown;
+    }) {
+      try {
+        const data = await request<{ success: boolean; data: Shareholder }>(
+          'post',
+          '/kyc/shareholders',
+          payload
+        );
+        this.shareholders.push(data.data);
+      } catch (err) {
+        this._setError(err as EnhancedError, 'Failed to add shareholder');
+        throw err;
+      }
+    },
+
+    async deleteShareholder(id: string) {
+      try {
+        await request('delete', `/kyc/shareholders/${id}`);
+        this.shareholders = this.shareholders.filter((s) => s.id !== id);
+      } catch (err) {
+        this._setError(err as EnhancedError, 'Failed to remove shareholder');
+        throw err;
       }
     },
 
     async loadReadiness() {
-      this.loading = true;
-      this.error = null;
-      try {
-        const data = await request<{
-          success: boolean;
-          data: typeof this.readiness;
-        }>('get', '/kyc/activation');
-        this.readiness = data.data;
-      } catch (err) {
-        this.error = (err as Error).message || 'Failed to load activation status';
-      } finally {
-        this.loading = false;
-      }
+      return this._withDedup('readiness', async () => {
+        try {
+          const data = await request<{ success: boolean; data: Readiness }>('get', '/kyc/activation');
+          this.readiness = data.data;
+        } catch (err) {
+          this._handleStatusError(err as EnhancedError, 'Failed to load activation status');
+        } finally {
+          this.readinessLoaded = true;
+        }
+      });
     },
 
     async loadAll() {
@@ -264,15 +413,47 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
         this.loadSettlementStatus(),
         this.loadReadiness(),
         this.loadKycDocuments(),
+        this.fetchShareholders(),
       ]);
     },
 
+    /**
+     * Handle GET status-endpoint failures. A 400/404 means the prerequisite
+     * (e.g. "no school yet") isn't met — this is an expected state for new
+     * users, so we leave data null and do NOT set a display error.
+     */
+    _handleStatusError(err: EnhancedError, fallback: string) {
+      const status = err.status ?? err.response?.status;
+      if (status === 400 || status === 404) {
+        return;
+      }
+      this._setError(err, fallback);
+    },
+
+    _setError(err: EnhancedError, fallback: string) {
+      const ctx = categorizeApiError(err, fallback);
+      this.error = ctx.message;
+      this.errorCategory = ctx.category;
+    },
+
+    clearError() {
+      this.error = null;
+      this.errorCategory = null;
+    },
+
     reset() {
+      this._loadCount = 0;
       this.kycStatus = null;
       this.settlementStatus = null;
       this.readiness = null;
+      this.shareholders = [];
+      this.principalInvitation = null;
       this.cacDocument = null;
       this.error = null;
+      this.errorCategory = null;
+      this.kycStatusLoaded = false;
+      this.settlementStatusLoaded = false;
+      this.readinessLoaded = false;
     },
   },
 });

@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-08-18T12:00:00Z",
+  "environment": "production (ootrovtrpoztmooiirxo, eu-west-1)",
+  "candidateCount": 21,
+  "approvedCount": 21,
+  "blockedCount": 0,
+  "remainingLegitimateUsers": 2,
+  "purgeExecuted": true,
+  "purgeVerified": true,
+  "users": [
+    {
+      "id": "user_01KZFVZHBJMK1327MKXNGDX434",
+      "email": "smoketest_1786165313@capflux.demo",
+      "reason": "confirmed WorkOS test identity — test email domain, test usage",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZFWKDWSPVQB8SGEGRJM346T",
+      "email": "smoketest_1786165965@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZG38NY1BPDQWWVKF7WCD02V",
+      "email": "sandbox-test-1786172953108@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZG39TH57K0WZCSSG8V6DP73",
+      "email": "debug-onboard-1786172990564@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZG3HCBPW8995SYZ4870BGGR",
+      "email": "onboard-fix-1786173238189@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZG3Q4BFQ5RA5W9B4X2BQGYX",
+      "email": "onboard-fix2-1786173426451@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZG4KSGMR42AKP9SJ2N1RF1Y",
+      "email": "onboard-final-1786174365536@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZG4SAQKBFWZ30VR2QS5CF6W",
+      "email": "e2e-onboard-1786174547235@capflux.demo",
+      "reason": "confirmed WorkOS test identity — owns test school (96cffab8-...), 0 production data",
+      "dependencies": [
+        "school_members: 1 row (school 96cffab8-bfb0-4c2b-afa3-b8c62068145c, role 46bd2a34-..., active)",
+        "organization_members: 1 row (org ec581f5d-968d-483b-b1b3-53da25bf5050)",
+        "schools.owner_user_id: 1 row (school 96cffab8-..., NULLified after purge)"
+      ],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZG4TVG29R14N85NEGA1AMDA",
+      "email": "sandbox-test-1786174597277@capflux.demo",
+      "reason": "confirmed WorkOS test identity — owns test school (222c0238-...), 1 test student, 0 production data",
+      "dependencies": [
+        "school_members: 1 row (school 222c0238-4107-47d4-b790-4e03981fa273, role 46bd2a34-..., active)",
+        "organization_members: 1 row (org 96538b22-723a-49e0-96be-fbb9ebfa00ab)",
+        "schools.owner_user_id: 1 row (school 222c0238-..., NULLified after purge)"
+      ],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZJY3NT6EN1DS9RVWWBCRNQJ",
+      "email": "smoketest2@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01KZJZZ42FZBC4QRG2A5V6WJF2",
+      "email": "cookietest@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M02RXG3WXY9N32W1XJ9V3B1A",
+      "email": "smoketest1786799635@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05GMDTBNT9MW1BWCJSKQA2R",
+      "email": "browser@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05G9AS2Z2A3CEDXZEKX6YR4",
+      "email": "newuser@capflux.demo",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05VMFCJCMBSWHPQ7VJTQ3Q3",
+      "email": "capflux-diagnostic@example.com",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05XA3X6G2DSSHMSN9S1HQAH",
+      "email": "test2@capflux.diag",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05XR0VSTB2NSGPX6STYXX5G",
+      "email": "capflux-session-test@example.com",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05XZF6BWCYXVEEX88W77DQJ",
+      "email": "capflux-browser-full@example.com",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05YW1DGVVYHT018EKSWX6XY",
+      "email": "capflux-redirect-test@example.com",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05YX2F07VZ90ZKFJ0QF43A5",
+      "email": "capflux-direct-test@example.com",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    },
+    {
+      "id": "user_01M05ZXE2JRGH4DECZ1RM4AGEQ",
+      "email": "pw17@capflux.diag",
+      "reason": "confirmed WorkOS test identity",
+      "dependencies": [],
+      "status": "SAFE_TO_PURGE"
+    }
+  ],
+  "preservedRecords": [
+    {"table": "schools", "count": 2, "reason": "Test schools preserved; ownership NULLified"},
+    {"table": "organizations", "count": 2, "reason": "Test orgs preserved; ownership NULLified"},
+    {"table": "students", "count": 1, "reason": "Test student associated with test school"},
+    {"table": "onboarding_progress", "count": 2, "reason": "Associated with test schools"},
+    {"table": "legacy_identity_migrations", "count": 0, "reason": "auth.users empty, no legacy records"}
+  ],
+  "rollbackArtifact": "docs/auth-phase6-purge-rollback.sql"
+}

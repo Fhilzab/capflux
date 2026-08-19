@@ -80,7 +80,7 @@ onMounted(async () => {
         </p>
       </div>
 
-      <CmAlert v-if="alertError" variant="error">{{ alertError }}</CmAlert>
+      <CmAlert v-if="alertError" variant="danger">{{ alertError }}</CmAlert>
       <CmAlert v-if="alertSuccess" variant="success">{{ alertSuccess }}</CmAlert>
 
       <CmAlert v-if="!kycVerified" variant="warning">
