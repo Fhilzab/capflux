@@ -7,6 +7,7 @@ import CmCheckbox from '@/components/ui/CmCheckbox.vue';
 import CmButton from '@/components/ui/CmButton.vue';
 import CmAlert from '@/components/ui/CmAlert.vue';
 
+const emit = defineEmits(['next-step', 'prev-step']);
 const activationStore = useFinancialActivationStore();
 const onboardingStore = useOnboardingStore();
 
@@ -22,11 +23,22 @@ const form = ref({
   principalRole: 'Principal',
 });
 
-const ownerInfo = computed(() => ({
-  name: onboardingStore.status?.organization?.name || '',
-}));
+const isFormValid = computed(() => {
+  if (principalIsOwner.value) return true;
+  return !!form.value.principalName && !!form.value.principalEmail;
+});
 
-const showForm = computed(() => !principalIsOwner.value);
+onMounted(() => {
+  // Prepopulate with owner info if available
+  const ownerName = onboardingStore.personalInfo
+    ? [onboardingStore.personalInfo.firstName, onboardingStore.personalInfo.middleName, onboardingStore.personalInfo.lastName]
+        .filter(Boolean)
+        .join(' ')
+    : '';
+  if (ownerName && !form.value.principalName) {
+    form.value.principalName = ownerName;
+  }
+});
 
 async function sendInvitation() {
   if (!form.value.principalEmail) return;
@@ -48,41 +60,39 @@ async function sendInvitation() {
   }
 }
 
-const isFormValid = computed(() => {
-  if (principalIsOwner.value) return true;
-  return !!form.value.principalName && !!form.value.principalEmail;
-});
+async function saveAndContinue() {
+  alertError.value = '';
+  alertSuccess.value = '';
 
-onMounted(() => {
-  if (ownerInfo.value.name && !form.value.principalName) {
-    form.value.principalName = ownerInfo.value.name;
+  if (principalIsOwner.value) {
+    emit('next-step');
+    return;
   }
-});
 
-function saveAndContinue() {
-  if (showForm.value && form.value.principalEmail) {
-    sendInvitation().then(() => {
-      // Proceed after invitation is sent (or if principal is same as owner)
-      if (principalIsOwner.value || !alertError.value) {
-        // Delay to let user see success message
-        setTimeout(() => $emit('next-step'), 1000);
-      }
-    });
-  } else {
-    // Principal is same as owner, just proceed
-    setTimeout(() => $emit('next-step'), 100);
+  if (!isFormValid.value) {
+    alertError.value = 'Principal name and email are required.';
+    return;
+  }
+
+  await sendInvitation();
+
+  // Only proceed if invitation was sent successfully
+  if (!alertError.value) {
+    emit('next-step');
   }
 }
 </script>
 
 <template>
-  <section class="rounded-card bg-card p-8 shadow-card space-y-6">
-    <h2 class="text-xl font-semibold text-text-primary">Principal Information</h2>
-    <p class="text-sm text-text-muted">
-      Specify the principal for this school. The principal receives login
-      credentials and is associated with the school through the existing
-      membership and RBAC architecture.
-    </p>
+  <section class="space-y-6">
+    <div>
+      <h2 class="text-2xl font-semibold text-text-primary">Principal Information</h2>
+      <p class="text-sm text-text-muted mt-1">
+        Specify the principal for this school. The principal receives login
+        credentials and is associated with the school through the membership
+        and RBAC architecture.
+      </p>
+    </div>
 
     <CmAlert v-if="alertError" variant="danger">{{ alertError }}</CmAlert>
     <CmAlert v-if="alertSuccess" variant="success">{{ alertSuccess }}</CmAlert>
@@ -94,17 +104,17 @@ function saveAndContinue() {
     />
 
     <transition name="fade">
-      <div v-if="showForm" class="space-y-4">
-        <CmInput v-model="form.principalName" label="Principal Full Name" required />
-        <CmInput v-model="form.principalEmail" label="Principal Email" type="email" helper-text="An invitation will be sent to this email address" required />
+      <div v-if="!principalIsOwner" class="space-y-4">
+        <CmInput v-model="form.principalName" label="Principal Name" :required="true" />
+        <CmInput v-model="form.principalEmail" label="Principal Email" type="email" helper-text="An invitation will be sent to this email address" :required="true" />
         <CmInput v-model="form.principalPhone" label="Principal Phone" type="tel" helper-text="Optional — for internal communication" />
         <CmInput v-model="form.principalRole" label="Principal Role" helper-text="Default: Principal" />
       </div>
     </transition>
 
-    <div v-if="showForm && form.principalEmail" class="rounded-card border border-divider bg-surface p-4">
+    <div v-if="!principalIsOwner && form.principalEmail" class="rounded-card border border-border bg-surface p-4">
       <p class="text-sm text-text-secondary">
-        When you click Save & Continue, an invitation email will be sent to
+        When you click Save &amp; Continue, an invitation email will be sent to
         <strong>{{ form.principalEmail }}</strong>.
       </p>
     </div>
@@ -114,10 +124,10 @@ function saveAndContinue() {
     </CmAlert>
 
     <div class="flex justify-between pt-4 gap-4">
-      <CmButton variant="ghost" @click="$emit('prev-step')">Back</CmButton>
+      <CmButton variant="ghost" @click="emit('prev-step')">Back</CmButton>
       <CmButton variant="primary" :loading="sendingInvite" :disabled="!isFormValid" @click="saveAndContinue">
         <span v-if="sendingInvite">Sending...</span>
-        <span v-else>Save & Continue</span>
+        <span v-else>Save &amp; Continue</span>
       </CmButton>
     </div>
   </section>

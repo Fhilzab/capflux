@@ -40,6 +40,19 @@ interface OnboardingState {
   status: OnboardingStatus | null;
   currentStep: number;
   completedSteps: number[];
+  /** Personal info collected in ProfileStep — available for KYC submission. */
+  personalInfo: {
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    phone: string;
+    email: string;
+    dateOfBirth: string | null;
+    country: string;
+    state: string;
+    lga: string;
+    residentialAddress: string;
+  } | null;
 }
 
 // Module-level promise used to deduplicate concurrent loadStatus() calls.
@@ -176,6 +189,7 @@ export const useOnboardingStore = defineStore('onboarding', {
     status: null,
     currentStep: 1,
     completedSteps: [],
+    personalInfo: null,
   }),
 
   getters: {
@@ -393,9 +407,45 @@ export const useOnboardingStore = defineStore('onboarding', {
       }
     },
 
-    // === Step: Profile ===
+    // === Load saved personal info (for resume after refresh) ===
+    async loadProfile() {
+      try {
+        const data = await apiCall<{
+          success: boolean;
+          data: {
+            firstName?: string;
+            middleName?: string;
+            lastName?: string;
+            phone?: string;
+            dateOfBirth?: string | null;
+            country?: string;
+            state?: string;
+            lga?: string;
+            residentialAddress?: string;
+          } | null;
+        }>('GET', '/onboarding/profile', undefined, 'Failed to load profile');
+
+        if (data?.success && data.data) {
+          this.personalInfo = {
+            firstName: data.data.firstName || '',
+            middleName: data.data.middleName || '',
+            lastName: data.data.lastName || '',
+            phone: data.data.phone || '',
+            email: '',
+            dateOfBirth: data.data.dateOfBirth || null,
+            country: data.data.country || 'Nigeria',
+            state: data.data.state || '',
+            lga: data.data.lga || '',
+            residentialAddress: data.data.residentialAddress || '',
+          };
+        }
+      } catch (err) {
+        this.setError(err as EnhancedError);
+      }
+    },
+
+    // === Step: Profile (Personal Information) ===
     async saveProfile(profile: {
-      fullName?: string;
       firstName?: string;
       middleName?: string;
       lastName?: string;
@@ -406,12 +456,14 @@ export const useOnboardingStore = defineStore('onboarding', {
       lga?: string;
       residentialAddress?: string;
     }) {
-      const fullName = profile.fullName || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ');
+      const fullName = [profile.firstName, profile.middleName, profile.lastName]
+        .filter(Boolean)
+        .join(' ');
       if (!fullName) {
-        throw Object.assign(new Error('Full name is required.'), {
+        throw Object.assign(new Error('First name and last name are required.'), {
           status: 400,
           category: 'VALIDATION_ERROR',
-          userMessage: 'Full name is required.',
+          userMessage: 'First name and last name are required.',
         });
       }
       this.loading = true;
@@ -419,7 +471,6 @@ export const useOnboardingStore = defineStore('onboarding', {
       this.errorCategory = null;
       try {
         await apiCall<{ success: boolean }>('POST', '/onboarding/profile', {
-          fullName,
           firstName: profile.firstName,
           middleName: profile.middleName,
           lastName: profile.lastName,
@@ -430,6 +481,19 @@ export const useOnboardingStore = defineStore('onboarding', {
           lga: profile.lga,
           residentialAddress: profile.residentialAddress,
         });
+        // Store personal info for later KYC submission (principal name, phone)
+        this.personalInfo = {
+          firstName: profile.firstName || '',
+          middleName: profile.middleName || '',
+          lastName: profile.lastName || '',
+          phone: profile.phone || '',
+          email: '',
+          dateOfBirth: profile.dateOfBirth || null,
+          country: profile.country || 'Nigeria',
+          state: profile.state || '',
+          lga: profile.lga || '',
+          residentialAddress: profile.residentialAddress || '',
+        };
         this.completedSteps = [...new Set([...this.completedSteps, 1])];
         await this.loadStatus();
       } catch (err) {
@@ -597,6 +661,7 @@ export const useOnboardingStore = defineStore('onboarding', {
       this.status = null;
       this.currentStep = 1;
       this.completedSteps = [];
+      this.personalInfo = null;
       this.error = null;
       this.errorCategory = null;
       this.statusLoading = false;

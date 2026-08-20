@@ -34,12 +34,52 @@ router.get('/status', async (req, res) => {
 });
 
 // ==========================================================
+// GET /api/onboarding/profile
+// Load saved personal information for the current user
+// ==========================================================
+router.get('/profile', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select(
+        'first_name, middle_name, last_name, phone, date_of_birth, country, state_of_origin, lga_of_origin, residential_address',
+      )
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data) {
+      return res.json({ success: true, data: null });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        firstName: data.first_name,
+        middleName: data.middle_name,
+        lastName: data.last_name,
+        phone: data.phone,
+        dateOfBirth: data.date_of_birth,
+        country: data.country,
+        state: data.state_of_origin,
+        lga: data.lga_of_origin,
+        residentialAddress: data.residential_address,
+      },
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+});
+
+// ==========================================================
 // POST /api/onboarding/profile
 // Update user profile (full name, phone)
 // ==========================================================
 router.post('/profile', async (req, res) => {
   const {
-    fullName,
     firstName,
     middleName,
     lastName,
@@ -51,11 +91,11 @@ router.post('/profile', async (req, res) => {
     residentialAddress,
   } = req.body;
 
-  if (!fullName && !(firstName && lastName)) {
-    return res.status(400).json({ error: 'Full name or first + last name is required.' });
+  if (!firstName || !lastName) {
+    return res.status(400).json({ error: 'First name and last name are required.' });
   }
 
-  const resolvedFullName = fullName || [firstName, middleName, lastName].filter(Boolean).join(' ');
+  const resolvedFullName = [firstName, middleName, lastName].filter(Boolean).join(' ');
 
   try {
     // Update user_profiles
@@ -64,9 +104,9 @@ router.post('/profile', async (req, res) => {
       .upsert({
         user_id: req.user.id,
         full_name: resolvedFullName,
-        first_name: firstName || null,
+        first_name: firstName,
         middle_name: middleName || null,
-        last_name: lastName || null,
+        last_name: lastName,
         phone: phone || null,
         date_of_birth: dateOfBirth || null,
         country: country || null,

@@ -1,216 +1,329 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, shallowRef, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useFinancialActivationStore } from '@/stores/financialActivationStore';
 import CmButton from '@/components/ui/CmButton.vue';
-import CmAlert from '@/components/ui/CmAlert.vue';
 import CmBadge from '@/components/ui/CmBadge.vue';
-import ProfileStep from '@/features/onboarding/steps/ProfileStep.vue';
-import OrganizationStep from '@/features/onboarding/steps/OrganizationStep.vue';
-import SchoolStep from '@/features/onboarding/steps/SchoolStep.vue';
-import OwnerInfoStep from '@/features/onboarding/steps/OwnerInfoStep.vue';
-import IdentityVerificationStep from '@/features/kyc/steps/IdentityVerificationStep.vue';
-import OrganisationDocumentsStep from '@/features/kyc/steps/OrganisationDocumentsStep.vue';
-import PrincipalStep from '@/features/kyc/steps/PrincipalStep.vue';
-import SettlementAccountStep from '@/features/kyc/steps/SettlementAccountStep.vue';
-import ReviewStep from '@/features/kyc/steps/ReviewStep.vue';
-import KycStatusStep from '@/features/kyc/steps/KycStatusStep.vue';
+import CmAlert from '@/components/ui/CmAlert.vue';
+
+import ProfileStep from '../onboarding/steps/ProfileStep.vue';
+import IdentityVerificationStep from './steps/IdentityVerificationStep.vue';
+import OrganisationStep from '../onboarding/steps/OrganizationStep.vue';
+import SchoolStep from '../onboarding/steps/SchoolStep.vue';
+import PrincipalStep from './steps/PrincipalStep.vue';
+import OrganisationDocumentsStep from './steps/OrganisationDocumentsStep.vue';
+import SettlementAccountStep from './steps/SettlementAccountStep.vue';
+import ReviewStep from './steps/ReviewStep.vue';
+import KycStatusStep from './steps/KycStatusStep.vue';
 
 const router = useRouter();
 const route = useRoute();
+
 const onboardingStore = useOnboardingStore();
 const activationStore = useFinancialActivationStore();
 
-// Section definitions — the canonical linear journey order
-const sections = [
-  { id: 'personal', label: 'Personal Information', description: 'Your personal details' },
-  { id: 'identity', label: 'Identity Verification', description: 'Verify your identity document (NIN)' },
-  { id: 'organization', label: 'Organisation Information', description: 'Business / organisation details' },
-  { id: 'documents', label: 'Organisation Documents', description: 'CAC certificate and registration' },
-  { id: 'school', label: 'School Information', description: 'School setup (levels, category, gender)' },
-  { id: 'principal', label: 'Principal Information', description: 'School principal details' },
-  { id: 'settlement', label: 'Settlement Account', description: 'Bank account for settlements' },
-  { id: 'review', label: 'Review & Confirmation', description: 'Review all information' },
+interface SectionDef {
+  id: string;
+  label: string;
+  component: unknown;
+}
+
+const sections: SectionDef[] = [
+  { id: 'personal', label: 'Personal', component: ProfileStep },
+  { id: 'identity', label: 'Identity', component: IdentityVerificationStep },
+  { id: 'organisation', label: 'Organisation', component: OrganisationStep },
+  { id: 'school', label: 'School', component: SchoolStep },
+  { id: 'principal', label: 'Principal', component: PrincipalStep },
+  { id: 'documents', label: 'Documents', component: OrganisationDocumentsStep },
+  { id: 'settlement', label: 'Settlement', component: SettlementAccountStep },
+  { id: 'review', label: 'Review', component: ReviewStep },
 ];
 
-// Current section — driven by ?section= query param on first load or entry
-const currentSectionIndex = ref(
-  Math.max(
-    0,
-    sections.findIndex((s) => s.id === route.query.section),
-  ),
-);
-if (currentSectionIndex.value < 0) currentSectionIndex.value = 0;
-
-// Track completed sections for the progress indicator
-const completedSections = ref<Set<string>>(new Set());
-const submitting = ref(false);
-const alertError = ref('');
-const alertSuccess = ref('');
+const currentSectionIndex = ref(0);
 const showStatus = ref(false);
 
-const currentSection = computed(() => sections[currentSectionIndex.value]);
+// ── Section completion tracking ──────────────────────────────────
 
-// Dynamically render the right component per section
-const sectionComponents = {
-  personal: ProfileStep,
-  identity: IdentityVerificationStep,
-  organization: OrganizationStep,
-  documents: OrganisationDocumentsStep,
-  school: SchoolStep,
-  principal: PrincipalStep,
-  settlement: SettlementAccountStep,
-  review: ReviewStep,
-};
+const sectionComplete = computed(() => {
+  const personal = !!onboardingStore.personalInfo;
+  const identity = !!activationStore.kycStatus?.kyc?.identityDocumentType;
+  const organisation = !!onboardingStore.status?.organization;
+  const school = !!onboardingStore.status?.school;
+  const principal = onboardingStore.status?.principal?.invited === true ||
+                     !!onboardingStore.personalInfo; // same-as-owner defaults to complete
+  const documents = !!activationStore.kycStatus?.kyc?.cacRegistrationNumber;
+  const settlement = !!activationStore.settlement;
+  const review = settlement; // review is the final confirmation
 
-const currentComponent = shallowRef(sectionComponents.personal);
-watch(currentSectionIndex, (newIdx) => {
-  currentComponent.value = sectionComponents[sections[newIdx].id];
+  return {
+    personal,
+    identity,
+    organisation,
+    school,
+    principal,
+    documents,
+    settlement,
+    review,
+  };
 });
 
-function goToNextSection() {
-  const idx = currentSectionIndex.value + 1;
-  if (idx < sections.length) {
-    completedSections.value.add(sections[currentSectionIndex.value].id);
-    currentSectionIndex.value = idx;
-  } else if (sections[currentSectionIndex.value].id === 'review') {
-    // Final submission triggered from ReviewStep via emit
-    doFinalSubmission();
+onMounted(() => {
+  resumeFromQuery();
+  onboardingStore.loadStatus();
+  onboardingStore.loadProfile();
+  activationStore.loadKycDraft();
+  activationStore.loadKycStatus();
+  activationStore.loadSettlementStatus();
+  activationStore.loadReadiness();
+});
+
+// Resume from ?section=<id>
+function resumeFromQuery() {
+  const sectionId = route.query.section as string | undefined;
+  if (sectionId) {
+    const idx = sections.findIndex((s) => s.id === sectionId);
+    if (idx >= 0) {
+      currentSectionIndex.value = idx;
+    }
   }
 }
 
-function goToPrevSection() {
+// ── Navigation ───────────────────────────────────────────────────
+
+function nextSection() {
+  if (currentSectionIndex.value < sections.length - 1) {
+    currentSectionIndex.value++;
+    updateUrl();
+  }
+}
+
+function prevSection() {
   if (currentSectionIndex.value > 0) {
     currentSectionIndex.value--;
+    updateUrl();
   }
 }
 
-function goToSection(id: string) {
-  const idx = sections.findIndex((s) => s.id === id);
-  if (idx >= 0) {
-    currentSectionIndex.value = idx;
+function goToSection(index: number) {
+  // Allow navigating to already-completed sections or the next one
+  const complete = sectionComplete.value;
+  const completedIds = Object.keys(complete).filter((k) => complete[k as keyof typeof complete]);
+  const sectionId = sections[index]?.id;
+  if (sectionId && (completedIds.includes(sectionId) || index <= findNextIncompleteIndex())) {
+    currentSectionIndex.value = index;
+    updateUrl();
   }
 }
+
+function findNextIncompleteIndex(): number {
+  const c = sectionComplete.value;
+  const order = ['personal', 'identity', 'organisation', 'school', 'principal', 'documents', 'settlement', 'review'];
+  for (let i = 0; i < order.length; i++) {
+    if (!c[order[i] as keyof typeof c]) {
+      return Math.min(i, sections.length - 1);
+    }
+  }
+  return sections.length - 1;
+}
+
+function updateUrl() {
+  const sectionId = sections[currentSectionIndex.value].id;
+  router.replace({ query: { section: sectionId } });
+}
+
+// ── Final submission ─────────────────────────────────────────────
+
+const isSubmitting = ref(false);
 
 async function doFinalSubmission() {
-  alertError.value = '';
-  alertSuccess.value = '';
-  submitting.value = true;
+  isSubmitting.value = true;
+  activationStore.clearError();
   try {
-    // Finalize: complete onboarding (school activation) then complete KYC
+    // 1. Complete onboarding (activate school)
     await onboardingStore.completeOnboarding();
+
+    // 2. Assemble KYC submission from collected wizard data
+    const personalInfo = onboardingStore.personalInfo;
+    const draft = activationStore.kycSubmissionDraft as {
+      nin?: string | null;
+      bvn?: string | null;
+      identityDocumentType?: string | null;
+      cacRegistrationNumber?: string | null;
+      officialEmail?: string | null;
+      officialPhone?: string | null;
+      principalName?: string | null;
+      principalPhone?: string | null;
+      settlementBankCode?: string | null;
+      settlementAccountNumber?: string | null;
+    } | null;
+
     await activationStore.submitKyc({
-      principalName: '',
-      principalPhone: '',
-      bvn: '',
-      nin: '',
+      principalName: personalInfo
+        ? [personalInfo.firstName, personalInfo.middleName, personalInfo.lastName]
+            .filter(Boolean)
+            .join(' ')
+        : '',
+      principalPhone: personalInfo?.phone || '',
+      nin: draft?.nin || '',
+      bvn: draft?.bvn || '',
+      identityDocumentType: draft?.identityDocumentType || '',
+      officialEmail: draft?.officialEmail || '',
+      officialPhone: draft?.officialPhone || '',
+      cacRegistrationNumber: draft?.cacRegistrationNumber || '',
+      personalInfo: personalInfo
+        ? {
+            firstName: personalInfo.firstName,
+            lastName: personalInfo.lastName,
+            dateOfBirth: personalInfo.dateOfBirth || '',
+          }
+        : undefined,
     });
+
+    // 3. Attempt settlement submission (may fail if KYC not yet verified)
+    if (draft?.bvn) {
+      try {
+        // Settlement can only be submitted once KYC is verified.
+        // If it fails here, the status screen will allow retry.
+        await activationStore.submitSettlement(
+          draft?.settlementBankCode || activationStore.settlement?.bankCode || '',
+          draft?.settlementAccountNumber || '',
+          draft.bvn,
+        );
+      } catch {
+        // Settlement submission may fail if KYC is still under review.
+        // Non-fatal — the status screen will handle it.
+      }
+    }
+
     showStatus.value = true;
-    alertSuccess.value = 'Your KYC and school registration have been submitted successfully.';
-  } catch (e) {
-    alertError.value = (e as Error)?.message || 'Submission failed. Please try again.';
+  } catch {
+    // Error is surfaced via activationStore.error
   } finally {
-    submitting.value = false;
+    isSubmitting.value = false;
   }
 }
-
-// Listen for events from step components
-function handleNextStep() {
-  goToNextSection();
-}
-
-function handlePrevStep() {
-  goToPrevSection();
-}
-
-function handleEditSection(sectionId: string) {
-  goToSection(sectionId);
-}
-
-function handleSubmitAll() {
-  doFinalSubmission();
-}
-
-// On mount, load status to populate progress indicator
-onMounted(() => {
-  activationStore.loadKycStatus();
-  onboardingStore.loadStatus();
-});
 </script>
 
 <template>
-  <main class="min-h-screen bg-surface-50">
-    <div class="mx-auto max-w-4xl px-4 py-8 sm:py-12">
-      <!-- CAPFLUX Branding + Title -->
-      <div class="mb-8 text-center">
-        <h1 class="text-2xl font-bold text-brand sm:text-3xl">CAPFLUX</h1>
-        <p class="mt-2 text-lg font-semibold text-text-primary">Setup &amp; Verification</p>
-      </div>
-
-      <!-- Progress Indicator -->
-      <nav aria-label="Progress" class="mb-8">
-        <ol role="list" class="flex items-center justify-center space-x-2 sm:space-x-4">
-          <li v-for="(section, idx) in sections" :key="section.id" class="flex items-center">
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium"
-              :class="{
-                'bg-brand text-white': completedSections.has(section.id) || currentSectionIndex === idx,
-                'bg-surface text-text-secondary': !completedSections.has(section.id) && currentSectionIndex !== idx,
-                'border border-divider': !completedSections.has(section.id) && currentSectionIndex !== idx,
-              }"
-            >
-              {{ idx + 1 }}
-            </div>
-            <span
-              v-if="idx < sections.length - 1"
-              class="mx-2 hidden h-px w-6 sm:mx-4 sm:w-12"
-              :class="completedSections.has(section.id) ? 'bg-brand' : 'bg-divider'"
-            ></span>
-            <span
-              v-if="idx === currentSectionIndex"
-              class="ml-2 text-xs font-medium text-text-secondary hidden sm:inline"
-            >
-              {{ section.label }}
-            </span>
-          </li>
-        </ol>
-      </nav>
-
-      <!-- Global alert messages -->
-      <CmAlert v-if="alertError" variant="danger" class="mb-4">{{ alertError }}</CmAlert>
-      <CmAlert v-if="alertSuccess" variant="success" class="mb-4">{{ alertSuccess }}</CmAlert>
-
-      <!-- Section Title + Helper Text -->
-      <div class="mb-6 text-center sm:text-left">
-        <h2 class="text-xl font-semibold text-text-primary">{{ currentSection.label }}</h2>
-        <p class="mt-1 text-sm text-text-muted">{{ currentSection.description }}</p>
-      </div>
-
-      <!-- Step Component -->
-      <div class="rounded-card bg-card p-6 sm:p-8 shadow-card">
-        <component
-          :is="currentComponent"
-          @next-step="handleNextStep"
-          @prev-step="handlePrevStep"
-          @edit-section="handleEditSection"
-          @submit-all="handleSubmitAll"
-          v-show="!showStatus"
-        />
-
-        <!-- Status view (after submission) -->
-        <KycStatusStep v-if="showStatus" />
+  <div class="min-h-screen bg-background text-text-primary">
+    <!-- Error banner -->
+    <div v-if="activationStore.error" class="fixed top-4 left-1/2 -translate-x-1/2 z-30 max-w-md">
+      <div class="rounded-card bg-danger/10 border border-danger/30 px-4 py-3 text-sm text-danger">
+        {{ activationStore.error }}
       </div>
     </div>
-  </main>
+
+    <!-- Status screen after final submission -->
+    <KycStatusStep v-if="showStatus" @back-to-review="showStatus = false" />
+
+    <!-- Wizard -->
+    <div v-else class="flex flex-col lg:flex-row min-h-screen">
+      <!-- Progress sidebar (desktop) / top (mobile) -->
+      <aside class="w-full lg:w-64 bg-card border-r border-border p-6 overflow-y-auto">
+        <div class="flex items-center gap-3 mb-8">
+          <div class="w-8 h-8 rounded-card bg-brand flex items-center justify-center">
+            <span class="text-white font-bold text-sm">C</span>
+          </div>
+          <span class="font-bold text-lg text-text-primary">CAPFLUX</span>
+        </div>
+
+        <p class="text-xs font-semibold text-text-muted uppercase mb-4">
+          Setup &amp; Verification
+        </p>
+
+        <nav class="space-y-2">
+          <div
+            v-for="(section, idx) in sections"
+            :key="section.id"
+            @click="goToSection(idx)"
+            class="cursor-pointer transition-colors"
+            :class="{
+              'opacity-50': idx > currentSectionIndex.value && !sectionComplete[section.id as keyof typeof sectionComplete],
+            }"
+          >
+            <div class="flex items-center gap-3 py-2">
+              <div
+                class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium"
+                :class="{
+                  'bg-brand text-white': idx === currentSectionIndex.value,
+                  'bg-success text-white': sectionComplete[section.id as keyof typeof sectionComplete],
+                  'bg-surface border border-border text-text-muted':
+                    idx !== currentSectionIndex.value && !sectionComplete[section.id as keyof typeof sectionComplete],
+                }"
+              >
+                {{ idx + 1 }}
+              </div>
+              <span
+                class="text-sm"
+                :class="{
+                  'font-semibold text-brand': idx === currentSectionIndex.value,
+                  'text-text-primary': sectionComplete[section.id as keyof typeof sectionComplete],
+                  'text-text-muted':
+                    idx !== currentSectionIndex.value && !sectionComplete[section.id as keyof typeof sectionComplete],
+                }"
+              >
+                {{ section.label }}
+              </span>
+              <CmBadge
+                v-if="sectionComplete[section.id as keyof typeof sectionComplete]"
+                variant="success"
+                class="ml-auto"
+              >
+                ✓
+              </CmBadge>
+            </div>
+          </div>
+        </nav>
+      </aside>
+
+      <!-- Main content -->
+      <main class="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12">
+        <div class="max-w-2xl mx-auto">
+          <component
+            :is="sections[currentSectionIndex].component"
+            @next-step="nextSection"
+            @prev-step="prevSection"
+            @complete-section="showStatus ? null : null"
+          />
+
+          <!-- Final submission button (Review step) -->
+          <div
+            v-if="currentSectionIndex === sections.length - 1"
+            class="mt-8 pt-6 border-t border-border space-y-4"
+          >
+            <CmAlert variant="info">
+              Review your information and submit for verification. You can edit any section
+              using the sidebar.
+            </CmAlert>
+
+            <div
+              v-if="activationStore.error"
+              class="rounded-card bg-danger/10 border border-danger/30 px-4 py-3 text-sm text-danger"
+            >
+              {{ activationStore.error }}
+            </div>
+
+            <CmButton
+              variant="primary"
+              :loading="isSubmitting || onboardingStore.loading || activationStore.loading"
+              @click="doFinalSubmission"
+              class="w-full sm:w-auto"
+            >
+              Confirm &amp; Submit KYC
+            </CmButton>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.bg-surface-50 { background-color: #f8fafc; }
-.bg-surface { background-color: #ffffff; }
-.bg-surface-50.border { border-color: #e2e8f0; }
-.bg-surface-50.text-text-secondary { color: #64748b; }
-.bg-brand { background-color: #3b82f6; color: #ffffff; }
-.bg-brand.text-white { color: #ffffff; }
-.text-brand { color: #3b82f6; }
+/* Ensure progress sidebar fits on mobile without overflow */
+@media (max-width: 640px) {
+  .overflow-y-auto {
+    max-height: 20vh;
+  }
+}
 </style>

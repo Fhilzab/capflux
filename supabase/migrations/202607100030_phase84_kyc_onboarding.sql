@@ -41,10 +41,9 @@ ALTER TABLE user_profiles
     ADD COLUMN IF NOT EXISTS country TEXT,
     ADD COLUMN IF NOT EXISTS state_of_origin TEXT,
     ADD COLUMN IF NOT EXISTS lga_of_origin TEXT,
-    ADD COLUMN IF NOT NULL DEFAULT 'Nigeria'::TEXT;
-
-ALTER TABLE user_profiles
     ADD COLUMN IF NOT EXISTS residential_address TEXT;
+
+ALTER TABLE user_profiles ALTER COLUMN country SET DEFAULT 'Nigeria';
 
 COMMENT ON COLUMN user_profiles.date_of_birth IS 'Personal date of birth. Stored for KYC matching (never sent to provider unverified).';
 COMMENT ON COLUMN user_profiles.residential_address IS 'Residential address collected during KYC.';
@@ -149,14 +148,16 @@ CREATE POLICY "School members can view shareholders" ON school_shareholders
         )
     );
 
-CREATE POLICY "School members can insert/update shareholders" ON school_shareholders
+CREATE POLICY "School members can insert shareholders" ON school_shareholders
     FOR INSERT WITH CHECK (
         auth.uid() IS NOT NULL
         AND school_id IN (
             SELECT school_id FROM school_members
             WHERE user_id = auth.uid() AND is_active = true
         )
-    )
+    );
+
+CREATE POLICY "School members can update shareholders" ON school_shareholders
     FOR UPDATE USING (
         auth.uid() IS NOT NULL
         AND school_id IN (

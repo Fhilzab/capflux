@@ -6,6 +6,11 @@ import CmButton from '@/components/ui/CmButton.vue';
 import CmBadge from '@/components/ui/CmBadge.vue';
 import CmAlert from '@/components/ui/CmAlert.vue';
 
+const emit = defineEmits<{
+  (e: 'back-to-dashboard'): void;
+  (e: 'back-to-review'): void;
+}>();
+
 const router = useRouter();
 const activationStore = useFinancialActivationStore();
 
@@ -14,58 +19,11 @@ onMounted(() => {
   activationStore.loadSettlementStatus();
 });
 
+// ── Normalized model reads (store handles snake_case → camelCase) ──
 const kyc = computed(() => activationStore.kycStatus?.kyc);
 const schoolStatus = computed(() => activationStore.kycStatus?.schoolStatus);
 const paymentStatus = computed(() => activationStore.kycStatus?.paymentStatus);
 const settlement = computed(() => activationStore.settlement);
-
-const kycStatusVariant = computed(() => {
-  const s = kyc.value?.status;
-  if (s === 'VERIFIED') return 'success';
-  if (s === 'REJECTED' || s === 'FAILED') return 'danger';
-  if (s === 'PENDING' || s === 'UNDER_REVIEW') return 'warning';
-  return 'info';
-});
-
-const identityOverall = computed(() => {
-  const states = kyc.value?.identity_match_states || {};
-  return states.overall || kyc.value?.verification_status || 'NOT_STARTED';
-});
-
-const identityVariant = computed(() => {
-  const s = identityOverall.value;
-  if (s === 'MATCH') return 'success';
-  if (s === 'MISMATCH') return 'danger';
-  if (s === 'PENDING') return 'warning';
-  if (s === 'FAILED') return 'danger';
-  return 'info';
-});
-
-const settlementStatusVariant = computed(() => {
-  const s = settlement.value?.status;
-  if (s === 'VERIFIED') return 'success';
-  if (s === 'REJECTED') return 'danger';
-  if (s === 'PENDING_VERIFICATION' || s === 'PENDING') return 'warning';
-  return 'info';
-});
-
-const ownershipVariant = computed(() => {
-  const s = settlement.value?.ownership_match_status;
-  if (s === 'OWNERSHIP_MATCH') return 'success';
-  if (s === 'NAME_MISMATCH') return 'danger';
-  return 'warning';
-});
-
-const financialReadiness = computed(() => {
-  const steps: { label: string; complete: boolean }[] = [];
-
-  steps.push({ label: 'School activated', complete: schoolStatus.value === 'ACTIVE' });
-  steps.push({ label: 'KYC verified', complete: kyc.value?.status === 'VERIFIED' });
-  steps.push({ label: 'Settlement account verified', complete: settlement.value?.status === 'VERIFIED' });
-  steps.push({ label: 'Ownership confirmed', complete: settlement.value?.ownership_match_status === 'OWNERSHIP_MATCH' });
-
-  return steps;
-});
 
 function goToSection(section: string) {
   router.push({ name: 'KycSubmission', query: { section } });
@@ -76,44 +34,162 @@ function maskValue(value: string | null | undefined, visible = 4): string {
   if (value.length <= visible) return '*'.repeat(value.length);
   return '*'.repeat(value.length - visible) + value.slice(-visible);
 }
+
+// ── Verification timeline ──────────────────────────────────────────
+
+const timelineSteps = computed(() => {
+  const steps: { label: string; status: string; variant: string }[] = [];
+
+  // 1. Personal Information
+  steps.push({
+    label: 'Personal Information',
+    status: kyc.value?.officialEmail ? 'Complete' : 'Not started',
+    variant: kyc.value?.officialEmail ? 'success' : 'info',
+  });
+
+  // 2. Identity Verification
+  const matchOverall = kyc.value?.identityMatchStates?.overall;
+  const ninStatus = kyc.value?.ninVerificationStatus;
+  let identityStatus = 'Not started';
+  let identityVariant = 'info';
+  if (ninStatus === 'VERIFIED' && matchOverall === 'MATCH') {
+    identityStatus = 'Verified';
+    identityVariant = 'success';
+  } else if (ninStatus === 'FAILED' || matchOverall === 'FAILED') {
+    identityStatus = 'Failed';
+    identityVariant = 'danger';
+  } else if (ninStatus === 'PENDING' || matchOverall === 'PENDING' || matchOverall === 'NOT_VERIFIED') {
+    identityStatus = 'Pending';
+    identityVariant = 'warning';
+  } else if (matchOverall === 'MISMATCH') {
+    identityStatus = 'Mismatch';
+    identityVariant = 'danger';
+  }
+  steps.push({ label: 'Identity Verification', status: identityStatus, variant: identityVariant });
+
+  // 3. Organisation
+  steps.push({
+    label: 'Organisation',
+    status: kyc.value?.officialEmail ? 'Complete' : 'Not started',
+    variant: kyc.value?.officialEmail ? 'success' : 'info',
+  });
+
+  // 4. Documents
+  const hasDocs = !!kyc.value?.cacRegistrationNumber || !!kyc.value?.cacDocumentStatus;
+  steps.push({
+    label: 'Documents',
+    status: hasDocs ? 'Submitted' : 'Pending',
+    variant: hasDocs ? 'success' : 'info',
+  });
+
+  // 5. School Registration
+  const hasSchool = schoolStatus.value === 'ACTIVE' || !!kyc.value;
+  steps.push({
+    label: 'School Registration',
+    status: schoolStatus.value === 'ACTIVE' ? 'Complete' : hasSchool ? 'In progress' : 'Not started',
+    variant: schoolStatus.value === 'ACTIVE' ? 'success' : hasSchool ? 'warning' : 'info',
+  });
+
+  // 6. Principal
+  steps.push({
+    label: 'Principal',
+    status: kyc.value?.officialEmail ? 'Complete' : 'Not started',
+    variant: kyc.value?.officialEmail ? 'success' : 'info',
+  });
+
+  // 7. Settlement Account
+  const settleOverall = settlement.value?.ownershipMatchStatus;
+  let settleStatus = 'Not submitted';
+  let settleVariant = 'info';
+  if (settleOverall === 'OWNERSHIP_MATCH') {
+    settleStatus = 'Verified';
+    settleVariant = 'success';
+  } else if (settleOverall === 'PENDING' || settleOverall === 'NAME_NOT_VERIFIED') {
+    settleStatus = 'Pending';
+    settleVariant = 'warning';
+  } else if (settleOverall === 'NAME_MISMATCH') {
+    settleStatus = 'Mismatch';
+    settleVariant = 'danger';
+  } else if (settlement.value?.status === 'FAILED') {
+    settleStatus = 'Failed';
+    settleVariant = 'danger';
+  }
+  steps.push({ label: 'Settlement Account', status: settleStatus, variant: settleVariant });
+
+  // 8. Final Review
+  const isComplete = kyc.value?.status === 'VERIFIED' && (settlement.value?.ownershipMatchStatus === 'OWNERSHIP_MATCH' || !settlement.value);
+  steps.push({
+    label: 'Final Review',
+    status: isComplete ? 'Submitted' : 'Pending',
+    variant: isComplete ? 'success' : 'info',
+  });
+
+  return steps;
+});
+
+const overallVariant = computed(() => {
+  if (kyc.value?.status === 'VERIFIED' && settlement.value?.ownershipMatchStatus === 'OWNERSHIP_MATCH') return 'success';
+  if (kyc.value?.status === 'REJECTED' || kyc.value?.status === 'FAILED') return 'danger';
+  if (kyc.value?.status === 'UNDER_REVIEW' || kyc.value?.status === 'PENDING_PROVIDER') return 'warning';
+  return 'info';
+});
 </script>
 
 <template>
-  <section class="rounded-card bg-card p-8 shadow-card space-y-6">
-    <h2 class="text-xl font-semibold text-text-primary">KYC &amp; Financial Readiness</h2>
+  <section class="rounded-card bg-card p-6 md:p-8 shadow-card space-y-6">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-semibold text-text-primary">KYC &amp; Financial Readiness</h2>
+      <CmButton variant="ghost" size="sm" @click="emit('back-to-dashboard')">
+        Back to Dashboard
+      </CmButton>
+    </div>
+
     <p class="text-sm text-text-muted">
-      Track your verification status and financial readiness. All sensitive
-      values are masked. Click an Edit button to update any section.
+      Track your verification status. All sensitive values are masked. Click
+      <strong>Edit</strong> on any section to return to the wizard.
     </p>
 
-    <CmAlert v-if="kyc.value?.status === 'REJECTED'" variant="danger" title="KYC Rejected">
-      Your KYC submission was rejected. Contact support or resubmit your documents.
+    <!-- Rejection alert -->
+    <CmAlert v-if="kyc?.status === 'REJECTED'" variant="danger" title="KYC Rejected">
+      Your KYC submission was rejected. {{ kyc?.rejectionReason || 'Please contact support or resubmit your documents.' }}
     </CmAlert>
 
-    <!-- School status -->
-    <div class="rounded-card border border-divider bg-surface p-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="font-medium text-text-primary">School Status</h3>
-          <p class="text-sm text-text-secondary">
-            {{ schoolStatus.value || 'Not yet activated' }}
-          </p>
+    <!-- Verification timeline -->
+    <div class="space-y-3">
+      <div
+        v-for="(step, i) in timelineSteps"
+        :key="i"
+        class="flex items-center justify-between py-3 border-b border-border"
+      >
+        <div class="flex items-center gap-3">
+          <CmBadge :variant="step.variant" :label="String(i + 1)" />
+          <span class="text-sm font-medium text-text-primary">{{ step.label }}</span>
         </div>
-        <CmBadge :variant="schoolStatus.value === 'ACTIVE' ? 'success' : 'info'" :label="schoolStatus.value || 'PENDING' />
+        <span class="text-sm text-text-secondary">{{ step.status }}</span>
       </div>
     </div>
 
-    <!-- KYC verification -->
-    <div class="rounded-card border border-divider bg-surface p-4">
-      <div class="flex items-center justify-between mb-2">
-        <h3 class="font-medium text-text-primary">Identity Verification</h3>
-        <div class="flex gap-2">
-          <CmBadge :variant="kycStatusVariant" :label="kyc.value?.status || 'NOT_STARTED'" />
-          <CmButton variant="ghost" size="sm" @click="goToSection('identity')">Edit</CmButton>
-        </div>
+    <!-- Masked sensitive identifiers -->
+    <div v-if="kyc?.ninLast4 || kyc?.bvnLast4" class="grid gap-3 sm:grid-cols-2">
+      <div v-if="kyc?.ninLast4" class="rounded-card bg-surface p-4">
+        <h3 class="font-medium text-text-primary mb-1">NIN (masked)</h3>
+        <p class="text-sm font-mono text-text-secondary">
+          {{ maskValue(kyc.ninLast4, 4) }}
+        </p>
       </div>
-      <div v-if="kyc.value?.identity_match_states" class="grid gap-2 sm:grid-cols-2 text-sm">
-        <div v-for="(state, field) in kyc.value.identity_match_states" :key="field" class="flex justify-between py-1 border-b border-divider">
+      <div v-if="kyc?.bvnLast4" class="rounded-card bg-surface p-4">
+        <h3 class="font-medium text-text-primary mb-1">BVN (masked)</h3>
+        <p class="text-sm font-mono text-text-secondary">
+          {{ maskValue(kyc.bvnLast4, 4) }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Identity match details -->
+    <div v-if="kyc?.identityMatchStates" class="rounded-card bg-surface p-4 space-y-2">
+      <h3 class="font-medium text-text-primary">Identity Match Details</h3>
+      <div class="grid gap-2 sm:grid-cols-2 text-sm">
+        <div v-for="(state, field) in kyc.identityMatchStates" :key="field" class="flex justify-between py-1">
           <span class="text-text-secondary">{{ field }}</span>
           <CmBadge
             :variant="
@@ -127,79 +203,48 @@ function maskValue(value: string | null | undefined, visible = 4): string {
           />
         </div>
       </div>
-      <div v-else class="text-sm text-text-secondary">No verification data yet.</div>
     </div>
 
-    <!-- NIN masked -->
-    <div v-if="kyc.value?.nin_last4" class="rounded-card border border-divider bg-surface p-4">
-      <h3 class="font-medium text-text-primary mb-2">NIN (masked)</h3>
-      <p class="text-sm font-mono text-text-secondary">{{ '******' + kyc.value.nin_last4 }}</p>
-    </div>
-
-    <!-- BVN masked -->
-    <div v-if="kyc.value?.bvn_last4" class="rounded-card border border-divider bg-surface p-4">
-      <h3 class="font-medium text-text-primary mb-2">BVN (masked)</h3>
-      <p class="text-sm font-mono text-text-secondary">{{ '******' + kyc.value.bvn_last4 }}</p>
-    </div>
-
-    <!-- Settlement -->
-    <div class="rounded-card border border-divider bg-surface p-4">
-      <div class="flex items-center justify-between mb-2">
-        <h3 class="font-medium text-text-primary">Settlement Account</h3>
-        <div class="flex gap-2">
-          <CmBadge :variant="settlementStatusVariant" :label="settlement.value?.status || 'NOT_SUBMITTED'" />
-          <CmButton variant="ghost" size="sm" @click="goToSection('settlement')">Edit</CmButton>
-        </div>
-      </div>
-      <div v-if="settlement.value" class="grid gap-2 sm:grid-cols-2 text-sm">
-        <div class="flex justify-between py-1 border-b border-divider">
+    <!-- Settlement details -->
+    <div v-if="settlement" class="rounded-card bg-surface p-4 space-y-2">
+      <h3 class="font-medium text-text-primary">Settlement Account</h3>
+      <div class="grid gap-2 sm:grid-cols-2 text-sm">
+        <div class="flex justify-between py-1">
           <span class="text-text-secondary">Account (masked)</span>
-          <span class="font-mono text-text-primary">{{ maskValue(settlement.value?.account_number_last4, 4) || '******' + settlement.value?.account_number_last4 }}</span>
+          <span class="font-mono text-text-primary">
+            {{ maskValue(settlement.accountNumberLast4, 4) }}
+          </span>
         </div>
-        <div class="flex justify-between py-1 border-b border-divider">
+        <div class="flex justify-between py-1">
           <span class="text-text-secondary">BVN (masked)</span>
-          <span class="font-mono text-text-primary">{{ maskValue(settlement.value?.bvn_last4, 4) || '******' + settlement.value?.bvn_last4 }}</span>
+          <span class="font-mono text-text-primary">
+            {{ maskValue(settlement.bvnLast4, 4) }}
+          </span>
         </div>
-        <div class="flex justify-between py-1 border-b border-divider">
+        <div class="flex justify-between py-1">
           <span class="text-text-secondary">Ownership</span>
-          <CmBadge :variant="ownershipVariant" :label="settlement.value?.ownership_match_status || 'PENDING'" />
-        </div>
-      </div>
-      <div v-else class="text-sm text-text-secondary">No settlement account submitted.</div>
-    </div>
-
-    <!-- Financial readiness -->
-    <div class="rounded-card border border-divider bg-surface p-4">
-      <h3 class="font-medium text-text-primary mb-3">Financial Readiness</h3>
-      <div class="space-y-2">
-        <div v-for="(step, i) in financialReadiness" :key="i" class="flex items-center gap-3">
-          <CmBadge :variant="step.complete ? 'success' : 'info'" :label="step.complete ? '✓' : '—'" />
-          <span class="text-sm" :class="step.complete ? 'text-text-primary' : 'text-text-secondary'">{{ step.label }}</span>
+          <CmBadge
+            :variant="
+              settlement.ownershipMatchStatus === 'OWNERSHIP_MATCH' ? 'success' :
+              settlement.ownershipMatchStatus === 'NAME_MISMATCH' ? 'danger' :
+              'warning'
+            "
+            :label="settlement.ownershipMatchStatus || 'PENDING'"
+          />
         </div>
       </div>
     </div>
 
-    <!-- Payment status -->
-    <div v-if="paymentStatus" class="rounded-card border border-divider bg-surface p-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="font-medium text-text-primary">Payment Status</h3>
-          <p class="text-sm text-text-secondary">{{ paymentStatus }}</p>
-        </div>
-        <CmBadge :variant="paymentStatus === 'READY' ? 'success' : paymentStatus === 'PENDING_KYC' ? 'warning' : 'info'" :label="paymentStatus" />
-      </div>
-    </div>
-
-    <!-- Action buttons -->
-    <div class="flex gap-3 pt-2">
-      <CmButton variant="secondary" @click="goToSection('identity')">
+    <!-- Quick actions -->
+    <div class="flex flex-wrap gap-3 pt-2">
+      <CmButton variant="secondary" size="sm" @click="goToSection('identity')">
         Update Identity
       </CmButton>
-      <CmButton variant="secondary" @click="goToSection('settlement')">
+      <CmButton variant="secondary" size="sm" @click="goToSection('settlement')">
         Update Settlement
       </CmButton>
-      <CmButton variant="ghost" @click="router.push('/dashboard')">
-        Back to Dashboard
+      <CmButton variant="secondary" size="sm" @click="goToSection('review')">
+        Back to Review
       </CmButton>
     </div>
   </section>

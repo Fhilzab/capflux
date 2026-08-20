@@ -6,9 +6,11 @@ import CmButton from '@/components/ui/CmButton.vue';
 import CmAlert from '@/components/ui/CmAlert.vue';
 import CmBadge from '@/components/ui/CmBadge.vue';
 
+const emit = defineEmits(['next-step', 'prev-step']);
 const activationStore = useFinancialActivationStore();
 
 const cacFile = ref<File | null>(null);
+const cacDocument = computed(() => activationStore.cacDocument);
 const uploading = ref(false);
 const alertError = ref('');
 const alertSuccess = ref('');
@@ -61,9 +63,13 @@ onMounted(() => {
 });
 
 function canProceed(): boolean {
-  // User can proceed if they have a CAC number entered
-  // (certificate upload is optional but recommended)
   return !!form.value.cacRegistrationNumber;
+}
+
+function saveAndContinue() {
+  if (!canProceed()) return;
+  activationStore.updateKycDraft({ cacRegistrationNumber: form.value.cacRegistrationNumber });
+  emit('next-step');
 }
 </script>
 
@@ -95,7 +101,7 @@ function canProceed(): boolean {
         class="block w-full text-sm text-text-secondary file:mr-4 file:rounded-button file:border-0 file:bg-surface file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-text-primary hover:file:bg-surface/80"
         @change="onFileChange"
       />
-      <div v-else class="flex items-center justify-between rounded-card border border-divider bg-surface p-4">
+      <div v-else class="flex items-center justify-between rounded-card border border-border bg-surface p-4">
         <div>
           <p class="text-sm font-medium text-text-primary">Certificate on file</p>
           <p class="text-xs text-text-secondary">
@@ -114,11 +120,11 @@ function canProceed(): boolean {
     </div>
 
     <div v-if="hasDocument && cacDocument" class="grid gap-3 sm:grid-cols-2 text-sm">
-      <div class="flex justify-between py-2 border-b border-divider">
+      <div class="flex justify-between py-2 border-b border-border">
         <span class="text-text-secondary">File size</span>
         <span class="text-text-primary">{{ cacDocument.file_size ? `${(cacDocument.file_size / 1024).toFixed(1)} KB` : '—' }}</span>
       </div>
-      <div class="flex justify-between py-2 border-b border-divider">
+      <div class="flex justify-between py-2 border-b border-border">
         <span class="text-text-secondary">MIME type</span>
         <span class="text-text-primary">{{ cacDocument.mime_type || '—' }}</span>
       </div>
@@ -129,9 +135,9 @@ function canProceed(): boolean {
     </CmButton>
 
     <div class="flex justify-between pt-4 gap-4">
-      <CmButton variant="ghost" @click="$emit('prev-step')">Back</CmButton>
-      <CmButton variant="primary" :disabled="!canProceed()" @click="$emit('next-step')">
-        Save & Continue
+      <CmButton variant="ghost" @click="emit('prev-step')">Back</CmButton>
+      <CmButton variant="primary" :disabled="!canProceed()" @click="saveAndContinue">
+        Save &amp; Continue
       </CmButton>
     </div>
   </section>

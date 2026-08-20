@@ -447,13 +447,14 @@ describe('onboardingStore', () => {
         },
       });
 
-      await store.saveProfile({ fullName: 'John Doe', phone: '08012345678' });
+      await store.saveProfile({ firstName: 'John', lastName: 'Doe', phone: '08012345678' });
 
       expect(apiCallMock).toHaveBeenNthCalledWith(1, expect.objectContaining({
         method: 'POST',
         url: '/onboarding/profile',
         data: expect.objectContaining({
-          fullName: 'John Doe',
+          firstName: 'John',
+          lastName: 'Doe',
           phone: '08012345678',
         }),
       }));
@@ -463,7 +464,7 @@ describe('onboardingStore', () => {
       const store = useOnboardingStore();
       apiCallMock.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(store.saveProfile({ fullName: 'John Doe' })).rejects.toThrow('Network error');
+      await expect(store.saveProfile({ firstName: 'John', phone: '08012345678' })).rejects.toThrow('Network error');
 
       // Step 1 should NOT be in completedSteps after a failure
       expect(store.completedSteps).not.toContain(1);
@@ -477,8 +478,8 @@ describe('onboardingStore', () => {
 
       // Call saveProfile twice rapidly
       await Promise.all([
-        store.saveProfile({ fullName: 'John Doe', phone: '08012345678' }),
-        store.saveProfile({ fullName: 'John Doe', phone: '08012345678' }),
+        store.saveProfile({ firstName: 'John', lastName: 'Doe', phone: '08012345678' }),
+        store.saveProfile({ firstName: 'John', lastName: 'Doe', phone: '08012345678' }),
       ]);
 
       // Step 1 should appear only once
