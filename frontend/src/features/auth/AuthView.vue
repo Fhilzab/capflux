@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import type { AuthState } from './useAuthState';
@@ -54,12 +54,15 @@ const transition = (newState: AuthState) => {
 };
 
 // Handle OAuth callback (Google OAuth redirect with authorization code).
+// Supabase client with detectSessionInUrl may have already exchanged the
+// code automatically; handleOAuthCallback falls back to getSession() if so.
 watch(
   () => route.query,
   async (query) => {
     const code = getQueryParam(query.code);
+    const state = getQueryParam(query.state);
     if (code) {
-      const success = await authStore.handleOAuthCallback(code);
+      const success = await authStore.handleOAuthCallback(code, state);
       if (success) {
         router.push({ name: 'Home' });
       }
@@ -67,6 +70,21 @@ watch(
   },
   { immediate: true },
 );
+
+// Supabase Auth: no hosted UI redirect. When entering login or signup mode
+// (and no OAuth callback code is present), we render the inline form
+// components directly instead of redirecting to a provider-hosted page.
+onMounted(async () => {
+  const mode = currentMode.value;
+  if (mode !== 'login' && mode !== 'signup') return;
+
+  const code = getQueryParam(route.query.code);
+  if (code) return; // Callback flow is already handled by the watch above.
+
+  // initiateAuthKit returns an empty URL for Supabase Auth — forms render
+  // inline, no redirect needed.
+  await authStore.initiateAuthKit(mode);
+});
 
 // If the URL contains ?provider=google (Google OAuth redirect), auto-click
 // the Google button so the flow completes seamlessly.

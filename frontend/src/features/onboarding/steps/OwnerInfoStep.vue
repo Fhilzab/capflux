@@ -55,7 +55,7 @@ async function handleSubmit() {
       </p>
     </div>
 
-    <CmAlert v-if="alertError" variant="error">{{ alertError }}</CmAlert>
+    <CmAlert v-if="alertError" variant="danger">{{ alertError }}</CmAlert>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <CmInput

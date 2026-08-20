@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { usePaymentStore } from '../stores/paymentStore';
 import { useStudentStore } from '../stores/studentStore';
 import { useBillingStore } from '../stores/billingStore';
-import { useOnboardingStore } from '../stores/onboardingStore';
+import { useModuleLock } from '@/composables/useModuleLock';
 import CmButton from '../components/ui/CmButton.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
 import CmInput from '../components/ui/CmInput.vue';
@@ -13,7 +13,7 @@ const DEFAULT_SCHOOL_ID = 'demo-school';
 const paymentStore = usePaymentStore();
 const studentStore = useStudentStore();
 const billingStore = useBillingStore();
-const onboardingStore = useOnboardingStore();
+const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 const students = ref([]) as any;
 const payments = ref([]) as any;
 const form = ref({
@@ -23,10 +23,6 @@ const form = ref({
 });
 const saving = ref(false);
 const message = ref('');
-
-// Payments require payment_status === READY (financial activation complete).
-const paymentsLocked = computed(() => onboardingStore.paymentStatus !== 'READY');
-const lockLoading = computed(() => onboardingStore.loading);
 
 const loadStudents = async () => {
   await studentStore.loadStudents();
@@ -76,7 +72,6 @@ const submitPayment = async () => {
 };
 
 onMounted(async () => {
-  await onboardingStore.loadStatus();
   await loadStudents();
   await loadPayments();
 });
@@ -84,10 +79,10 @@ onMounted(async () => {
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-8">
-    <ModuleLockOverlay
-      v-if="paymentsLocked && !lockLoading"
-      variant="payment"
-    />
+    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
+    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
+    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
+    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
     <div v-else class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card">
         <h1 class="text-display mb-2">Payments</h1>

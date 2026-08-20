@@ -1,6 +1,6 @@
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
-import requireAuth from '../middleware/requireAuth.js';
+import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
 
 const router = express.Router();
 
@@ -10,8 +10,8 @@ const handleError = (res, error, fallbackStatus = 500) => {
   return res.status(status).json({ error: message });
 };
 
-// All onboarding routes require an authenticated WorkOS session.
-router.use(requireAuth);
+// Phase 4: Switch to Supabase Auth (JWT Bearer token).
+router.use(requireAuthSupabase);
 
 // ==========================================================
 // GET /api/onboarding/status
@@ -34,15 +34,68 @@ router.get('/status', async (req, res) => {
 });
 
 // ==========================================================
+// GET /api/onboarding/profile
+// Load saved personal information for the current user
+// ==========================================================
+router.get('/profile', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select(
+        'first_name, middle_name, last_name, phone, date_of_birth, country, state_of_origin, lga_of_origin, residential_address',
+      )
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data) {
+      return res.json({ success: true, data: null });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        firstName: data.first_name,
+        middleName: data.middle_name,
+        lastName: data.last_name,
+        phone: data.phone,
+        dateOfBirth: data.date_of_birth,
+        country: data.country,
+        state: data.state_of_origin,
+        lga: data.lga_of_origin,
+        residentialAddress: data.residential_address,
+      },
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+});
+
+// ==========================================================
 // POST /api/onboarding/profile
 // Update user profile (full name, phone)
 // ==========================================================
 router.post('/profile', async (req, res) => {
-  const { fullName, phone } = req.body;
+  const {
+    firstName,
+    middleName,
+    lastName,
+    phone,
+    dateOfBirth,
+    country,
+    state,
+    lga,
+    residentialAddress,
+  } = req.body;
 
-  if (!fullName) {
-    return res.status(400).json({ error: 'Full name is required.' });
+  if (!firstName || !lastName) {
+    return res.status(400).json({ error: 'First name and last name are required.' });
   }
+
+  const resolvedFullName = [firstName, middleName, lastName].filter(Boolean).join(' ');
 
   try {
     // Update user_profiles
@@ -50,8 +103,16 @@ router.post('/profile', async (req, res) => {
       .from('user_profiles')
       .upsert({
         user_id: req.user.id,
-        full_name: fullName,
+        full_name: resolvedFullName,
+        first_name: firstName,
+        middle_name: middleName || null,
+        last_name: lastName,
         phone: phone || null,
+        date_of_birth: dateOfBirth || null,
+        country: country || null,
+        state_of_origin: state || null,
+        lga_of_origin: lga || null,
+        residential_address: residentialAddress || null,
       });
 
     if (profileError) {
@@ -158,6 +219,9 @@ router.post('/school', async (req, res) => {
     lga,
     country,
     schoolType,
+    schoolCategory,
+    gender,
+    schoolLevels,
     academicCalendar,
   } = req.body;
 
@@ -206,6 +270,18 @@ router.post('/school', async (req, res) => {
     if (error) {
       return res.status(500).json({ error: error.message });
     }
+
+    // Extend the school with Phase 8.4 fields (levels, category, gender)
+    // The create_school_with_onboarding RPC (migration 022) predates these
+    // columns; set them here as additive columns added in migration 030.
+    await supabase
+      .from('schools')
+      .update({
+        school_levels: schoolLevels || [],
+        school_category: schoolCategory || null,
+        gender: gender || 'MIXED',
+      })
+      .eq('id', schoolId);
 
     // Mark school step as completed
     await supabase

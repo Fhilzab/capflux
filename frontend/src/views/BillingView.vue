@@ -5,6 +5,8 @@ import { useStudentStore } from '../stores/studentStore';
 import CmButton from '../components/ui/CmButton.vue';
 import CmInput from '../components/ui/CmInput.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
+import { useModuleLock } from '../composables/useModuleLock';
+import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const items = ref([]);
@@ -23,6 +25,7 @@ const message = ref('');
 
 const billingStore = useBillingStore();
 const studentStore = useStudentStore();
+const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 
 const loadBilling = async (studentIds = []) => {
   const result = await billingStore.getBillingSummary(DEFAULT_SCHOOL_ID, studentIds);
@@ -89,7 +92,11 @@ onMounted(async () => {
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-8">
-    <div class="max-w-6xl mx-auto space-y-6">
+    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
+    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
+    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
+    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
+    <div v-else class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card">
         <h1 class="text-headline mb-2">Billing</h1>
         <p class="text-text-secondary">Local billing summary, payment history, and ledger reconciliation.</p>

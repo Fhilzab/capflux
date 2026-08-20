@@ -9,7 +9,7 @@ import CmButton from '../components/ui/CmButton.vue';
 const router = useRouter();
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const reportingStore = useReportingStore();
-const { paymentsLocked, loading: lockLoading } = useModuleLock();
+const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 const loading = ref(false);
 const classFilter = ref('');
 const outstandingData = ref([]) as any;
@@ -94,7 +94,10 @@ onMounted(loadOutstanding);
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
-    <ModuleLockOverlay v-if="paymentsLocked && !lockLoading" variant="payment" />
+    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
+    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
+    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
+    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
     <template v-else>
     <div class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">

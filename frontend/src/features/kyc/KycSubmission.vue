@@ -1,204 +1,329 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useFinancialActivationStore } from '@/stores/financialActivationStore';
-import CmInput from '@/components/ui/CmInput.vue';
 import CmButton from '@/components/ui/CmButton.vue';
+import CmBadge from '@/components/ui/CmBadge.vue';
 import CmAlert from '@/components/ui/CmAlert.vue';
 
+import ProfileStep from '../onboarding/steps/ProfileStep.vue';
+import IdentityVerificationStep from './steps/IdentityVerificationStep.vue';
+import OrganisationStep from '../onboarding/steps/OrganizationStep.vue';
+import SchoolStep from '../onboarding/steps/SchoolStep.vue';
+import PrincipalStep from './steps/PrincipalStep.vue';
+import OrganisationDocumentsStep from './steps/OrganisationDocumentsStep.vue';
+import SettlementAccountStep from './steps/SettlementAccountStep.vue';
+import ReviewStep from './steps/ReviewStep.vue';
+import KycStatusStep from './steps/KycStatusStep.vue';
+
 const router = useRouter();
+const route = useRoute();
+
+const onboardingStore = useOnboardingStore();
 const activationStore = useFinancialActivationStore();
 
-const form = ref({
-  principalName: '',
-  principalPhone: '',
-  officialEmail: '',
-  officialPhone: '',
-  cacRegistrationNumber: '',
-  bvn: '',
-  nin: '',
+interface SectionDef {
+  id: string;
+  label: string;
+  component: unknown;
+}
+
+const sections: SectionDef[] = [
+  { id: 'personal', label: 'Personal', component: ProfileStep },
+  { id: 'identity', label: 'Identity', component: IdentityVerificationStep },
+  { id: 'organisation', label: 'Organisation', component: OrganisationStep },
+  { id: 'school', label: 'School', component: SchoolStep },
+  { id: 'principal', label: 'Principal', component: PrincipalStep },
+  { id: 'documents', label: 'Documents', component: OrganisationDocumentsStep },
+  { id: 'settlement', label: 'Settlement', component: SettlementAccountStep },
+  { id: 'review', label: 'Review', component: ReviewStep },
+];
+
+const currentSectionIndex = ref(0);
+const showStatus = ref(false);
+
+// ── Section completion tracking ──────────────────────────────────
+
+const sectionComplete = computed(() => {
+  const personal = !!onboardingStore.personalInfo;
+  const identity = !!activationStore.kycStatus?.kyc?.identityDocumentType;
+  const organisation = !!onboardingStore.status?.organization;
+  const school = !!onboardingStore.status?.school;
+  const principal = onboardingStore.status?.principal?.invited === true ||
+                     !!onboardingStore.personalInfo; // same-as-owner defaults to complete
+  const documents = !!activationStore.kycStatus?.kyc?.cacRegistrationNumber;
+  const settlement = !!activationStore.settlement;
+  const review = settlement; // review is the final confirmation
+
+  return {
+    personal,
+    identity,
+    organisation,
+    school,
+    principal,
+    documents,
+    settlement,
+    review,
+  };
 });
-
-const cacFile = ref<File | null>(null);
-const cacUploading = ref(false);
-
-const submitting = ref(false);
-const alertError = ref('');
-const alertSuccess = ref('');
-
-const isResubmitMode = computed(() => activationStore.kycRejected);
-
-const bvnError = computed(() =>
-  form.value.bvn && !/^\d{11}$/.test(form.value.bvn) ? 'BVN must be exactly 11 digits' : ''
-);
-const ninError = computed(() =>
-  form.value.nin && !/^\d{11}$/.test(form.value.nin) ? 'NIN must be exactly 11 digits' : ''
-);
-
-function onFileChange(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0] || null;
-  cacFile.value = file;
-}
-
-async function uploadCac() {
-  if (!cacFile.value) return;
-  cacUploading.value = true;
-  alertError.value = '';
-  try {
-    await activationStore.uploadCacDocument(cacFile.value);
-    alertSuccess.value = 'CAC certificate uploaded.';
-  } catch (e) {
-    alertError.value = (e as Error).message || 'Failed to upload CAC certificate';
-  } finally {
-    cacUploading.value = false;
-  }
-}
-
-async function handleSubmit() {
-  if (!form.value.principalName || !form.value.principalPhone) {
-    alertError.value = 'Principal name and phone are required';
-    return;
-  }
-  if (!form.value.bvn || !form.value.nin) {
-    alertError.value = 'Both BVN and NIN are required';
-    return;
-  }
-  if (bvnError.value || ninError.value) {
-    alertError.value = 'BVN and NIN must each be exactly 11 digits';
-    return;
-  }
-  alertError.value = '';
-  submitting.value = true;
-  try {
-    if (isResubmitMode.value) {
-      await activationStore.resubmitKyc({
-        principalName: form.value.principalName,
-        principalPhone: form.value.principalPhone,
-        officialEmail: form.value.officialEmail || undefined,
-        officialPhone: form.value.officialPhone || undefined,
-        cacRegistrationNumber: form.value.cacRegistrationNumber || undefined,
-        bvn: form.value.bvn,
-        nin: form.value.nin,
-      });
-      alertSuccess.value = 'KYC resubmitted successfully. Under review.';
-    } else {
-      await activationStore.submitKyc({
-        principalName: form.value.principalName,
-        principalPhone: form.value.principalPhone,
-        officialEmail: form.value.officialEmail || undefined,
-        officialPhone: form.value.officialPhone || undefined,
-        cacRegistrationNumber: form.value.cacRegistrationNumber || undefined,
-        bvn: form.value.bvn,
-        nin: form.value.nin,
-      });
-      alertSuccess.value = 'KYC submitted successfully. Under review.';
-    }
-    // Mask the fields after submission for security
-    form.value.bvn = '';
-    form.value.nin = '';
-    setTimeout(() => router.push({ name: 'KycDashboard' }), 1200);
-  } catch (e) {
-    alertError.value = (e as Error)?.message || 'Failed to submit KYC';
-  } finally {
-    submitting.value = false;
-  }
-}
 
 onMounted(() => {
-  activationStore.loadKycDocuments();
+  resumeFromQuery();
+  onboardingStore.loadStatus();
+  onboardingStore.loadProfile();
+  activationStore.loadKycDraft();
+  activationStore.loadKycStatus();
+  activationStore.loadSettlementStatus();
+  activationStore.loadReadiness();
 });
+
+// Resume from ?section=<id>
+function resumeFromQuery() {
+  const sectionId = route.query.section as string | undefined;
+  if (sectionId) {
+    const idx = sections.findIndex((s) => s.id === sectionId);
+    if (idx >= 0) {
+      currentSectionIndex.value = idx;
+    }
+  }
+}
+
+// ── Navigation ───────────────────────────────────────────────────
+
+function nextSection() {
+  if (currentSectionIndex.value < sections.length - 1) {
+    currentSectionIndex.value++;
+    updateUrl();
+  }
+}
+
+function prevSection() {
+  if (currentSectionIndex.value > 0) {
+    currentSectionIndex.value--;
+    updateUrl();
+  }
+}
+
+function goToSection(index: number) {
+  // Allow navigating to already-completed sections or the next one
+  const complete = sectionComplete.value;
+  const completedIds = Object.keys(complete).filter((k) => complete[k as keyof typeof complete]);
+  const sectionId = sections[index]?.id;
+  if (sectionId && (completedIds.includes(sectionId) || index <= findNextIncompleteIndex())) {
+    currentSectionIndex.value = index;
+    updateUrl();
+  }
+}
+
+function findNextIncompleteIndex(): number {
+  const c = sectionComplete.value;
+  const order = ['personal', 'identity', 'organisation', 'school', 'principal', 'documents', 'settlement', 'review'];
+  for (let i = 0; i < order.length; i++) {
+    if (!c[order[i] as keyof typeof c]) {
+      return Math.min(i, sections.length - 1);
+    }
+  }
+  return sections.length - 1;
+}
+
+function updateUrl() {
+  const sectionId = sections[currentSectionIndex.value].id;
+  router.replace({ query: { section: sectionId } });
+}
+
+// ── Final submission ─────────────────────────────────────────────
+
+const isSubmitting = ref(false);
+
+async function doFinalSubmission() {
+  isSubmitting.value = true;
+  activationStore.clearError();
+  try {
+    // 1. Complete onboarding (activate school)
+    await onboardingStore.completeOnboarding();
+
+    // 2. Assemble KYC submission from collected wizard data
+    const personalInfo = onboardingStore.personalInfo;
+    const draft = activationStore.kycSubmissionDraft as {
+      nin?: string | null;
+      bvn?: string | null;
+      identityDocumentType?: string | null;
+      cacRegistrationNumber?: string | null;
+      officialEmail?: string | null;
+      officialPhone?: string | null;
+      principalName?: string | null;
+      principalPhone?: string | null;
+      settlementBankCode?: string | null;
+      settlementAccountNumber?: string | null;
+    } | null;
+
+    await activationStore.submitKyc({
+      principalName: personalInfo
+        ? [personalInfo.firstName, personalInfo.middleName, personalInfo.lastName]
+            .filter(Boolean)
+            .join(' ')
+        : '',
+      principalPhone: personalInfo?.phone || '',
+      nin: draft?.nin || '',
+      bvn: draft?.bvn || '',
+      identityDocumentType: draft?.identityDocumentType || '',
+      officialEmail: draft?.officialEmail || '',
+      officialPhone: draft?.officialPhone || '',
+      cacRegistrationNumber: draft?.cacRegistrationNumber || '',
+      personalInfo: personalInfo
+        ? {
+            firstName: personalInfo.firstName,
+            lastName: personalInfo.lastName,
+            dateOfBirth: personalInfo.dateOfBirth || '',
+          }
+        : undefined,
+    });
+
+    // 3. Attempt settlement submission (may fail if KYC not yet verified)
+    if (draft?.bvn) {
+      try {
+        // Settlement can only be submitted once KYC is verified.
+        // If it fails here, the status screen will allow retry.
+        await activationStore.submitSettlement(
+          draft?.settlementBankCode || activationStore.settlement?.bankCode || '',
+          draft?.settlementAccountNumber || '',
+          draft.bvn,
+        );
+      } catch {
+        // Settlement submission may fail if KYC is still under review.
+        // Non-fatal — the status screen will handle it.
+      }
+    }
+
+    showStatus.value = true;
+  } catch {
+    // Error is surfaced via activationStore.error
+  } finally {
+    isSubmitting.value = false;
+  }
+}
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8">
-    <div class="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 class="text-4xl font-semibold mb-2">
-          {{ isResubmitMode ? 'Resubmit KYC' : 'Submit KYC for Verification' }}
-        </h1>
-        <p class="text-text-muted">
-          Your NIN/BVN are encrypted at the application layer and never stored
-          in plaintext. They are used only for identity verification and are
-          never shown in full after submission.
-        </p>
-      </div>
-
-      <CmAlert v-if="alertError" variant="error">{{ alertError }}</CmAlert>
-      <CmAlert v-if="alertSuccess" variant="success">{{ alertSuccess }}</CmAlert>
-
-      <section class="rounded-card bg-card p-8 shadow-card space-y-6">
-        <h2 class="text-xl font-semibold text-text-primary">Principal Details</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CmInput v-model="form.principalName" label="Principal Full Name" required />
-          <CmInput v-model="form.principalPhone" label="Principal Phone" type="tel" required />
-        </div>
-
-        <h2 class="text-xl font-semibold text-text-primary">School Contact</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CmInput v-model="form.officialEmail" label="Official Email" type="email" helper-text="School official email address" />
-          <CmInput v-model="form.officialPhone" label="Official Phone" type="tel" helper-text="School official phone number" />
-        </div>
-
-        <h2 class="text-xl font-semibold text-text-primary">Organization</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CmInput
-            v-model="form.cacRegistrationNumber"
-            label="CAC Registration Number"
-            helper-text="As it appears on your CAC certificate"
-          />
-          <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium text-text-primary">CAC Certificate <span class="text-danger">*</span></label>
-            <input
-              type="file"
-              accept="application/pdf,image/jpeg,image/png"
-              class="block w-full text-sm text-text-secondary file:mr-4 file:rounded-button file:border-0 file:bg-surface file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-text-primary hover:file:bg-surface/80"
-              @change="onFileChange"
-            />
-            <p class="text-xs text-text-muted">PDF, JPG, or PNG up to 10MB.</p>
-            <CmButton
-              v-if="cacFile"
-              variant="secondary"
-              size="sm"
-              :loading="cacUploading"
-              @click="uploadCac"
-            >
-              {{ activationStore.cacDocument ? 'Replace Certificate' : 'Upload Certificate' }}
-            </CmButton>
-            <p v-if="activationStore.cacDocument" class="text-xs text-success">
-              Certificate uploaded · {{ activationStore.cacDocument.status }}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section class="rounded-card bg-card p-8 shadow-card space-y-6">
-        <h2 class="text-xl font-semibold text-text-primary">Owner Identity Verification</h2>
-        <p class="text-sm text-text-muted">
-          Your NIN and BVN are required for identity verification. They are
-          encrypted before storage and only masked values are shown after
-          submission.
-        </p>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CmInput v-model="form.bvn" label="Bank Verification Number (BVN)" type="text" :error="bvnError" required helper-text="11 digits" />
-          <CmInput v-model="form.nin" label="National Identification Number (NIN)" type="text" :error="ninError" required helper-text="11 digits" />
-        </div>
-
-        <div v-if="isResubmitMode" class="text-sm text-warning bg-warning/10 p-3 rounded">
-          Your previous KYC was rejected. Please review the reason and resubmit
-          with corrected information.
-        </div>
-      </section>
-
-      <div class="flex justify-end pt-4 gap-4">
-        <CmButton variant="ghost" @click="router.push({ name: 'KycDashboard' })">
-          Back to Dashboard
-        </CmButton>
-        <CmButton variant="primary" :loading="submitting" @click="handleSubmit">
-          {{ isResubmitMode ? 'Resubmit KYC' : 'Submit KYC' }}
-        </CmButton>
+  <div class="min-h-screen bg-background text-text-primary">
+    <!-- Error banner -->
+    <div v-if="activationStore.error" class="fixed top-4 left-1/2 -translate-x-1/2 z-30 max-w-md">
+      <div class="rounded-card bg-danger/10 border border-danger/30 px-4 py-3 text-sm text-danger">
+        {{ activationStore.error }}
       </div>
     </div>
-  </main>
+
+    <!-- Status screen after final submission -->
+    <KycStatusStep v-if="showStatus" @back-to-review="showStatus = false" />
+
+    <!-- Wizard -->
+    <div v-else class="flex flex-col lg:flex-row min-h-screen">
+      <!-- Progress sidebar (desktop) / top (mobile) -->
+      <aside class="w-full lg:w-64 bg-card border-r border-border p-6 overflow-y-auto">
+        <div class="flex items-center gap-3 mb-8">
+          <div class="w-8 h-8 rounded-card bg-brand flex items-center justify-center">
+            <span class="text-white font-bold text-sm">C</span>
+          </div>
+          <span class="font-bold text-lg text-text-primary">CAPFLUX</span>
+        </div>
+
+        <p class="text-xs font-semibold text-text-muted uppercase mb-4">
+          Setup &amp; Verification
+        </p>
+
+        <nav class="space-y-2">
+          <div
+            v-for="(section, idx) in sections"
+            :key="section.id"
+            @click="goToSection(idx)"
+            class="cursor-pointer transition-colors"
+            :class="{
+              'opacity-50': idx > currentSectionIndex.value && !sectionComplete[section.id as keyof typeof sectionComplete],
+            }"
+          >
+            <div class="flex items-center gap-3 py-2">
+              <div
+                class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium"
+                :class="{
+                  'bg-brand text-white': idx === currentSectionIndex.value,
+                  'bg-success text-white': sectionComplete[section.id as keyof typeof sectionComplete],
+                  'bg-surface border border-border text-text-muted':
+                    idx !== currentSectionIndex.value && !sectionComplete[section.id as keyof typeof sectionComplete],
+                }"
+              >
+                {{ idx + 1 }}
+              </div>
+              <span
+                class="text-sm"
+                :class="{
+                  'font-semibold text-brand': idx === currentSectionIndex.value,
+                  'text-text-primary': sectionComplete[section.id as keyof typeof sectionComplete],
+                  'text-text-muted':
+                    idx !== currentSectionIndex.value && !sectionComplete[section.id as keyof typeof sectionComplete],
+                }"
+              >
+                {{ section.label }}
+              </span>
+              <CmBadge
+                v-if="sectionComplete[section.id as keyof typeof sectionComplete]"
+                variant="success"
+                class="ml-auto"
+              >
+                ✓
+              </CmBadge>
+            </div>
+          </div>
+        </nav>
+      </aside>
+
+      <!-- Main content -->
+      <main class="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12">
+        <div class="max-w-2xl mx-auto">
+          <component
+            :is="sections[currentSectionIndex].component"
+            @next-step="nextSection"
+            @prev-step="prevSection"
+            @complete-section="showStatus ? null : null"
+          />
+
+          <!-- Final submission button (Review step) -->
+          <div
+            v-if="currentSectionIndex === sections.length - 1"
+            class="mt-8 pt-6 border-t border-border space-y-4"
+          >
+            <CmAlert variant="info">
+              Review your information and submit for verification. You can edit any section
+              using the sidebar.
+            </CmAlert>
+
+            <div
+              v-if="activationStore.error"
+              class="rounded-card bg-danger/10 border border-danger/30 px-4 py-3 text-sm text-danger"
+            >
+              {{ activationStore.error }}
+            </div>
+
+            <CmButton
+              variant="primary"
+              :loading="isSubmitting || onboardingStore.loading || activationStore.loading"
+              @click="doFinalSubmission"
+              class="w-full sm:w-auto"
+            >
+              Confirm &amp; Submit KYC
+            </CmButton>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+/* Ensure progress sidebar fits on mobile without overflow */
+@media (max-width: 640px) {
+  .overflow-y-auto {
+    max-height: 20vh;
+  }
+}
+</style>

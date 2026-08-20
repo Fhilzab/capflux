@@ -1,8 +1,10 @@
 /**
  * AuthorizationService — canonical RBAC authorization.
  *
- * Canonical identity path (WorkOS):
- *   req.user (verified session) -> organization_members -> school_members
+ * Canonical identity path (Phase 4 — Supabase Auth):
+ *   req.user (verified from Supabase JWT via requireAuthSupabase)
+ *   -> public.users.id
+ *   -> school_members
  *   -> roles -> permissions
  *
  * This service derives authorization from the authenticated user's school

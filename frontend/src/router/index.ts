@@ -28,6 +28,7 @@ interface RouteMeta {
   requiresAuth?: boolean;
   requiresOrganization?: boolean;
   requiresSchoolContext?: boolean;
+  onboarding?: boolean;
   role?: SystemRole;
   permission?: PermissionCode;
 }
@@ -156,13 +157,31 @@ const routes: RouteRecordRaw[] = [
       provider: route.query.provider || null,
     }),
   },
+  // Supabase OAuth callback: Google redirects here with ?code=<code>&state=<state>.
+  // detectSessionInUrl (enabled in lib/supabase.ts) auto-exchanges the code;
+  // AuthView's query watcher also calls handleOAuthCallback as a fallback.
+  {
+    path: '/auth/callback',
+    redirect: (route: RouteLocationNormalized) => ({
+      path: '/auth',
+      query: { code: route.query.code, state: route.query.state },
+    }),
+  },
+  // /setup → /kyc/submit (Phase 8.4: consolidated journey)
   {
     path: '/setup',
-    name: 'SchoolSetup',
-    component: () => import('../features/setup/SchoolSetupView.vue'),
-    meta: { requiresAuth: true },
+    redirect: { name: 'KycSubmission' },
   },
-  // KYC routes (Milestone 5 — Financial Activation)
+  // Legacy /onboarding URL aliases — redirect to the canonical /kyc/submit path.
+  {
+    path: '/onboarding',
+    redirect: { name: 'KycSubmission' },
+  },
+  {
+    path: '/onboarding/:pathMatch(.*)*',
+    redirect: { name: 'KycSubmission' },
+  },
+  // KYC routes (Phase 8.4 — consolidated KYC/onboarding journey)
   {
     path: '/kyc',
     name: 'KycDashboard',
@@ -173,19 +192,18 @@ const routes: RouteRecordRaw[] = [
     path: '/kyc/submit',
     name: 'KycSubmission',
     component: KycSubmission,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, onboarding: true },
   },
   {
     path: '/kyc/status',
     name: 'KycStatus',
     component: KycStatus,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, onboarding: true },
   },
+  // /kyc/settlement → /kyc/submit?section=settlement (Phase 8.4: consolidated)
   {
     path: '/kyc/settlement',
-    name: 'Settlement',
-    component: SettlementView,
-    meta: { requiresAuth: true },
+    redirect: { name: 'KycSubmission', query: { section: 'settlement' } },
   },
   // Staff KYC review routes (financial activation)
   {

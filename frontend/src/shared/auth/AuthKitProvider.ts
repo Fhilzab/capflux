@@ -193,6 +193,14 @@ export class AuthKitProvider extends AuthProvider {
     return this.config;
   }
 
+  // === AuthKit Hosted UI ===
+  async initiateAuthKit(mode: 'login' | 'signup'): Promise<AuthResult<{ url: string }>> {
+    const data = await this.request<{ url: string }>(() =>
+      this.http.get('/auth/authkit-url', { params: { mode } })
+    );
+    return { data: { url: data.url }, error: null };
+  }
+
   // === AuthProvider ===
   async initialize(): Promise<AuthResult<{ session: Session | null }>> {
     try {
@@ -254,9 +262,11 @@ export class AuthKitProvider extends AuthProvider {
     return { data: { session: null, user: null, redirect: true }, error: null };
   }
 
-  async handleOAuthCallback(code: string): Promise<AuthResult<{ session: Session | null; user: User | null }>> {
+  async handleOAuthCallback(code: string, state?: string): Promise<AuthResult<{ session: Session | null; user: User | null }>> {
+    const params: { code: string; state?: string } = { code };
+    if (state) params.state = state;
     const data = await this.request<BackendAuthResponse>(() =>
-      this.http.get('/auth/callback', { params: { code } })
+      this.http.get('/auth/callback', { params })
     );
     const session = toSession(data);
     if (session) {

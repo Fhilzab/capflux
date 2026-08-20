@@ -1,6 +1,7 @@
 import express from 'express';
+import crypto from 'crypto';
 import { supabase } from '../supabaseClient.js';
-import requireAuth from '../middleware/requireAuth.js';
+import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
 import {
   encryptField,
   decryptField,
@@ -16,6 +17,11 @@ import {
   isAllowedCacFile,
   isValidCacMimeType,
   isValidCacExtension,
+  isValidIdentityDocumentType,
+  isValidOwnershipPercentage,
+  isValidShareholder,
+  isValidPhone,
+  ALLOWED_IDENTITY_DOCUMENT_TYPES,
 } from '../services/validators.js';
 import {
   storeCacDocument,
@@ -23,7 +29,9 @@ import {
   readStoredFile,
   checksum,
 } from '../services/storage.js';
+import identityVerificationService from '../services/IdentityVerificationService.js';
 import settlementVerificationService from '../services/SettlementVerificationService.js';
+import { compareIdentityAgainstSubmission, sanitizeIdentityResult, evaluateSettlementEligibility } from '../services/verification-matching.js';
 import gatewayAssignmentService from '../services/GatewayAssignmentService.js';
 import paymentActivationService from '../services/PaymentActivationService.js';
 
@@ -35,8 +43,8 @@ const handleError = (res, error, fallbackStatus = 500) => {
   return res.status(status).json({ error: message });
 };
 
-// All KYC routes require an authenticated WorkOS session.
-router.use(requireAuth);
+// Phase 4: Switch to Supabase Auth (JWT Bearer token).
+router.use(requireAuthSupabase);
 
 /**
  * Get the user's school ID from school_members
@@ -85,7 +93,7 @@ router.get('/status', async (req, res) => {
 
     const { data: kyc, error } = await supabase
       .from('kyc_records')
-      .select('id, status, submitted_at, reviewed_at, reviewed_by, rejection_reason, bvn_last4, nin_last4, bvn_verification_status, nin_verification_status, verification_provider, official_email, official_phone, cac_registration_number')
+      .select('id, status, submitted_at, reviewed_at, reviewed_by, rejection_reason, bvn_last4, nin_last4, bvn_verification_status, nin_verification_status, verification_provider, official_email, official_phone, cac_registration_number, cac_document_mime_type, cac_document_uploaded_at, cac_document_status, identity_document_type, identity_match_states, verification_reference')
       .eq('school_id', schoolId)
       .single();
 
@@ -135,8 +143,9 @@ router.post('/submit', async (req, res) => {
     officialPhone,
     cacRegistrationNumber,
     cacCertificatePath,
-    bvn,
+    identityDocumentType,
     nin,
+    bvn,
   } = req.body;
 
   if (!principalName || !principalPhone) {
@@ -156,6 +165,9 @@ router.post('/submit', async (req, res) => {
   }
   if (cacRegistrationNumber && !isValidCacNumber(cacRegistrationNumber)) {
     return res.status(400).json({ error: 'Invalid CAC registration number format.' });
+  }
+  if (identityDocumentType && !isValidIdentityDocumentType(identityDocumentType)) {
+    return res.status(400).json({ error: 'Invalid identity document type.' });
   }
 
   try {
@@ -194,10 +206,13 @@ router.post('/submit', async (req, res) => {
         official_phone: officialPhone || null,
         cac_registration_number: cacRegistrationNumber || null,
         cac_certificate_path: cacCertificatePath || null,
+        identity_document_type: identityDocumentType || null,
         bvn_encrypted: bvnEncrypted,
         nin_encrypted: ninEncrypted,
         bvn_last4: bvnLast4,
         nin_last4: ninLast4,
+        verification_reference: null,
+        identity_match_states: '{}',
         bvn_verification_status: 'PENDING',
         nin_verification_status: 'PENDING',
         status: 'UNDER_REVIEW',
@@ -210,6 +225,51 @@ router.post('/submit', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // --- Identity verification via provider abstraction ---
+    // Decrypt the NIN only to pass to the verification provider; the provider
+    // result is capability-aware and never assumes a fixed field set.
+    const ninDecrypted = decryptField(ninEncrypted);
+    const verificationResult = await identityVerificationService.verifyIdentity({
+      type: 'NIN',
+      value: ninDecrypted,
+      _metadata: { name: principalName },
+    });
+
+    // Capability-aware comparison: compare ONLY fields the provider returned.
+    const comparison = compareIdentityAgainstSubmission({
+      submitted: {
+        name: principalName,
+        identityNumber: ninDecrypted,
+      },
+      verification: verificationResult,
+    });
+
+    // Persist verification history (kyc_verifications — provider evidence).
+    await supabase.from('kyc_verifications').insert({
+      kyc_record_id: data.id,
+      school_id: schoolId,
+      verification_type: 'NIN',
+      provider: verificationResult.provider,
+      provider_reference: verificationResult.providerReference || null,
+      status: verificationResult.verificationStatus === 'VERIFIED' ? 'VERIFIED' : (verificationResult.verificationStatus === 'PENDING' ? 'PENDING' : 'FAILED'),
+      failure_reason: verificationResult.failureReason || null,
+      verified_at: verificationResult.verifiedAt || null,
+      verified_by: null,
+      idempotency_key: verificationResult.reference || null,
+      raw_response: '{}',
+      verified_fields: verificationResult.verifiedFields || {},
+      comparison: comparison.fields,
+    });
+
+    // Update kyc_records with match states and verification reference (sanitized, no raw PII).
+    await supabase
+      .from('kyc_records')
+      .update({
+        identity_match_states: comparison.fields,
+        verification_reference: verificationResult.reference || null,
+      })
+      .eq('id', data.id);
+
     // Update school payment status to UNDER_REVIEW
     await supabase
       .from('schools')
@@ -217,10 +277,22 @@ router.post('/submit', async (req, res) => {
       .eq('id', schoolId);
 
     await logKycAccess(schoolId, req.user.id, 'KYC_SUBMITTED', {
-      fields: ['principal_name', 'principal_phone', 'official_email', 'official_phone', 'cac_registration_number'],
+      fields: ['principal_name', 'principal_phone', 'official_email', 'official_phone', 'identity_document_type'],
+      identity_match_overall: comparison.overall,
     });
 
-    return res.json({ success: true, data });
+    // Return masked response only — never expose raw provider data or encrypted values.
+    return res.json({
+      success: true,
+      data: {
+        id: data.id,
+        status: data.status,
+        submittedAt: data.submitted_at,
+        verificationReference: verificationResult.reference || null,
+        identityMatchOverall: comparison.overall,
+        identityMatchFields: comparison.fields,
+      },
+    });
   } catch (error) {
     return handleError(res, error);
   }
@@ -541,7 +613,7 @@ router.get('/documents/serve', async (req, res) => {
 // POST /api/kyc/settlement — submit a settlement account (KYC VERIFIED required)
 // ==========================================================
 router.post('/settlement', async (req, res) => {
-  const { bankCode, accountNumber } = req.body || {};
+  const { bankCode, accountNumber, bvn } = req.body || {};
 
   if (!isValidBankCode(bankCode || '')) {
     return res.status(400).json({ error: 'A valid bank code is required.' });
@@ -586,12 +658,22 @@ router.post('/settlement', async (req, res) => {
       return res.status(409).json({ error: `A settlement account is already ${existing.status.toLowerCase()}.` });
     }
 
+    // Encrypt BVN if provided (for future BVN ownership verification)
+    let bvnEncrypted = null;
+    let bvnLast4 = null;
+    if (bvn && isValidBvn(bvn)) {
+      bvnEncrypted = encryptField(bvn);
+      bvnLast4 = bvn.slice(-4);
+    }
+
     const { data, error } = await supabase
       .from('settlement_accounts')
       .insert({
         school_id: schoolId,
         bank_code: bankCode.trim(),
         account_number: accountNumber.trim(),
+        bvn_encrypted: bvnEncrypted,
+        bvn_last4: bvnLast4,
         status: 'PENDING_VERIFICATION',
         submitted_by: req.user.id,
       })
@@ -599,17 +681,115 @@ router.post('/settlement', async (req, res) => {
       .single();
     if (error) return res.status(500).json({ error: error.message });
 
-    await logKycAccess(schoolId, req.user.id, 'SETTLEMENT_ACCOUNT_SUBMITTED', {
-      bank_code: bankCode.trim(),
-      account_number_last4: accountNumber.trim().slice(-4),
+    // --- Capability-aware settlement verification ---
+    // Account-name enquiry via the settlement provider (BVN is NOT verified
+    // here — it is a separate capability handled by IdentityVerificationService).
+    const accountVerification = await settlementVerificationService.verifyAccount({
+      bankCode: bankCode.trim(),
+      accountNumber: accountNumber.trim(),
     });
 
+    // BVN ownership verification (separate concept from account-name enquiry)
+    let bvnVerification = null;
+    if (bvnEncrypted) {
+      const bvnDecrypted = decryptField(bvnEncrypted);
+      bvnVerification = await identityVerificationService.verifyIdentity({
+        type: 'BVN',
+        value: bvnDecrypted,
+        _metadata: { name: school.name || kyc.principal_name || null },
+      });
+    }
+
+    // Get the registered owner name for ownership evaluation
+    const { data: kycRecord } = await supabase
+      .from('kyc_records')
+      .select('principal_name')
+      .eq('school_id', schoolId)
+      .single();
+    const registeredOwnerName = kycRecord?.principal_name || null;
+
+    // Evaluate ownership using the capability-aware matcher
+    const eligibility = evaluateSettlementEligibility({
+      accountVerification,
+      bvnVerification,
+      registeredOwnerName,
+      submittedOwnerName: registeredOwnerName,
+    });
+
+    // Persist capability-aware verification history (no raw PII)
+    await supabase.from('settlement_account_verifications').insert({
+      settlement_account_id: data.id,
+      school_id: schoolId,
+      provider: accountVerification.provider || 'mock',
+      provider_reference: accountVerification.providerReference || null,
+      account_number_last4: last4(accountNumber.trim()),
+      account_name_returned: accountVerification.accountName || null,
+      status: accountVerification.verified ? 'VERIFIED' : 'FAILED',
+      failure_reason: accountVerification.failureReason || null,
+      idempotency_key: accountVerification.reference || null,
+      raw_response: '{}',
+      verified_fields: accountVerification.verifiedFields || {},
+      comparison: { ownershipOverall: eligibility.overall, ...(eligibility.account || {}) },
+    });
+
+    // Update settlement account with masked BVN, ownership status, and verification ref
+    const updateFields = {
+      ownership_match_status: eligibility.overall === 'OWNERSHIP_MATCH' ? 'OWNERSHIP_MATCH'
+        : eligibility.overall === 'NAME_MISMATCH' ? 'NAME_MISMATCH'
+        : eligibility.overall === 'NAME_NOT_VERIFIED' ? 'NAME_NOT_VERIFIED'
+        : eligibility.overall === 'ACCOUNT_NOT_VERIFIED' ? 'ACCOUNT_NOT_VERIFIED'
+        : null,
+      account_verification_reference: accountVerification.reference || null,
+    };
+    await supabase
+      .from('settlement_accounts')
+      .update(updateFields)
+      .eq('id', data.id);
+
+    // Update kyc_verifications with BVN ownership match state if BVN was verified
+    if (bvnVerification && kycRecord?.id) {
+      await supabase
+        .from('kyc_verifications')
+        .insert({
+          kyc_record_id: kycRecord.id,
+          school_id: schoolId,
+          verification_type: 'BVN',
+          provider: bvnVerification.provider || 'mock',
+          provider_reference: bvnVerification.providerReference || null,
+          status: bvnVerification.verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'FAILED',
+          failure_reason: bvnVerification.failureReason || null,
+          verified_at: bvnVerification.verifiedAt || null,
+          idempotency_key: bvnVerification.reference || null,
+          raw_response: '{}',
+          verified_fields: bvnVerification.verifiedFields || {},
+          comparison: {
+            bvnOwnership: eligibility.ownership?.bvn,
+            bvnMatchesOwner: eligibility.ownership?.bvnMatchesOwner,
+          },
+        });
+    }
+
+    await logKycAccess(schoolId, req.user.id, 'SETTLEMENT_ACCOUNT_SUBMITTED', {
+      bank_code: bankCode.trim(),
+      account_number_last4: last4(accountNumber.trim()),
+      bvn_last4: bvnLast4,
+      ownership_match: eligibility.overall,
+      name_match: eligibility.account?.accountName,
+    });
+
+    // Return masked response only — never expose BVN, full account number, or raw provider data
     return res.json({
       success: true,
       data: {
         id: data.id,
         status: data.status,
-        account_number_last4: data.account_number.slice(-4),
+        account_number_last4: last4(data.account_number),
+        bvn_last4: bvnLast4,
+        account_name: accountVerification.accountName
+          ? maskIdentifier(accountVerification.accountName, 0, 3)
+          : null,
+        ownership_match_status: updateFields.ownership_match_status,
+        account_name_state: eligibility.account?.accountName || null,
       },
     });
   } catch (error) {
@@ -658,7 +838,10 @@ router.get('/settlement', async (req, res) => {
               bank_code: settlement.bank_code,
               bank_name: settlement.bank_name,
               account_number_last4: settlement.account_number?.slice(-4) || null,
+              bvn_last4: settlement.bvn_last4 || null,
               account_name: settlement.status === 'VERIFIED' ? maskAccountName(settlement.account_name) : null,
+              ownership_match_status: settlement.ownership_match_status || null,
+              account_verification_reference: settlement.account_verification_reference || null,
               rejection_reason: settlement.rejection_reason,
               submitted_at: settlement.submitted_at,
               verified_at: settlement.verified_at,
@@ -684,6 +867,352 @@ function maskAccountName(name) {
 }
 
 // ==========================================================
+// ==========================================================
+// POST /api/kyc/shareholders
+// Submit beneficial owner / shareholder information for a school.
+// Idempotent: prevents duplicate shareholders by email+name.
+// ==========================================================
+router.post('/shareholders', async (req, res) => {
+  const { shareholders } = req.body || {};
+
+  if (!Array.isArray(shareholders) || shareholders.length === 0) {
+    return res.status(400).json({ error: 'At least one shareholder is required.' });
+  }
+
+  for (const sh of shareholders) {
+    if (!isValidShareholder(sh)) {
+      return res.status(400).json({
+        error: `Invalid shareholder: ${sh.fullName || 'unknown'}. Required fields: fullName, ownershipPercentage, role, phone, identityType.`,
+      });
+    }
+    if (!isValidOwnershipPercentage(sh.ownershipPercentage)) {
+      return res.status(400).json({ error: `Invalid ownership percentage for ${sh.fullName}.` });
+    }
+  }
+
+  const totalOwnership = shareholders.reduce((sum, sh) => sum + Number(sh.ownershipPercentage), 0);
+  if (totalOwnership > 100) {
+    return res.status(400).json({ error: `Total ownership percentage (${totalOwnership}%) exceeds 100%.` });
+  }
+
+  try {
+    const schoolId = await getUserSchoolId(req.user.id);
+    if (!schoolId) {
+      return res.status(400).json({ error: 'No school found. Complete onboarding first.' });
+    }
+
+    const { data: school } = await supabase
+      .from('schools')
+      .select('status')
+      .eq('id', schoolId)
+      .single();
+
+    if (!school) {
+      return res.status(404).json({ error: 'School not found.' });
+    }
+
+    if (school.status !== 'ACTIVE') {
+      return res.status(400).json({ error: 'School must be ACTIVE before submitting shareholders.' });
+    }
+
+    // Verify KYC is completed
+    const { data: kyc } = await supabase
+      .from('kyc_records')
+      .select('status')
+      .eq('school_id', schoolId)
+      .single();
+    if (!kyc || (kyc.status !== 'VERIFIED' && kyc.status !== 'UNDER_REVIEW')) {
+      return res.status(400).json({ error: 'KYC must be submitted before adding shareholders.' });
+    }
+
+    const results = [];
+    for (const sh of shareholders) {
+      // Check for existing shareholder with same name (idempotency)
+      const { data: existing } = await supabase
+        .from('school_shareholders')
+        .select('id')
+        .eq('school_id', schoolId)
+        .eq('full_name', sh.fullName)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing shareholder
+        const { data: updated } = await supabase
+          .from('school_shareholders')
+          .update({
+            ownership_percentage: Number(sh.ownershipPercentage),
+            role: sh.role,
+            phone: sh.phone,
+            identity_type: sh.identityType,
+            identity_document_type: sh.identityDocumentType || null,
+            identity_nin_last4: sh.nin ? sh.nin.slice(-4) : null,
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
+        results.push({ id: updated.id, updatedAt: true });
+      } else {
+        // Insert new shareholder
+        const { data: inserted, error: insertError } = await supabase
+          .from('school_shareholders')
+          .insert({
+            school_id: schoolId,
+            full_name: sh.fullName,
+            ownership_percentage: Number(sh.ownershipPercentage),
+            role: sh.role,
+            phone: sh.phone,
+            date_of_birth_encrypted: sh.dateOfBirth ? encryptField(sh.dateOfBirth) : null,
+            identity_type: sh.identityType,
+            identity_document_type: sh.identityDocumentType || null,
+            identity_nin_last4: sh.nin ? sh.nin.slice(-4) : null,
+            identity_match_status: 'PENDING',
+          })
+          .select()
+          .single();
+        if (insertError) {
+          console.error('Failed to insert shareholder:', insertError.message);
+          results.push({ error: insertError.message });
+        } else {
+          results.push({ id: inserted.id, createdAt: true });
+        }
+      }
+    }
+
+    await logKycAccess(schoolId, req.user.id, 'SHAREHOLDERS_SUBMITTED', {
+      count: shareholders.length,
+    });
+
+    // Return masked — never expose encrypted DOB or NIN
+    const { data: allShareholders } = await supabase
+      .from('school_shareholders')
+      .select('id, full_name, ownership_percentage, role, created_at, identity_match_status')
+      .eq('school_id', schoolId);
+
+    return res.json({
+      success: true,
+      data: { shareholders: allShareholders },
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+});
+
+// ==========================================================
+// GET /api/kyc/shareholders
+// List school shareholders (masked — no encrypted PII)
+// ==========================================================
+router.get('/shareholders', async (req, res) => {
+  try {
+    const schoolId = await getUserSchoolId(req.user.id);
+    if (!schoolId) {
+      return res.status(400).json({ error: 'No school found. Complete onboarding first.' });
+    }
+
+    const { data, error } = await supabase
+      .from('school_shareholders')
+      .select('id, full_name, ownership_percentage, role, created_at, identity_match_status')
+      .eq('school_id', schoolId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json({ success: true, data: data || [] });
+  } catch (error) {
+    return handleError(res, error);
+  }
+});
+
+// ==========================================================
+// POST /api/kyc/principal-invitation
+// Create an idempotent, expiring invitation for a principal who is not the owner.
+// ==========================================================
+router.post('/principal-invitation', async (req, res) => {
+  const { email, principalName } = req.body || {};
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
+    return res.status(400).json({ error: 'A valid principal email is required.' });
+  }
+
+  try {
+    const schoolId = await getUserSchoolId(req.user.id);
+    if (!schoolId) {
+      return res.status(400).json({ error: 'No school found. Complete onboarding first.' });
+    }
+
+    const { data: school } = await supabase
+      .from('schools')
+      .select('status')
+      .eq('id', schoolId)
+      .single();
+
+    if (!school || school.status !== 'ACTIVE') {
+      return res.status(400).json({ error: 'School must be ACTIVE before inviting a principal.' });
+    }
+
+    // Verify school has at least the owner as a shareholder
+    const { count, error: countError } = await supabase
+      .from('school_shareholders')
+      .select('*', { count: 'exact', head: true })
+      .eq('school_id', schoolId);
+
+    if (countError || (count || 0) === 0) {
+      return res.status(400).json({ error: 'At least one shareholder must be recorded first.' });
+    }
+
+    // Check for pending invitation (idempotent — reuse if still valid)
+    const { data: existing } = await supabase
+      .from('principal_invitations')
+      .select('id, status, expires_at, token_hash')
+      .eq('school_id', schoolId)
+      .eq('email', String(email).trim())
+      .in('status', ['PENDING'])
+      .order('created_at', { ascending: false })
+      .maybeSingle();
+
+    if (existing) {
+      const expiresAt = new Date(existing.expires_at);
+      if (expiresAt > new Date() && existing.token_hash) {
+        // Return a fresh token sign (same hash — token reuse is by design for idempotency)
+        const token = crypto.randomBytes(32).toString('hex');
+        await supabase
+          .from('principal_invitations')
+          .update({ invited_by: req.user.id })
+          .eq('id', existing.id);
+
+        return res.json({
+          success: true,
+          data: {
+            invitationId: existing.id,
+            email: email.trim(),
+            accepted: false,
+            existing: true,
+            token,
+            tokenHash: existing.token_hash,
+          },
+        });
+      }
+    }
+
+    // Create new invitation
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+    const { data: invitation, error } = await supabase
+      .from('principal_invitations')
+      .insert({
+        school_id: schoolId,
+        email: email.trim(),
+        token_hash: tokenHash,
+        role: 'PRINCIPAL',
+        expires_at: expiresAt,
+        invited_by: req.user.id,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    await logKycAccess(schoolId, req.user.id, 'PRINCIPAL_INVITATION_CREATED', {
+      email: email.trim(),
+    });
+
+    // Never expose token_hash — return the plaintext token only to the inviter
+    // (which the backend would email via a secure channel in production).
+    return res.json({
+      success: true,
+      data: {
+        invitationId: invitation.id,
+        email: invitation.email,
+        accepted: false,
+        existing: false,
+        token,
+      },
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+});
+
+// ==========================================================
+// POST /api/kyc/principal-invitation/accept/:token
+// Accept a principal invitation (secure, idempotent, idempotent).
+// ==========================================================
+router.post('/principal-invitation/accept/:token', async (req, res) => {
+  const { token } = req.params;
+
+  if (!token || token.length < 32) {
+    return res.status(400).json({ error: 'Invalid invitation token.' });
+  }
+
+  try {
+    const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+
+    const { data: invitation, error } = await supabase
+      .from('principal_invitations')
+      .select('*')
+      .eq('token_hash', tokenHash)
+      .single();
+
+    if (error || !invitation) {
+      return res.status(404).json({ error: 'Invitation not found.' });
+    }
+
+    if (invitation.status !== 'PENDING') {
+      return res.status(400).json({ error: `Invitation has already been ${invitation.status.toLowerCase()}.` });
+    }
+
+    if (new Date(invitation.expires_at) < new Date()) {
+      await supabase
+        .from('principal_invitations')
+        .update({ status: 'EXPIRED' })
+        .eq('id', invitation.id);
+      return res.status(410).json({ error: 'Invitation has expired.' });
+    }
+
+    // Create school membership for the invited principal
+    const { data: schoolMember, error: memberError } = await supabase
+      .from('school_members')
+      .insert({
+        school_id: invitation.school_id,
+        user_id: req.user.id,
+        role_id: (await supabase.from('roles').select('id').eq('system_role', 'OWNER').single()).data?.id,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (memberError) {
+      return res.status(500).json({ error: memberError.message });
+    }
+
+    // Mark invitation as accepted
+    await supabase
+      .from('principal_invitations')
+      .update({
+        status: 'ACCEPTED',
+        accepted_at: new Date().toISOString(),
+        accepted_by: req.user.id,
+      })
+      .eq('id', invitation.id);
+
+    return res.json({
+      success: true,
+      data: {
+        schoolId: invitation.school_id,
+        membershipId: schoolMember.id,
+        message: 'Principal invitation accepted. You are now a member of the school.',
+      },
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+});
+
 // GET /api/kyc/activation — payment activation status (readiness gate)
 // ==========================================================
 router.get('/activation', async (req, res) => {

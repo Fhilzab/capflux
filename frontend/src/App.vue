@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isAuthenticatedRoute" class="flex min-h-screen bg-background text-text-primary font-sans antialiased transition-colors duration-200">
+  <div v-if="isDashboardRoute" class="flex min-h-screen bg-background text-text-primary font-sans antialiased transition-colors duration-200">
     <Sidebar v-model:collapsed="sidebarCollapsed" />
     <div class="flex-1 transition-all duration-300" :class="sidebarCollapsed ? 'ml-20' : 'ml-72'">
       <TopNav />
@@ -26,7 +26,10 @@ onMounted(() => {
   themeStore.initTheme();
 });
 
-const isAuthenticatedRoute = computed(() => {
-  return route.meta?.requiresAuth;
+const isDashboardRoute = computed(() => {
+  // Authenticated routes show the dashboard shell (sidebar + top nav).
+  // Onboarding routes render their own full-page layout so users see
+  // "You are setting up CAPFLUX", not "You are operating the school."
+  return !!route.meta?.requiresAuth && !route.meta?.onboarding;
 });
 </script>

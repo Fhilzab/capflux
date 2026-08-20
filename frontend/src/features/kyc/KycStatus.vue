@@ -2,16 +2,15 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { maskBvn, maskNin } from '@/shared/kyc/mask';
+import { useFinancialActivationStore } from '@/stores/financialActivationStore';
 import CmButton from '@/components/ui/CmButton.vue';
 import CmAlert from '@/components/ui/CmAlert.vue';
 
 const router = useRouter();
 const onboardingStore = useOnboardingStore();
+const activationStore = useFinancialActivationStore();
 
-const kycInfo = ref(null);
-
-const status = computed(() => kycInfo.value?.kyc?.status || 'PENDING');
+const status = computed(() => activationStore.kycState || 'PENDING');
 const paymentStatus = computed(() => onboardingStore.paymentStatus);
 
 const statusSteps = [
@@ -28,9 +27,11 @@ function isActive(step: string): boolean {
   return stepIdx < currentIdx || (stepIdx === currentIdx);
 }
 
+const kyc = computed(() => activationStore.kycStatus?.kyc);
+
 async function loadKyc() {
   try {
-    kycInfo.value = await onboardingStore.getKycStatus();
+    await activationStore.loadKycStatus();
   } catch (e) {
     console.error('Failed to load KYC status:', e);
   }
@@ -39,13 +40,12 @@ async function loadKyc() {
 onMounted(() => {
   if (onboardingStore.status === null) {
     onboardingStore.loadStatus();
-  } else {
-    loadKyc();
   }
+  activationStore.loadKycStatus();
 });
 
 function handleResubmit() {
-  router.push({ name: 'KycSubmission' });
+  router.push({ name: 'KycSubmission', query: { section: 'identity' } });
 }
 </script>
 
@@ -54,8 +54,8 @@ function handleResubmit() {
     <div class="max-w-4xl mx-auto space-y-6">
       <h1 class="text-4xl font-semibold mb-2">KYC Verification Status</h1>
 
-      <CmAlert v-if="status === 'REJECTED'" variant="error">
-        Your KYC was rejected. Reason: {{ kycInfo?.kyc?.rejectionReason || 'Not specified' }}
+      <CmAlert v-if="status === 'REJECTED'" variant="danger">
+        Your KYC was rejected. Reason: {{ kyc?.rejectionReason || 'Not specified' }}
       </CmAlert>
 
       <section class="rounded-card bg-card p-8 shadow-card">
@@ -88,24 +88,24 @@ function handleResubmit() {
         </div>
       </section>
 
-      <section v-if="kycInfo?.kyc" class="rounded-card bg-card p-8 shadow-card">
+      <section v-if="kyc" class="rounded-card bg-card p-8 shadow-card">
         <h2 class="text-xl font-semibold mb-4">Identity Summary</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <p class="text-sm text-text-muted">BVN</p>
-            <p class="font-medium">{{ maskBvn(kycInfo.kyc.bvnLast4) || '•••• ••••' }}</p>
+            <p class="font-medium">{{ kyc.bvnMasked || '•••• ••••' }}</p>
           </div>
           <div>
             <p class="text-sm text-text-muted">NIN</p>
-            <p class="font-medium">{{ maskNin(kycInfo.kyc.ninLast4) || '••••••• ••••' }}</p>
+            <p class="font-medium">{{ kyc.ninMasked || '••••••• ••••' }}</p>
           </div>
           <div>
             <p class="text-sm text-text-muted">Verification Provider</p>
-            <p class="font-medium">{{ kycInfo.kyc.verificationProvider || 'Not yet assigned' }}</p>
+            <p class="font-medium">{{ kyc.verificationProvider || 'Not yet assigned' }}</p>
           </div>
           <div>
             <p class="text-sm text-text-muted">Submitted</p>
-            <p class="font-medium">{{ kycInfo.kyc.submittedAt || 'N/A' }}</p>
+            <p class="font-medium">{{ kyc.submittedAt || 'N/A' }}</p>
           </div>
         </div>
       </section>

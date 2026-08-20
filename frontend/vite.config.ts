@@ -18,6 +18,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: [
+      'represents-absence-bonus-reaching.trycloudflare.com'
+    ]
   },
 
   preview: {

@@ -7,7 +7,7 @@ import CmAlert from '@/components/ui/CmAlert.vue';
 import CmStatusChip from '@/components/ui/CmStatusChip.vue';
 
 const store = usePaymentsStore();
-const { paymentsLocked, loading: lockLoading } = useModuleLock();
+const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 
 const settlements = computed(() => store.settlements);
 const reconciliation = computed(() => store.reconciliation);
@@ -36,7 +36,10 @@ onMounted(() => {
 
 <template>
   <div class="p-6">
-    <ModuleLockOverlay v-if="paymentsLocked && !lockLoading" variant="payment" />
+    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
+    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
+    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
+    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
     <template v-else>
       <div class="mb-6">
         <h1 class="text-headline">Settlements &amp; Reconciliation</h1>

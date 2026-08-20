@@ -13,13 +13,15 @@
  */
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
-import requireAuth from '../middleware/requireAuth.js';
+import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
 import requirePaymentReady from '../middleware/requirePaymentReady.js';
 import { requireStaff } from '../middleware/staffAuth.js';
 import PaymentService from '../services/PaymentService.js';
 
 const router = express.Router();
-router.use(requireAuth);
+
+// Phase 4: Switch to Supabase Auth (JWT Bearer token).
+router.use(requireAuthSupabase);
 
 const handleError = (res, error, fallbackStatus = 500) => {
   const status = error?.statusCode || fallbackStatus;

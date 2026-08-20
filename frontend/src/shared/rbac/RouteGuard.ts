@@ -5,6 +5,15 @@ import { useRBACStore } from '../../stores/rbacStore';
 import { buildAccessScope } from './accessScope';
 import type { SystemRole } from './types';
 
+/**
+ * authorizeRoute — navigation guard (Phase 8.2 progressive-access model).
+ *
+ * AUTHENTICATION grants entry. KYC, settlement verification, and financial
+ * activation grant access to *specific* sensitive capabilities, enforced at
+ * the page level via useModuleLock + ModuleLockOverlay. The router never
+ * globally redirects an authenticated user to /setup based on onboarding,
+ * KYC, or payment-activation state.
+ */
 export async function authorizeRoute(
   to: RouteLocationNormalized,
   from: RouteLocationNormalized,
@@ -22,18 +31,18 @@ export async function authorizeRoute(
     await schoolStore.initialize();
   }
 
+  // Unauthenticated users attempting protected routes → Auth.
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return next({ name: 'Auth' });
   }
 
-  if (to.name === 'Auth' && authStore.isAuthenticated) {
+  // Authenticated users on Auth/Landing → Dashboard.
+  // (Onboarding completeness is NOT a global gate — see useModuleLock.)
+  if (authStore.isAuthenticated && (to.name === 'Auth' || to.name === 'Landing')) {
     return next({ name: 'Home' });
   }
 
-  if (to.name === 'Landing' && authStore.isAuthenticated) {
-    return next({ name: 'Home' });
-  }
-
+  // --- RBAC: role and permission checks ---
   const permission = to.meta.permission as string | undefined;
   const requiredRole = to.meta.role as SystemRole | undefined;
 
@@ -64,9 +73,6 @@ export async function authorizeRoute(
       // Organization loading will happen on navigation, but for future use.
     }
   }
-
-  // Do not force-redirect users to a SchoolSetup route. Dashboard should remain accessible.
-  // Overlay-based module locking will handle access to specific features when setup is required.
 
   return next();
 }

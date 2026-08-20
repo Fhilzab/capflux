@@ -1,10 +1,11 @@
 import express from 'express';
-import requireAuth from '../middleware/requireAuth.js';
+import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
 import { supabase } from '../supabaseClient.js';
 
 const router = express.Router();
 // Admin management routes (Owner/Admin authorization)
-router.use(requireAuth);
+// Phase 4: Switch to Supabase Auth (JWT Bearer token).
+router.use(requireAuthSupabase);
 
 /**
  * Resolve the caller's school membership from the authenticated session.

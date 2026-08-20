@@ -14,6 +14,7 @@ const { authStore, handleOAuthCallbackMock } = vi.hoisted(() => {
       signUp: vi.fn(),
       signInWithProvider: vi.fn(),
       handleOAuthCallback: handleOAuthCallbackMock,
+      initiateAuthKit: vi.fn().mockResolvedValue({ url: 'https://auth.workos.com/authorize', error: null }),
     },
     handleOAuthCallbackMock,
   };
@@ -34,6 +35,17 @@ vi.mock('vue-router', async (importOriginal) => {
     useRoute: () => ({ query: mockRouteQuery }),
     useRouter: () => ({ push: pushMock, replace: replaceMock }),
   };
+});
+
+// Stub window.location.assign to prevent jsdom navigation warnings during
+// the AuthKit onMounted redirect path.
+const originalLocation = window.location;
+beforeEach(() => {
+  delete (window as any).location;
+  (window as any).location = { ...originalLocation, href: originalLocation.href };
+});
+afterEach(() => {
+  (window as any).location = originalLocation;
 });
 
 // Inline stubs to avoid hoisting reference errors
@@ -77,6 +89,7 @@ describe('AuthView', () => {
     vi.clearAllMocks();
     mockRouteQuery.mode = 'login';
     mockRouteQuery.code = null;
+    mockRouteQuery.state = null;
     mockRouteQuery.provider = null;
   });
 
@@ -129,16 +142,17 @@ describe('AuthView', () => {
     expect(wrapper.find('[data-testid="illustration"]').exists()).toBe(true);
   });
 
-  it('handles OAuth callback code on load', async () => {
+  it('handles OAuth callback code and state on load', async () => {
     mockRouteQuery.mode = 'login';
     mockRouteQuery.code = 'test-auth-code';
+    mockRouteQuery.state = 'test-state-value';
     handleOAuthCallbackMock.mockResolvedValue(true);
 
     mount(AuthView);
     await flushPromises();
     await nextTick();
 
-    expect(handleOAuthCallbackMock).toHaveBeenCalledWith('test-auth-code');
+    expect(handleOAuthCallbackMock).toHaveBeenCalledWith('test-auth-code', 'test-state-value');
     expect(pushMock).toHaveBeenCalledWith({ name: 'Home' });
   });
 

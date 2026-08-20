@@ -4,7 +4,7 @@
  * Used by authStore.js - maintains compatibility with existing store API
  */
 
-import { AuthKitProvider } from './AuthKitProvider';
+import { SupabaseAuthProvider } from './SupabaseAuthProvider';
 import type { User, Session, AuthResult, AuthErrorData } from './types';
 import { mapProviderError } from './AuthError';
 
@@ -15,7 +15,20 @@ import { mapProviderError } from './AuthError';
  * - No provider-specific logic outside this file
  */
 export const AuthService = {
-  _provider: new AuthKitProvider() as AuthKitProvider,
+  _provider: new SupabaseAuthProvider() as SupabaseAuthProvider,
+
+  /**
+   * Initiate provider auth flow. With Supabase Auth there is no hosted UI
+   * redirect — returns an empty URL so the caller renders inline forms.
+   */
+  async initiateAuthKit(mode: 'login' | 'signup'): Promise<{ data: { url: string } | null; error: AuthErrorData | null }> {
+    try {
+      const result = await this._provider.initiateAuthKit(mode);
+      return { data: result.data, error: result.error };
+    } catch (rawError) {
+      return { data: null, error: mapProviderError(rawError) };
+    }
+  },
 
   /**
    * Initialize the auth provider and check for existing session
@@ -79,9 +92,9 @@ export const AuthService = {
     }
   },
 
-  async handleOAuthCallback(code: string): Promise<{ data: { session: Session | null; user: User | null }; error: AuthErrorData | null }> {
+  async handleOAuthCallback(code: string, state?: string): Promise<{ data: { session: Session | null; user: User | null }; error: AuthErrorData | null }> {
     try {
-      const result = await this._provider.handleOAuthCallback(code);
+      const result = await this._provider.handleOAuthCallback(code, state);
       return {
         data: {
           session: result.data?.session ?? null,

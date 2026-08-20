@@ -47,7 +47,7 @@ export abstract class AuthProvider {
   /**
    * Handle OAuth callback with authorization code.
    */
-  abstract handleOAuthCallback(code: string): Promise<AuthResult<{ session: Session | null; user: User | null }>>;
+  abstract handleOAuthCallback(code: string, state?: string): Promise<AuthResult<{ session: Session | null; user: User | null }>>;
 
   /**
    * Send a password reset email

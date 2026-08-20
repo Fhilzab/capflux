@@ -42,11 +42,11 @@ onMounted(async () => {
 });
 
 function goToKycSubmission() {
-  router.push({ name: 'KycSubmission' });
+  router.push({ name: 'KycSubmission', query: { section: 'identity' } });
 }
 
 function goToSettlement() {
-  router.push({ name: 'Settlement' });
+  router.push({ name: 'KycSubmission', query: { section: 'settlement' } });
 }
 </script>
 

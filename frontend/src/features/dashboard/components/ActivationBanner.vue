@@ -10,7 +10,7 @@ const router = useRouter();
 const visible = computed(() => !authStore.isSchoolSetupComplete);
 
 const handleCompleteSetup = () => {
-  router.push({ name: 'SchoolSetup' });
+  router.push({ name: 'KycSubmission' });
 };
 </script>
 
