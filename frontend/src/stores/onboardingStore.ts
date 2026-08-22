@@ -22,6 +22,7 @@ import type {
   OnboardingProgress,
   OnboardingStatus,
 } from '../shared/school/types';
+import { normalizeLegacyBusinessType, isValidBusinessType } from '../shared/businessTypes';
 
 // Re-export so existing imports remain valid.
 export type OnboardingErrorCategory = ApiErrorCategory;
@@ -40,6 +41,8 @@ interface OnboardingState {
   status: OnboardingStatus | null;
   currentStep: number;
   completedSteps: number[];
+  /** Current business type selection (normalized enum value or null). */
+  businessType: string | null;
   /** Personal info collected in ProfileStep — available for KYC submission. */
   personalInfo: {
     firstName: string;
@@ -111,6 +114,7 @@ function normalizeStatus(raw: unknown): OnboardingStatus {
           status: (r.school_status as SchoolStatus) || 'PENDING_SETUP',
           paymentStatus: (r.payment_status as PaymentStatus) || 'NOT_READY',
           organizationId: (r.organization_id as string) || '',
+          businessType: normalizeLegacyBusinessType(r.business_type as string),
         }
       : null,
     onboarding,
@@ -189,6 +193,7 @@ export const useOnboardingStore = defineStore('onboarding', {
     status: null,
     currentStep: 1,
     completedSteps: [],
+    businessType: null,
     personalInfo: null,
   }),
 
@@ -335,6 +340,11 @@ export const useOnboardingStore = defineStore('onboarding', {
       return state.status?.organization?.name || '';
     },
 
+    /** Normalized business type enum value (or null). */
+    businessType(state): string | null {
+      return state.businessType;
+    },
+
     // === Error helpers ===
     isNetworkError(state): boolean {
       return state.errorCategory === 'NETWORK_ERROR';
@@ -384,6 +394,9 @@ export const useOnboardingStore = defineStore('onboarding', {
           'Failed to load onboarding status',
         );
         this.status = normalizeStatus(data.data);
+
+        // Restore businessType from the loaded status (from schools.business_type)
+        this.businessType = this.status?.school?.businessType ?? null;
 
         // Set completed steps based on status
         const o = this.status?.onboarding;
@@ -505,14 +518,53 @@ export const useOnboardingStore = defineStore('onboarding', {
     },
 
     // === Step: Organization ===
-    async createOrganization(name: string) {
+    async createOrganization(name: string, businessType?: string | null) {
       this.loading = true;
       this.error = null;
       this.errorCategory = null;
       try {
-        await apiCall<{ success: boolean }>('POST', '/onboarding/organization', { name });
+        await apiCall<{ success: boolean }>('POST', '/onboarding/organization', {
+          name,
+          businessType: businessType || undefined,
+        });
+        // Optimistically store the business type in state so the KYC wizard
+        // can read it even before the school is created.
+        if (businessType) {
+          this.businessType = normalizeLegacyBusinessType(businessType);
+        }
         this.completedSteps = [...new Set([...this.completedSteps, 2])];
         await this.loadStatus();
+      } catch (err) {
+        this.setError(err as EnhancedError);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /**
+     * Save the business type for the current user's school.
+     * Used by the KYC wizard's Organisation step where the school already exists.
+     */
+    async saveBusinessType(businessType: string) {
+      const normalized = normalizeLegacyBusinessType(businessType);
+      if (!normalized) {
+        throw Object.assign(new Error('Please select a valid business type.'), {
+          status: 400,
+          category: 'VALIDATION_ERROR',
+          userMessage: 'Please select a valid business type.',
+        });
+      }
+      this.loading = true;
+      this.error = null;
+      this.errorCategory = null;
+      try {
+        await apiCall<{ success: boolean; data?: { businessType: string } }>(
+          'PUT',
+          '/onboarding/business-type',
+          { businessType: normalized },
+        );
+        this.businessType = normalized;
       } catch (err) {
         this.setError(err as EnhancedError);
         throw err;
@@ -533,6 +585,7 @@ export const useOnboardingStore = defineStore('onboarding', {
       gender?: string;
       schoolLevels?: string[];
       academicCalendar?: Record<string, unknown>;
+      businessType?: string | null;
     }) {
       this.loading = true;
       this.error = null;
@@ -661,6 +714,7 @@ export const useOnboardingStore = defineStore('onboarding', {
       this.status = null;
       this.currentStep = 1;
       this.completedSteps = [];
+      this.businessType = null;
       this.personalInfo = null;
       this.error = null;
       this.errorCategory = null;

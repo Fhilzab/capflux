@@ -23,6 +23,8 @@ type CreateStudentInput = {
   registeredAt: string;
   relationshipToGuardian: string;
   discountRate: number;
+  status?: string;
+  academicSession?: string;
 };
 
 type CreateGuardianInput = {
@@ -56,7 +58,8 @@ export class SupabaseStudentProvider extends StudentProvider {
           registered_at: input.registeredAt,
           relationship_to_guardian: input.relationshipToGuardian,
           discount_rate: input.discountRate,
-          status: 'ACTIVE',
+          status: input.status || 'ACTIVE',
+          academic_session: input.academicSession || null,
         })
         .select()
         .single();

@@ -21,6 +21,8 @@ import {
   isValidOwnershipPercentage,
   isValidShareholder,
   isValidPhone,
+  isValidBusinessType,
+  normalizeLegacyBusinessType,
   ALLOWED_IDENTITY_DOCUMENT_TYPES,
 } from '../services/validators.js';
 import {
@@ -103,7 +105,7 @@ router.get('/status', async (req, res) => {
 
     const { data: school } = await supabase
       .from('schools')
-      .select('status, payment_status')
+      .select('status, payment_status, business_type')
       .eq('id', schoolId)
       .single();
 
@@ -122,6 +124,7 @@ router.get('/status', async (req, res) => {
         kyc: maskedKyc,
         schoolStatus: school?.status || null,
         paymentStatus: school?.payment_status || null,
+        businessType: normalizeLegacyBusinessType(school?.business_type) || null,
       },
     });
   } catch (error) {
@@ -146,6 +149,7 @@ router.post('/submit', async (req, res) => {
     identityDocumentType,
     nin,
     bvn,
+    businessType,
   } = req.body;
 
   if (!principalName || !principalPhone) {
@@ -168,6 +172,9 @@ router.post('/submit', async (req, res) => {
   }
   if (identityDocumentType && !isValidIdentityDocumentType(identityDocumentType)) {
     return res.status(400).json({ error: 'Invalid identity document type.' });
+  }
+  if (businessType && !isValidBusinessType(businessType)) {
+    return res.status(400).json({ error: 'Invalid business type.' });
   }
 
   try {
@@ -271,9 +278,18 @@ router.post('/submit', async (req, res) => {
       .eq('id', data.id);
 
     // Update school payment status to UNDER_REVIEW
+    const schoolUpdate = {
+      payment_status: 'UNDER_REVIEW',
+    };
+    if (businessType) {
+      const normalized = normalizeLegacyBusinessType(businessType);
+      if (normalized) {
+        schoolUpdate.business_type = normalized;
+      }
+    }
     await supabase
       .from('schools')
-      .update({ payment_status: 'UNDER_REVIEW' })
+      .update(schoolUpdate)
       .eq('id', schoolId);
 
     await logKycAccess(schoolId, req.user.id, 'KYC_SUBMITTED', {
@@ -487,91 +503,104 @@ router.get('/history', async (req, res) => {
 
 // ==========================================================
 // POST /api/kyc/documents/cac — upload CAC certificate (private storage)
-// Accepts base64 data-URL JSON payload: { filename, mimeType, dataBase64 }
-// Validates MIME type, extension, size; stores in private storage; records
-// metadata on the KYC record. Never exposes a permanent public URL.
+// Accepts binary upload via application/octet-stream (NOT base64-in-JSON).
+// filename and mimeType are sent as query parameters. The binary buffer
+// is validated and stored via the existing storeCacDocument storage seam
+// (private filesystem/Supabase Storage backend — never public).
+//
+// A route-specific express.raw() parser with a 15MB limit replaces the
+// base64-in-JSON approach. Ordinary API endpoints retain the global 100kb
+// JSON body-parser limit from index.js — only this upload route has the
+// larger, bounded, per-endpoint limit.
 // ==========================================================
-router.post('/documents/cac', async (req, res) => {
-  const { filename, mimeType, dataBase64 } = req.body || {};
+router.post(
+  '/documents/cac',
+  express.raw({ type: 'application/octet-stream', limit: '15mb' }),
+  async (req, res) => {
+    const buffer = req.body;
 
-  if (!filename || !mimeType || !dataBase64) {
-    return res.status(400).json({ error: 'filename, mimeType, and dataBase64 are required.' });
-  }
-
-  const ext = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
-  let buffer;
-  try {
-    buffer = Buffer.from(dataBase64, 'base64');
-  } catch (_e) {
-    return res.status(400).json({ error: 'Invalid file data.' });
-  }
-
-  if (!isAllowedCacFile({ mimeType, extension: ext, size: buffer.length })) {
-    return res.status(400).json({
-      error: 'CAC certificate must be a PDF, JPG, or PNG up to 10MB.',
-    });
-  }
-
-  // Verify the buffer's magic bytes match the claimed MIME type (do not trust
-  // the client-declared MIME type alone).
-  const sniffed = sniffMimeType(buffer);
-  if (sniffed && !sniffed.startsWith(mimeType.split('/')[0])) {
-    return res.status(400).json({ error: 'File content does not match the declared type.' });
-  }
-
-  try {
-    const schoolId = await getUserSchoolId(req.user.id);
-    if (!schoolId) {
-      return res.status(400).json({ error: 'No school found. Complete onboarding first.' });
+    if (!buffer || !Buffer.isBuffer(buffer)) {
+      return res.status(400).json({ error: 'No file received. Send the document as application/octet-stream.' });
     }
 
-    const { data: kyc, error: kycError } = await supabase
-      .from('kyc_records')
-      .select('id')
-      .eq('school_id', schoolId)
-      .single();
-    if (kycError || !kyc) {
-      return res.status(400).json({ error: 'Submit KYC details first before uploading a CAC certificate.' });
+    const filename = req.query.filename;
+    const mimeType = req.query.mimetype || req.query.mimeType;
+
+    if (!filename || !mimeType) {
+      return res.status(400).json({ error: 'filename and mimeType query parameters are required.' });
     }
 
-    const metadata = await storeCacDocument({
-      buffer,
-      mimeType,
-      extension: ext,
-      schoolId,
-      kycRecordId: kyc.id,
-    });
+    const ext = String(filename).includes('.')
+      ? String(filename).split('.').pop().toLowerCase()
+      : '';
 
-    await supabase
-      .from('kyc_records')
-      .update({
-        cac_document_path: metadata.storage_path,
-        cac_document_mime_type: metadata.mime_type,
-        cac_document_file_size: metadata.file_size,
-        cac_document_checksum: metadata.checksum,
-        cac_document_uploaded_at: new Date().toISOString(),
-        cac_document_status: 'PENDING',
-      })
-      .eq('id', kyc.id);
+    if (!isAllowedCacFile({ mimeType, extension: ext, size: buffer.length })) {
+      return res.status(400).json({
+        error: 'CAC certificate must be a PDF, JPG, or PNG up to 10MB.',
+      });
+    }
 
-    await logKycAccess(schoolId, req.user.id, 'CAC_DOCUMENT_UPLOADED', {
-      file_size: metadata.file_size,
-      mime_type: metadata.mime_type,
-    });
+    // Verify the buffer's magic bytes match the claimed MIME type (do not trust
+    // the client-declared MIME type alone).
+    const sniffed = sniffMimeType(buffer);
+    if (sniffed && !sniffed.startsWith(String(mimeType).split('/')[0])) {
+      return res.status(400).json({ error: 'File content does not match the declared type.' });
+    }
 
-    return res.json({
-      success: true,
-      data: {
-        mime_type: metadata.mime_type,
+    try {
+      const schoolId = await getUserSchoolId(req.user.id);
+      if (!schoolId) {
+        return res.status(400).json({ error: 'No school found. Complete onboarding first.' });
+      }
+
+      const { data: kyc, error: kycError } = await supabase
+        .from('kyc_records')
+        .select('id')
+        .eq('school_id', schoolId)
+        .single();
+      if (kycError || !kyc) {
+        return res.status(400).json({ error: 'Submit KYC details first before uploading a CAC certificate.' });
+      }
+
+      const metadata = await storeCacDocument({
+        buffer,
+        mimeType: String(mimeType),
+        extension: ext,
+        schoolId,
+        kycRecordId: kyc.id,
+      });
+
+      await supabase
+        .from('kyc_records')
+        .update({
+          cac_document_path: metadata.storage_path,
+          cac_document_mime_type: metadata.mime_type,
+          cac_document_file_size: metadata.file_size,
+          cac_document_checksum: metadata.checksum,
+          cac_document_uploaded_at: new Date().toISOString(),
+          cac_document_status: 'PENDING',
+        })
+        .eq('id', kyc.id);
+
+      await logKycAccess(schoolId, req.user.id, 'CAC_DOCUMENT_UPLOADED', {
         file_size: metadata.file_size,
-        checksum: metadata.checksum,
-        uploaded_at: metadata.uploaded_at || null,
-      },
-    });
-  } catch (error) {
-    return handleError(res, error);
-  }
-});
+        mime_type: metadata.mime_type,
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          mime_type: metadata.mime_type,
+          file_size: metadata.file_size,
+          checksum: metadata.checksum,
+          uploaded_at: metadata.uploaded_at || null,
+        },
+      });
+    } catch (error) {
+      return handleError(res, error);
+    }
+  },
+);
 
 /**
  * Sniff the MIME type from file magic bytes (PDF, JPEG, PNG).
@@ -1226,6 +1255,21 @@ router.get('/activation', async (req, res) => {
   } catch (error) {
     return handleError(res, error);
   }
+});
+
+// ==========================================================
+// Body-parser error handler (route-scoped).
+// Catches entity.too.large errors from the express.raw() parser on the
+// CAC document upload route and from the global express.json() parser on
+// ordinary KYC endpoints. Returns a clean JSON 413 response.
+// ==========================================================
+router.use((err, req, res, next) => {
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: 'Request body exceeds the maximum allowed size.',
+    });
+  }
+  next(err);
 });
 
 export { decryptField, maskIdentifier, logKycAccess };

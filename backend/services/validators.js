@@ -140,3 +140,71 @@ export function namesPlausiblyMatch(returnedName, registeredName) {
   a.forEach((tok) => { if (b.has(tok)) overlap += 1; });
   return overlap / Math.min(a.size, b.size) >= 0.6;
 }
+
+// ==========================================================
+// Phase 8.5 — Business type validation
+// ==========================================================
+
+/**
+ * Canonical CAPFLUX business-type enum values (mirrors
+ * frontend/src/shared/businessTypes.ts).
+ *
+ * These map to legitimate CAC-recognised entity classifications:
+ *   BUSINESS_NAME             — Sole proprietorship / registered business name
+ *   PARTNERSHIP               — Partnership / business name with multiple owners
+ *   PRIVATE_LIMITED_COMPANY   — Private company limited by shares (Ltd)
+ *   PUBLIC_LIMITED_COMPANY    — Public company limited by shares (Plc)
+ *   LIMITED_BY_GUARANTEE     — Company limited by guarantee (no share capital)
+ *   UNLIMITED_COMPANY         — Unlimited company (no share capital)
+ *   LLP                       — Limited Liability Partnership
+ *   LP                        — Limited Partnership
+ *   INCORPORATED_TRUSTEES     — Incorporated Trustees / Non-Profit Organisation
+ */
+export const VALID_BUSINESS_TYPE_VALUES = [
+  'BUSINESS_NAME',
+  'PARTNERSHIP',
+  'PRIVATE_LIMITED_COMPANY',
+  'PUBLIC_LIMITED_COMPANY',
+  'LIMITED_BY_GUARANTEE',
+  'UNLIMITED_COMPANY',
+  'LLP',
+  'LP',
+  'INCORPORATED_TRUSTEES',
+];
+
+/**
+ * Map legacy / placeholder values to their canonical equivalents.
+ *
+ * Old client-side values that were never persisted to the database but may
+ * appear in cached frontend state:
+ *   - "PRIVATE" / "Private Business"      → "PRIVATE_LIMITED_COMPANY"
+ *   - "PUBLIC" / "Public Business"        → "PUBLIC_LIMITED_COMPANY"
+ *   - "IS_GRADUATE" / "Graduate"          → "BUSINESS_NAME"
+ */
+const LEGACY_BUSINESS_TYPE_MAP = {
+  PRIVATE: 'PRIVATE_LIMITED_COMPANY',
+  'Private Business': 'PRIVATE_LIMITED_COMPANY',
+  PUBLIC: 'PUBLIC_LIMITED_COMPANY',
+  'Public Business': 'PUBLIC_LIMITED_COMPANY',
+  IS_GRADUATE: 'BUSINESS_NAME',
+  Graduate: 'BUSINESS_NAME',
+};
+
+/**
+ * Validate that a value is one of the canonical business-type enums.
+ * Rejects legacy values ("PRIVATE", "Private Business", etc.).
+ */
+export function isValidBusinessType(value) {
+  return typeof value === 'string' && VALID_BUSINESS_TYPE_VALUES.includes(value);
+}
+
+/**
+ * Normalize a legacy / cached business-type value to its canonical equivalent.
+ * Returns null for unrecognized or unset values.
+ */
+export function normalizeLegacyBusinessType(value) {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (isValidBusinessType(trimmed)) return trimmed;
+  return LEGACY_BUSINESS_TYPE_MAP[trimmed] || null;
+}

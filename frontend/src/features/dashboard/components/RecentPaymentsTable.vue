@@ -14,6 +14,9 @@ interface Payment {
   status?: string;
   created_at: string;
   payment_method?: string;
+  metadata?: {
+    verified?: boolean;
+  };
 }
 
 interface Props {
@@ -70,12 +73,12 @@ const copyReference = (ref?: string) => {
         <thead>
           <tr class="border-b border-divider">
             <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">Student</th>
-            <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">Guardian</th>
+            <th class="hidden sm:table-cell px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">Guardian</th>
             <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted">Amount</th>
-            <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">Reference</th>
+            <th class="hidden sm:table-cell px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">Reference</th>
             <th class="px-5 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-text-muted">Status</th>
-            <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted">Time</th>
-            <th class="px-5 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-text-muted">Method</th>
+            <th class="hidden sm:table-cell px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted">Time</th>
+            <th class="hidden sm:table-cell px-5 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-text-muted">Method</th>
           </tr>
         </thead>
         <tbody>
@@ -83,11 +86,11 @@ const copyReference = (ref?: string) => {
             <td class="px-5 py-3.5">
               <span class="font-bold uppercase text-text-primary">{{ payment.student_name }}</span>
             </td>
-            <td class="px-5 py-3.5 text-text-secondary">{{ payment.guardian_name }}</td>
+            <td class="hidden sm:table-cell px-5 py-3.5 text-text-secondary">{{ payment.guardian_name }}</td>
             <td class="px-5 py-3.5 text-right font-mono font-medium text-success">
               ₦{{ payment.amount.toLocaleString() }}
             </td>
-            <td class="px-5 py-3.5">
+            <td class="hidden sm:table-cell px-5 py-3.5">
               <div class="flex items-center gap-1.5">
                 <span class="font-mono text-xs text-text-muted truncate max-w-24" :title="payment.reference">
                   {{ payment.reference || '-' }}
@@ -104,12 +107,12 @@ const copyReference = (ref?: string) => {
               </div>
             </td>
             <td class="px-5 py-3.5 text-center">
-              <StatusBadge :status="payment.status === 'verified' ? 'success' : 'pending'" :label="payment.status || 'pending'" />
+              <StatusBadge :status="payment.metadata?.verified ? 'success' : 'pending'" :label="payment.metadata?.verified ? 'Verified' : 'Pending'" />
             </td>
-            <td class="px-5 py-3.5 text-right font-mono text-xs text-text-muted">
+            <td class="hidden sm:table-cell px-5 py-3.5 text-right font-mono text-xs text-text-muted">
               {{ formatTime(payment.created_at) }}
             </td>
-            <td class="px-5 py-3.5 text-center">
+            <td class="hidden sm:table-cell px-5 py-3.5 text-center">
               <svg class="h-4 w-4 mx-auto text-text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 10.5h18M3 14.25h18M5.25 6a2.25 2.25 0 012.25-2.25h10.5A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H7.5A2.25 2.25 0 015.25 18V6z" />
               </svg>

@@ -20,6 +20,8 @@ export abstract class StudentProvider {
     registeredAt: string;
     relationshipToGuardian: string;
     discountRate: number;
+    status?: string;
+    academicSession?: string;
   }): Promise<StudentResult<Student>>;
 
   abstract updateStudent(studentId: string, data: Partial<Student>): Promise<StudentResult<Student>>;

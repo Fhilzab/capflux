@@ -59,6 +59,8 @@ export interface OnboardingStatus {
     status: SchoolStatus;
     paymentStatus: PaymentStatus;
     organizationId: string;
+    /** Normalized CAC business entity type (e.g. 'PRIVATE_LIMITED_COMPANY'). */
+    businessType?: string | null;
   } | null;
   onboarding: OnboardingProgress | null;
   kyc: {

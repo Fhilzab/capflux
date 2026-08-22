@@ -48,6 +48,7 @@ export interface IdentityMatchStates {
 export interface KycStatusModel {
   id: string;
   status: VerificationStatus;
+  businessType: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;
   reviewedBy: string | null;
@@ -128,6 +129,7 @@ export interface KycStatus {
   kyc: KycStatusModel | null;
   schoolStatus: string | null;
   paymentStatus: string | null;
+  businessType: string | null;
 }
 
 export interface SettlementStatus {
@@ -207,7 +209,7 @@ function maskLast4(value: string | null | undefined): string | null {
 /** Normalize the /kyc/status response into the canonical frontend model. */
 function normalizeKycStatus(raw: unknown): KycStatus {
   if (!raw || typeof raw !== 'object') {
-    return { kyc: null, schoolStatus: null, paymentStatus: null };
+    return { kyc: null, schoolStatus: null, paymentStatus: null, businessType: null };
   }
 
   const r = raw as Record<string, unknown>;
@@ -218,6 +220,7 @@ function normalizeKycStatus(raw: unknown): KycStatus {
       kyc: null,
       schoolStatus: (r.schoolStatus as string) || r.school_status || null,
       paymentStatus: (r.paymentStatus as string) || r.payment_status || null,
+      businessType: (r.businessType as string) || null,
     };
   }
 
@@ -256,6 +259,8 @@ function normalizeKycStatus(raw: unknown): KycStatus {
     },
     schoolStatus: (r.schoolStatus as string) || r.school_status || null,
     paymentStatus: (r.paymentStatus as string) || r.payment_status || null,
+    businessType:
+      (r.businessType as string) || (kyc.businessType as string) || kyc.business_type || null,
   };
 }
 
@@ -398,6 +403,7 @@ const DRAFT_FIELDS = [
   'principalPhone',
   'settlementBankCode',
   'settlementAccountNumber',
+  'businessType',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -436,6 +442,7 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
       principalPhone: null as string | null,
       settlementBankCode: null as string | null,
       settlementAccountNumber: null as string | null,
+      businessType: null as string | null,
     },
   }),
 
@@ -495,7 +502,8 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
     kycReadyForSubmission(state): boolean {
       const d = state.kycSubmissionDraft;
       return Boolean(
-        d.nin &&
+        d.businessType &&
+          d.nin &&
           d.bvn &&
           d.identityDocumentType &&
           d.principalName &&
@@ -583,6 +591,7 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
       bvn: string;
       nin: string;
       identityDocumentType?: string;
+      businessType?: string;
       personalInfo?: Record<string, unknown>;
     }) {
       try {
@@ -618,17 +627,17 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
 
     async uploadCacDocument(file: File) {
       try {
-        const dataBase64 = await fileToBase64(file);
-        const data = await request<{ success: boolean; data: unknown }>(
-          'post',
-          '/kyc/documents/cac',
-          {
+        const response = await apiClient.http({
+          method: 'post',
+          url: '/kyc/documents/cac',
+          data: file,
+          params: {
             filename: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            dataBase64,
-          }
-        );
-        this.cacDocument = normalizeCacDocument(data.data);
+            mimetype: file.type || 'application/octet-stream',
+          },
+          headers: { 'Content-Type': 'application/octet-stream' },
+        });
+        this.cacDocument = normalizeCacDocument(response.data.data);
       } catch (err) {
         this._setError(err as EnhancedError, 'Failed to upload CAC certificate');
         throw err;
@@ -637,17 +646,17 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
 
     async uploadIdentityDocument(file: File) {
       try {
-        const dataBase64 = await fileToBase64(file);
-        const data = await request<{ success: boolean; data: unknown }>(
-          'post',
-          '/kyc/documents/identity',
-          {
+        const response = await apiClient.http({
+          method: 'post',
+          url: '/kyc/documents/identity',
+          data: file,
+          params: {
             filename: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            dataBase64,
-          }
-        );
-        return normalizeCacDocument(data.data);
+            mimetype: file.type || 'application/octet-stream',
+          },
+          headers: { 'Content-Type': 'application/octet-stream' },
+        });
+        return normalizeCacDocument(response.data.data);
       } catch (err) {
         this._setError(err as EnhancedError, 'Failed to upload identity document');
         throw err;
@@ -849,16 +858,3 @@ export const useFinancialActivationStore = defineStore('financialActivation', {
 
 // Export normalization functions for testing
 export { normalizeKycStatus, normalizeSettlementStatus, normalizeShareholders, normalizeMatchStates };
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.split(',')[1] || '';
-      resolve(base64);
-    };
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsDataURL(file);
-  });
-}

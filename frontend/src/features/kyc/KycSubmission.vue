@@ -48,7 +48,7 @@ const showStatus = ref(false);
 const sectionComplete = computed(() => {
   const personal = !!onboardingStore.personalInfo;
   const identity = !!activationStore.kycStatus?.kyc?.identityDocumentType;
-  const organisation = !!onboardingStore.status?.organization;
+  const organisation = !!onboardingStore.businessType;
   const school = !!onboardingStore.status?.school;
   const principal = onboardingStore.status?.principal?.invited === true ||
                      !!onboardingStore.personalInfo; // same-as-owner defaults to complete
@@ -156,6 +156,7 @@ async function doFinalSubmission() {
       principalPhone?: string | null;
       settlementBankCode?: string | null;
       settlementAccountNumber?: string | null;
+      businessType?: string | null;
     } | null;
 
     await activationStore.submitKyc({
@@ -171,6 +172,7 @@ async function doFinalSubmission() {
       officialEmail: draft?.officialEmail || '',
       officialPhone: draft?.officialPhone || '',
       cacRegistrationNumber: draft?.cacRegistrationNumber || '',
+      businessType: onboardingStore.businessType || '',
       personalInfo: personalInfo
         ? {
             firstName: personalInfo.firstName,

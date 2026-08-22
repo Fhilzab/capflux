@@ -26,6 +26,8 @@ export class StudentService {
     registeredAt: string;
     relationshipToGuardian: string;
     discountRate: number;
+    status?: string;
+    academicSession?: string;
     admissionSettings?: SchoolAdmissionSettings;
   }): Promise<StudentResult<Student>> {
     const validation = StudentValidator.validateCreate(data);

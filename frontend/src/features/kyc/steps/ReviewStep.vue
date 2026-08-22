@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useFinancialActivationStore } from '@/stores/financialActivationStore';
+import { getBusinessTypeLabel } from '@/shared/businessTypes';
 import CmButton from '@/components/ui/CmButton.vue';
 import CmBadge from '@/components/ui/CmBadge.vue';
 
@@ -40,10 +41,12 @@ const personalInfo = computed(() => {
 
 const organization = computed(() => {
   const org = onboardingStore.status?.organization;
+  const school = onboardingStore.status?.school;
+  const rawBusinessType = onboardingStore.businessType ?? school?.businessType ?? org?.business_type ?? org?.type ?? null;
   return {
-    name: org?.name || '—',
+    name: org?.name || school?.name || '—',
     slug: org?.slug || '—',
-    businessType: org?.business_type || org?.type || '—',
+    businessType: getBusinessTypeLabel(rawBusinessType) || '—',
   };
 });
 

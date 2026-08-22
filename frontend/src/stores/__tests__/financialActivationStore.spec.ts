@@ -94,6 +94,7 @@ describe('financialActivationStore - draft persistence', () => {
   it('kycReadyForSubmission is true when all required fields present', () => {
     const store = useFinancialActivationStore();
     store.updateKycDraft({
+      businessType: 'PRIVATE_LIMITED_COMPANY',
       nin: '12345678901',
       bvn: '12345678901',
       identityDocumentType: 'NIN_SLIP',

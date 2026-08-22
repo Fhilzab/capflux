@@ -16,6 +16,8 @@ export class StudentValidator {
     registeredAt: string;
     relationshipToGuardian: string;
     discountRate: number;
+    status?: string;
+    academicSession?: string;
   }): StudentValidationResult {
     const errors: Record<string, string> = {};
 

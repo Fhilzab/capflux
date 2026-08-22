@@ -153,7 +153,7 @@ function mountView() {
           name: 'CmButton',
           template:
             '<button @click="$emit(\'click\')" :disabled="disabled" :loading="loading"><slot/></button>',
-          emit: ['click'],
+          emits: ['click'],
           props: ['variant', 'size', 'loading', 'disabled', 'type'],
         },
         CmAlert: {

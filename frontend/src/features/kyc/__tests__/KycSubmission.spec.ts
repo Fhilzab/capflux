@@ -27,6 +27,8 @@ const onboardingStoreMock = vi.hoisted(() => ({
   isOnboardingComplete: false,
   requiresSetup: false,
   hasSchool: false,
+  businessType: null as string | null,
+  saveBusinessType: vi.fn().mockResolvedValue(undefined),
   saveProfile: vi.fn().mockResolvedValue(undefined),
   createOrganization: vi.fn().mockResolvedValue({ organization: { id: 'o1', name: 'Org', slug: 'org' } }),
   createSchool: vi.fn().mockResolvedValue(undefined),
@@ -119,6 +121,7 @@ describe('KycSubmission (Phase 8.4 consolidated wizard)', () => {
     onboardingStoreMock.completedSteps = [];
     onboardingStoreMock.status = null;
     onboardingStoreMock.personalInfo = null;
+    onboardingStoreMock.businessType = null;
     onboardingStoreMock.paymentStatus = null;
     onboardingStoreMock.isOnboardingComplete = false;
     onboardingStoreMock.loading = false;
@@ -194,7 +197,8 @@ describe('KycSubmission (Phase 8.4 consolidated wizard)', () => {
     const wrapper = mountWizard();
     await flushPromises();
     expect(wrapper.text()).toContain('Connection problem');
-    expect(wrapper.find('section').exists()).toBe(true);
+    // Wizard shell must still be rendered (sidebar + sections), not replaced
+    expect(wrapper.find('aside').exists()).toBe(true);
   });
 
   it('renders without error when KYC has NOT_PROVIDED match state', async () => {
@@ -272,5 +276,47 @@ describe('KycSubmission (Phase 8.4 consolidated wizard)', () => {
     const wrapper = mountWizard();
     await flushPromises();
     expect(wrapper.text()).not.toContain('Full Name');
+  });
+
+  describe('business type integration', () => {
+    it('organisation section is incomplete when businessType is null', async () => {
+      onboardingStoreMock.businessType = null;
+      const wrapper = mountWizard();
+      await flushPromises();
+      expect((wrapper.vm as any).sectionComplete.organisation).toBe(false);
+    });
+
+    it('organisation section is complete when businessType is set', async () => {
+      onboardingStoreMock.businessType = 'PRIVATE_LIMITED_COMPANY';
+      const wrapper = mountWizard();
+      await flushPromises();
+      expect((wrapper.vm as any).sectionComplete.organisation).toBe(true);
+    });
+
+    it('passes businessType to submitKyc payload', async () => {
+      onboardingStoreMock.businessType = 'PRIVATE_LIMITED_COMPANY';
+      onboardingStoreMock.personalInfo = {
+        firstName: 'Mary',
+        middleName: '',
+        lastName: 'Okonkwo',
+        phone: '08012345678',
+        dateOfBirth: '1990-01-01',
+      };
+      financialStoreMock.kycSubmissionDraft = {
+        nin: '12345678901',
+        bvn: '12345678901',
+        identityDocumentType: 'DRIVERS_LICENSE',
+        cacRegistrationNumber: 'RC-1234567',
+        principalName: 'Mary Okonkwo',
+        principalPhone: '08012345678',
+        businessType: 'PRIVATE_LIMITED_COMPANY',
+      };
+      const wrapper = mountWizard();
+      await flushPromises();
+      await (wrapper.vm as any).doFinalSubmission();
+      expect(financialStoreMock.submitKyc).toHaveBeenCalled();
+      const payload = financialStoreMock.submitKyc.mock.calls[0][0];
+      expect(payload.businessType).toBe('PRIVATE_LIMITED_COMPANY');
+    });
   });
 });

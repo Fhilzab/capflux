@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../supabaseClient.js';
 import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
+import { normalizeLegacyBusinessType, isValidBusinessType } from '../services/validators.js';
 
 const router = express.Router();
 
@@ -15,7 +16,8 @@ router.use(requireAuthSupabase);
 
 // ==========================================================
 // GET /api/onboarding/status
-// Returns the onboarding checklist state for the current user
+// Returns the onboarding checklist state for the current user,
+// including the school's business_type (normalized from legacy values).
 // ==========================================================
 router.get('/status', async (req, res) => {
   try {
@@ -27,7 +29,28 @@ router.get('/status', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
-    return res.json({ success: true, data });
+    // Enrich with business_type from the schools table (column already exists).
+    // The get_onboarding_status RPC does not return it, so we fetch it here
+    // rather than modifying the DB migration.
+    let enriched = data;
+    if (data && data.has_school && data.school_id) {
+      const { data: school } = await supabase
+        .from('schools')
+        .select('business_type, cac_number, tax_identification_number')
+        .eq('id', data.school_id)
+        .single();
+
+      if (school) {
+        enriched = {
+          ...data,
+          business_type: normalizeLegacyBusinessType(school.business_type),
+          cac_number: school.cac_number || null,
+          tax_identification_number: school.tax_identification_number || null,
+        };
+      }
+    }
+
+    return res.json({ success: true, data: enriched });
   } catch (error) {
     return handleError(res, error);
   }
@@ -149,10 +172,19 @@ router.post('/profile', async (req, res) => {
 // Create organization + OWNER membership
 // ==========================================================
 router.post('/organization', async (req, res) => {
-  const { name } = req.body;
+  const { name, businessType } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'Organization name is required.' });
+  }
+
+  // Validate business_type if provided
+  let normalizedBusinessType = null;
+  if (businessType) {
+    normalizedBusinessType = normalizeLegacyBusinessType(businessType);
+    if (!normalizedBusinessType) {
+      return res.status(400).json({ error: 'Invalid business type.' });
+    }
   }
 
   try {
@@ -176,6 +208,21 @@ router.post('/organization', async (req, res) => {
 
     if (error) {
       return res.status(500).json({ error: error.message });
+    }
+
+    // If school already exists (rare, e.g. school created before org), set business_type
+    if (normalizedBusinessType) {
+      const { data: schoolMember } = await supabase
+        .from('school_members')
+        .select('school_id')
+        .eq('user_id', req.user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (schoolMember) {
+        await supabase.from('schools').update({ business_type: normalizedBusinessType })
+          .eq('id', schoolMember.school_id);
+      }
     }
 
     // Mark organization step as completed
@@ -223,6 +270,7 @@ router.post('/school', async (req, res) => {
     gender,
     schoolLevels,
     academicCalendar,
+    businessType,
   } = req.body;
 
   if (!name) {
@@ -282,6 +330,15 @@ router.post('/school', async (req, res) => {
         gender: gender || 'MIXED',
       })
       .eq('id', schoolId);
+
+    // Set business_type on the school if provided (already exists as a column)
+    if (businessType) {
+      const normalizedBt = normalizeLegacyBusinessType(businessType);
+      if (normalizedBt) {
+        await supabase.from('schools').update({ business_type: normalizedBt })
+          .eq('id', schoolId);
+      }
+    }
 
     // Mark school step as completed
     await supabase
@@ -511,6 +568,46 @@ router.post('/verify-account', async (req, res) => {
   }
 
   return res.json({ verified: false, error: 'Account not found' });
+});
+
+// ==========================================================
+// PUT /api/onboarding/business-type
+// Update the business_type on the current user's school.
+// Used by the KYC flow where the school already exists.
+// ==========================================================
+router.put('/business-type', async (req, res) => {
+  const { businessType } = req.body;
+
+  if (!businessType || !isValidBusinessType(businessType)) {
+    return res.status(400).json({ error: 'A valid business type is required.' });
+  }
+
+  try {
+    const normalized = normalizeLegacyBusinessType(businessType);
+    if (!normalized) {
+      return res.status(400).json({ error: 'Invalid business type.' });
+    }
+
+    const { data: schoolMember } = await supabase
+      .from('school_members')
+      .select('school_id')
+      .eq('user_id', req.user.id)
+      .eq('is_active', true)
+      .single();
+
+    if (!schoolMember) {
+      return res.status(404).json({ error: 'No school found. Complete onboarding first.' });
+    }
+
+    await supabase
+      .from('schools')
+      .update({ business_type: normalized })
+      .eq('id', schoolMember.school_id);
+
+    return res.json({ success: true, data: { businessType: normalized } });
+  } catch (error) {
+    return handleError(res, error);
+  }
 });
 
 export default router;

@@ -1,199 +1,247 @@
+<template>
+  <div class="flex min-h-[calc(100vh-56px)] flex-col bg-background">
+    <StudentPageHeader @import="openImportDialog" @add="management.addStudent" />
+
+    <div class="flex-1 overflow-y-auto">
+      <div class="p-6">
+        <!-- Loading -->
+        <div v-if="management.loading" class="flex justify-center py-12">
+          <CmLoading :text="'Loading students...'" />
+        </div>
+
+        <!-- Error -->
+        <CmAlert
+          v-else-if="management.error"
+          variant="danger"
+          title="Error loading students"
+          :description="management.error"
+          :dismissible="true"
+          @dismiss="clearError"
+        />
+
+        <!-- Empty state -->
+        <StudentEmptyState
+          v-else-if="management.students.length === 0"
+          @action="management.addStudent"
+          @secondary-action="openImportDialog"
+        />
+
+        <!-- Student management workspace -->
+        <div v-else class="space-y-4">
+          <StudentStats :stats="management.stats" />
+
+          <StudentToolbar
+            :search-query="management.searchQuery"
+            @update:search-query="setSearchQuery"
+            :filters="management.filters"
+            :sort-field="management.sortField"
+            :sort-order="management.sortOrder"
+            :class-options="management.classOptions"
+            :gender-options="management.genderOptions"
+            :status-options="management.statusFilterOptions"
+            :session-options="management.sessionOptions"
+            :relationship-options="management.relationshipOptions"
+            :sort-field-options="management.sortOptions"
+            :selected-count="management.selectedCount"
+            @filter-change="updateFilters"
+            @clear-filters="management.clearFilters"
+            @sort-change="handleSortChange"
+            @export="openExportDialog"
+            @export-selected="openExportDialog"
+            @import="openImportDialog"
+            @add="management.addStudent"
+            @archive-selected="management.archiveSelected"
+            @clear-selection="management.clearSelection"
+          />
+
+          <StudentTable
+            :students="management.paginatedStudents"
+            :sort-field="management.sortField"
+            :sort-order="management.sortOrder"
+            :selected-ids="management.selectedIds"
+            :loading="management.loading"
+            :current-page="management.currentPage"
+            :total-pages="management.totalPages"
+            :total-items="management.totalFiltered"
+            @sort="handleSortChange"
+            @toggle-select="management.toggleSelection"
+            @toggle-select-all="management.toggleSelectAll"
+            @view="management.viewStudent"
+            @edit="management.editStudent"
+            @archive="handleArchive"
+            @financial-record="management.viewFinancialRecord"
+            @page-change="setPage"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Form (modal) -->
+    <CmModal
+      :model-value="management.showForm"
+      @update:model-value="setShowForm"
+      :title="management.editingStudent ? 'Edit Student' : 'Add Student'"
+      size="lg"
+    >
+      <StudentForm
+        :student="management.editingStudent"
+        :loading="formSubmitting"
+        :divisions="management.classOptions"
+        @submit="handleFormSubmit"
+        @cancel="management.closeForm"
+      />
+    </CmModal>
+
+    <!-- Import Dialog -->
+    <StudentImportDialog
+      :model-value="management.showImportDialog"
+      @update:model-value="setShowImportDialog"
+      :school-id="management.schoolId"
+      :divisions="management.divisions"
+      :existing-students="management.students"
+      @imported="handleImportComplete"
+      @view-imported="handleViewImported"
+    />
+
+    <!-- Export Dialog -->
+    <StudentExportDialog
+      :model-value="management.showExportDialog"
+      @update:model-value="setShowExportDialog"
+      :all-students="management.students"
+      :filtered-students="management.filteredStudents"
+      :selected-students="management.selectedStudents"
+      @export-done="handleExportComplete"
+    />
+
+    <!-- Toast -->
+    <CmToast
+      v-if="toast"
+      :variant="toast.variant"
+      :title="toast.title"
+      :description="toast.description"
+      :duration="toast.duration"
+      @close="toast = null"
+    />
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useStudentStore } from '../stores/studentStore';
-import CmButton from '../components/ui/CmButton.vue';
+import { useStudentManagement } from '@/features/students/composables/useStudentManagement';
+import StudentPageHeader from '@/features/students/components/StudentPageHeader.vue';
+import StudentStats from '@/features/students/components/StudentStats.vue';
+import StudentToolbar from '@/features/students/components/StudentToolbar.vue';
+import StudentTable from '@/features/students/components/StudentTable.vue';
+import StudentForm from '@/features/students/components/StudentForm.vue';
+import StudentImportDialog from '@/features/students/components/StudentImportDialog.vue';
+import StudentExportDialog from '@/features/students/components/StudentExportDialog.vue';
+import StudentEmptyState from '@/features/students/components/StudentEmptyState.vue';
+import CmModal from '@/components/ui/CmModal.vue';
+import CmLoading from '@/components/ui/CmLoading.vue';
+import CmAlert from '@/components/ui/CmAlert.vue';
+import CmToast from '@/components/ui/CmToast.vue';
+import type { StudentSortField, FilterState, NormalizedStudent } from '@/features/students/types';
 
-const router = useRouter();
-const DEFAULT_SCHOOL_ID = 'demo-school';
-const studentStore = useStudentStore();
-const students = ref([]);
-const search = ref('');
-const showArchived = ref(false);
-const form = ref({
-  first_name: '',
-  last_name: '',
-  class_name: '',
-  guardian_full_name: '',
-  guardian_phone: '',
-  guardian_secondary_phone: '',
-  guardian_email: '',
-  relationship: 'GUARDIAN',
+const management = useStudentManagement();
+const formSubmitting = ref(false);
+
+const toast = ref<{
+  variant: 'success' | 'warning' | 'danger' | 'info';
+  title: string;
+  description: string;
+  duration: number;
+} | null>(null);
+
+function showToast(
+  variant: 'success' | 'warning' | 'danger' | 'info',
+  title: string,
+  description: string,
+  duration = 4000,
+) {
+  toast.value = { variant, title, description, duration };
+}
+
+function setShowForm(value: boolean) {
+  management.showForm.value = value;
+}
+function setShowImportDialog(value: boolean) {
+  management.showImportDialog.value = value;
+}
+function setShowExportDialog(value: boolean) {
+  management.showExportDialog.value = value;
+}
+
+function openImportDialog() {
+  management.showImportDialog.value = true;
+}
+function openExportDialog() {
+  management.showExportDialog.value = true;
+}
+
+function setSearchQuery(query: string) {
+  management.searchQuery.value = query;
+}
+
+function setPage(page: number) {
+  management.currentPage.value = page;
+}
+
+function handleSortChange(field: string, order: 'asc' | 'desc') {
+  management.sortField.value = field as StudentSortField;
+  management.sortOrder.value = order;
+}
+
+function updateFilters(partial: Partial<FilterState>) {
+  Object.assign(management.filters, partial);
+  management.currentPage.value = 1;
+}
+
+function clearError() {
+  management.error.value = null;
+}
+
+function handleArchive(student: NormalizedStudent) {
+  management.archiveStudent(student.id);
+}
+
+async function handleFormSubmit(data: Record<string, any>) {
+  formSubmitting.value = true;
+  try {
+    await management.submitStudent(data);
+    showToast(
+      'success',
+      'Success',
+      management.editingStudent.value
+        ? 'Student updated successfully'
+        : 'Student registered successfully',
+    );
+    management.closeForm();
+    await management.refresh();
+  } catch (err: any) {
+    showToast('danger', 'Error', err.message || 'Failed to save student');
+  } finally {
+    formSubmitting.value = false;
+  }
+}
+
+function handleImportComplete() {
+  showToast('success', 'Import Complete', 'Students imported successfully');
+  management.refresh();
+}
+
+function handleViewImported() {
+  management.refresh();
+}
+
+function handleExportComplete() {
+  showToast('success', 'Export Complete', 'Student data exported successfully');
+}
+
+onMounted(() => {
+  management.load();
 });
-const saving = ref(false);
-const message = ref('');
-
-const loadStudents = async (query = '') => {
-  const result = await studentStore.getStudentsWithGuardians(DEFAULT_SCHOOL_ID, showArchived.value);
-  students.value = result.filter((s: any) => !query || showArchived.value || s.status === 'ACTIVE');
-};
-
-const toggleArchived = () => {
-  showArchived.value = !showArchived.value;
-  loadStudents(search.value);
-};
-
-const saveStudent = async () => {
-  saving.value = true;
-  message.value = '';
-
-  await studentStore.registerStudentWithGuardian(DEFAULT_SCHOOL_ID, {
-    first_name: form.value.first_name,
-    last_name: form.value.last_name,
-    class_name: form.value.class_name,
-    category: 'DAY',
-    academic_session: '2024/2025',
-    academic_term: 'First Term',
-    guardian_full_name: form.value.guardian_full_name,
-    guardian_phone: form.value.guardian_phone,
-    guardian_secondary_phone: form.value.guardian_secondary_phone || undefined,
-    guardian_email: form.value.guardian_email || undefined,
-    relationship: form.value.relationship as 'FATHER' | 'MOTHER' | 'GUARDIAN' | 'OTHER',
-  });
-
-  await loadStudents();
-  saving.value = false;
-  message.value = 'Student registered locally.';
-  form.value = {
-    first_name: '',
-    last_name: '',
-    class_name: '',
-    guardian_full_name: '',
-    guardian_phone: '',
-    guardian_secondary_phone: '',
-    guardian_email: '',
-    relationship: 'GUARDIAN',
-  };
-};
-
-const goToStudent = (id: string) => {
-  router.push({ name: 'StudentDetail', params: { id } });
-};
-
-onMounted(loadStudents);
 </script>
 
-<template>
-  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
-    <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
-        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 class="text-4xl font-semibold text-text-primary">Students</h1>
-            <p class="text-text-muted mt-2">Register and review students in the local offline store.</p>
-          </div>
-          <p class="text-sm text-text-muted">School ID: demo-school</p>
-        </div>
-      </section>
-
-      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 class="text-2xl font-semibold text-text-primary">Student register</h2>
-            <p class="text-text-muted">Search by name or class to filter the local student list.</p>
-          </div>
-          <div class="flex items-center gap-3">
-            <input
-              v-model="search"
-              @input="() => loadStudents(search)"
-              placeholder="Search students"
-              class="rounded-button border border-border bg-surface px-4 py-3 text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow"
-            />
-            <CmButton @click="() => loadStudents(search)" variant="primary">
-              Search
-            </CmButton>
-          </div>
-        </div>
-        <div class="mt-6 space-y-4">
-          <label class="block">
-            <span class="text-sm text-text-muted">First name</span>
-            <input v-model="form.first_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-text-muted">Last name</span>
-            <input v-model="form.last_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-text-muted">Class</span>
-            <input v-model="form.class_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-text-muted">Guardian full name</span>
-            <input v-model="form.guardian_full_name" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-text-muted">Primary phone</span>
-            <input v-model="form.guardian_phone" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-text-muted">Secondary phone (optional)</span>
-            <input v-model="form.guardian_secondary_phone" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-text-muted">Email (optional)</span>
-            <input v-model="form.guardian_email" type="email" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-text-muted">Relationship</span>
-            <select v-model="form.relationship" class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow">
-              <option value="GUARDIAN">Guardian</option>
-              <option value="FATHER">Father</option>
-              <option value="MOTHER">Mother</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </label>
-          <CmButton @click="saveStudent" :disabled="saving" variant="primary">
-            {{ saving ? 'Saving...' : 'Register student' }}
-          </CmButton>
-          <p v-if="message" class="text-sm text-success">{{ message }}</p>
-        </div>
-      </section>
-
-      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
-        <h2 class="text-2xl font-semibold mb-4 text-text-primary">Student count</h2>
-        <p class="text-5xl font-bold text-text-primary">{{ students.length }}</p>
-        <p class="mt-2 text-text-muted">Stored locally in Dexie.</p>
-      </section>
-
-      <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto transition-colors duration-200">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
-          <h2 class="text-2xl font-semibold text-text-primary">Student list</h2>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <span class="text-sm text-text-muted">Show archived</span>
-            <button
-              @click="toggleArchived"
-              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              :class="showArchived ? 'bg-primary' : 'bg-border'"
-            >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-background transition-transform"
-                :class="showArchived ? 'translate-x-6' : 'translate-x-1'"
-              ></span>
-            </button>
-          </label>
-        </div>
-        <table class="w-full border-collapse text-left text-sm">
-          <thead>
-            <tr class="border-b border-divider text-text-muted">
-              <th class="py-3 text-xs font-bold uppercase tracking-wider">First</th>
-              <th class="py-3 text-xs font-bold uppercase tracking-wider">Last</th>
-              <th class="py-3 text-xs font-bold uppercase tracking-wider">Class</th>
-              <th class="py-3 text-xs font-bold uppercase tracking-wider">Guardian</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="student in students" :key="student.id" class="cursor-pointer border-b border-divider hover:bg-card/50 transition-colors" @click="goToStudent(student.id)">
-              <td class="py-3 font-bold uppercase text-text-primary">{{ student.first_name }}</td>
-              <td class="py-3 font-bold uppercase text-text-primary">{{ student.last_name }}</td>
-              <td class="py-3 text-text-secondary">{{ student.class_name }}</td>
-              <td class="py-3 text-text-secondary">{{ student.guardian?.full_name || student.guardian?.primary_phone || '-' }}</td>
-            </tr>
-            <tr v-if="students.length === 0">
-              <td colspan="4" class="py-8 text-center text-text-muted">No local students yet.</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-    </div>
-  </main>
-</template>
+<style scoped>
+/* Students page specific overrides — uses existing CEMDS design tokens */
+</style>

@@ -1,27 +1,43 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useDashboardStore } from '../stores/dashboardStore';
+import { useAuthStore } from '../../../stores/authStore';
+import { useSchoolStore } from '../../../stores/schoolStore';
 
-const dashboardStore = useDashboardStore();
+const authStore = useAuthStore();
+const schoolStore = useSchoolStore();
 
-const operationalSummary = computed(() => {
-  const items = [];
-  if (dashboardStore.pendingDVAs > 0) {
-    items.push(`${dashboardStore.pendingDVAs} DVA accounts awaiting activation`);
+const displayName = computed(() => {
+  const email = authStore.user?.email || '';
+  if (!email) return 'there';
+  const name = email.split('@')[0];
+  return name || 'there';
+});
+
+const schoolName = computed(() => {
+  return schoolStore.school?.name || authStore.organization?.name || '';
+});
+
+const supportingText = computed(() => {
+  if (schoolName.value) {
+    return `Overview of ${schoolName.value}'s financial activity.`;
   }
-  items.push('System Healthy');
-  return items.join(' • ');
+  return 'Overview of your school\'s financial activity.';
 });
 </script>
 
 <template>
-  <header class="mb-4">
-    <div>
-      <h1 class="text-2xl font-bold text-text-primary mb-1">
-        Dashboard
-      </h1>
-      <p class="text-xs text-text-muted">
-        Financial Command Center • {{ operationalSummary }}
+  <header class="mb-6">
+    <div class="flex flex-col">
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-semibold text-text-primary tracking-tight">
+          Overview
+        </h1>
+      </div>
+      <p v-if="!authStore.loading && authStore.isAuthenticated" class="mt-1 text-sm text-text-muted">
+        Good morning, {{ displayName }}.
+      </p>
+      <p class="text-sm text-text-muted">
+        {{ supportingText }}
       </p>
     </div>
   </header>
