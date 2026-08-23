@@ -107,6 +107,14 @@ export const KNOWN_COLUMN_PATTERNS: Record<string, string[]> = {
     'Academic Session', 'academic_session', 'Session', 'session',
     'Academic Year', 'academic_year', 'School Year', 'school_year',
   ],
+  section: [
+    'Section', 'section', 'Section Name', 'section_name', 'Arm', 'arm',
+    'Category', 'category', 'Division', 'division', 'School Section',
+  ],
+  academicLevel: [
+    'Academic Level', 'academic_level', 'Level', 'level', 'Class Level',
+    'class_level', 'Grade Level', 'grade_level', 'Year', 'year',
+  ],
   guardianAddress: [
     'Guardian Address', 'guardian_address', 'Address', 'address',
     'Home Address', 'home_address', 'Residential Address',
@@ -312,6 +320,8 @@ interface MappedRow {
   status: StudentStatus;
   className?: string;
   academicSession?: string;
+  section?: string;
+  academicLevel?: string;
   guardianAddress?: string;
   [key: string]: unknown;
 }
@@ -348,6 +358,8 @@ function mapRow(row: Record<string, string>, mapping: ColumnMapping): MappedRow 
       case 'status': result.status = normalizeStatus(trimmed); break;
       case 'className': result.className = trimmed; break;
       case 'academicSession': result.academicSession = trimmed; break;
+      case 'section': result.section = trimmed; break;
+      case 'academicLevel': result.academicLevel = trimmed; break;
       case 'guardianAddress': result.guardianAddress = trimmed; break;
       case 'previousSchool': (result as any).previousSchool = trimmed; break;
       case 'medicalNotes': (result as any).medicalNotes = trimmed; break;
@@ -367,6 +379,12 @@ function mapRow(row: Record<string, string>, mapping: ColumnMapping): MappedRow 
 interface ValidationOptions {
   existingStudents: NormalizedStudent[];
   divisions: SchoolDivision[];
+  academicStructure?: {
+    sessions: Array<{ id: string; name: string }>;
+    sections: Array<{ id: string; name: string }>;
+    levels: Array<{ id: string; name: string; sectionId?: string }>;
+    defaultSessionId?: string;
+  };
 }
 
 export function validateRow(
@@ -415,6 +433,51 @@ export function validateRow(
     );
     if (!classMatch) {
       warnings.push(`Unknown class: "${mapped.className}". The student will be created without a class assignment.`);
+    }
+  }
+
+  // Academic placement validation against the configured structure.
+  // Exact match after trim/case-fold; no fuzzy guessing.
+  const structure = options.academicStructure;
+  if (structure) {
+    const sectionName = mapped.section || mapped.className;
+    let resolvedSectionId: string | undefined;
+
+    if (sectionName && structure.sections.length > 0) {
+      const section = structure.sections.find(
+        (s) => s.name.toLowerCase() === sectionName.toLowerCase(),
+      );
+      if (!section) {
+        errors.push(`Section "${sectionName}" does not exist in your academic structure.`);
+      } else {
+        resolvedSectionId = section.id;
+      }
+    }
+
+    if (mapped.academicLevel) {
+      if (structure.levels.length === 0) {
+        errors.push(
+          `Academic Level "${mapped.academicLevel}" cannot be resolved — no levels are configured. Set up your Academic Structure first.`,
+        );
+      } else {
+        const level = structure.levels.find(
+          (l) =>
+            l.name.toLowerCase() === mapped.academicLevel!.toLowerCase() &&
+            (!resolvedSectionId || !l.sectionId || l.sectionId === resolvedSectionId),
+        );
+        if (!level) {
+          errors.push(`Academic Level "${mapped.academicLevel}" does not exist.`);
+        }
+      }
+    }
+
+    if (mapped.academicSession && structure.sessions.length > 0) {
+      const session = structure.sessions.find(
+        (s) => s.name.toLowerCase() === mapped.academicSession!.toLowerCase(),
+      );
+      if (!session) {
+        errors.push(`Academic session "${mapped.academicSession}" does not exist.`);
+      }
     }
   }
 
@@ -547,6 +610,21 @@ export type DuplicateHandling = 'SKIP' | 'UPDATE' | 'IMPORT_AS_NEW';
 export interface ImportBatchContext {
   schoolId: string;
   divisions: SchoolDivision[];
+  academicStructure?: {
+    sessions: Array<{ id: string; name: string }>;
+    sections: Array<{ id: string; name: string }>;
+    levels: Array<{ id: string; name: string; sectionId?: string }>;
+    defaultSessionId?: string;
+  };
+  enrollStudent?: (input: {
+    schoolId: string;
+    studentId: string;
+    sessionId: string;
+    sectionId: string;
+    levelId: string;
+    reason: 'IMPORT';
+    source: string;
+  }) => Promise<unknown>;
   createStudent: (data: {
     schoolId: string;
     divisionId: string;
@@ -629,6 +707,30 @@ export async function batchImport(
     return div?.id || '';
   };
 
+  // Helpers: resolve academic placement names → IDs (exact, case-insensitive)
+  const structure = ctx.academicStructure;
+  const findSectionId = (name: string | undefined): string | undefined => {
+    if (!name || !structure || structure.sections.length === 0) return undefined;
+    return structure.sections.find((s) => s.name.toLowerCase() === name.toLowerCase())?.id;
+  };
+  const findLevelId = (
+    name: string | undefined,
+    sectionId?: string,
+  ): string | undefined => {
+    if (!name || !structure || structure.levels.length === 0) return undefined;
+    return structure.levels.find(
+      (l) =>
+        l.name.toLowerCase() === name.toLowerCase() &&
+        (!sectionId || !l.sectionId || l.sectionId === sectionId),
+    )?.id;
+  };
+  const findSessionId = (name: string | undefined): string | undefined => {
+    if (!structure) return undefined;
+    if (!name) return structure.defaultSessionId;
+    return structure.sessions.find((s) => s.name.toLowerCase() === name.toLowerCase())?.id ??
+      structure.defaultSessionId;
+  };
+
   // Process in batches
   const rowsToProcess = validRows.filter(
     (r) =>
@@ -644,6 +746,11 @@ export async function batchImport(
 
       // Determine division ID
       const divisionId = findDivisionId(mapped.className);
+
+      // Resolve academic placement (section + level + session)
+      const sectionId = findSectionId(mapped.section || mapped.className);
+      const levelId = findLevelId(mapped.academicLevel || mapped.className, sectionId);
+      const sessionId = findSessionId(mapped.academicSession);
 
       // Create or find guardian
       let guardianId: string;
@@ -671,7 +778,7 @@ export async function batchImport(
       // Create student
       const studentResult = await ctx.createStudent({
         schoolId: ctx.schoolId,
-        divisionId,
+        divisionId: divisionId || sectionId || '',
         guardianId,
         firstName: mapped.firstName,
         lastName: mapped.lastName,
@@ -696,6 +803,25 @@ export async function batchImport(
 
       if (!studentResult.data?.id) {
         throw new Error('Student creation returned no ID.');
+      }
+
+      // Attach the academic placement for imported students when resolvable.
+      if (ctx.enrollStudent && sessionId && sectionId && levelId) {
+        try {
+          await ctx.enrollStudent({
+            schoolId: ctx.schoolId,
+            studentId: studentResult.data.id,
+            sessionId,
+            sectionId,
+            levelId,
+            reason: 'IMPORT',
+            source: 'IMPORT',
+          });
+        } catch (err: any) {
+          throw new Error(
+            `Student imported but placement failed for ${mapped.firstName} ${mapped.lastName}: ${err?.message || 'Unknown error'}`,
+          );
+        }
       }
 
       return {
@@ -759,6 +885,8 @@ export const TEMPLATE_HEADERS = [
   'Gender',
   'Admission Number',
   'Class',
+  'Section',
+  'Academic Level',
   'Academic Session',
   'Status',
   'Parent Name',
@@ -784,6 +912,8 @@ export function getTemplateSampleRow(): Record<string, string> {
     'Gender': 'Male',
     'Admission Number': 'STU-2024-001',
     'Class': 'JSS 1',
+    'Section': 'Junior Secondary',
+    'Academic Level': 'JSS 1',
     'Academic Session': '2024/2025',
     'Status': 'Active',
     'Parent Name': 'Mrs. Funke Ogundimu',

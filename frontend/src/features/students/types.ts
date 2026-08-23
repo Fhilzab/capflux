@@ -32,6 +32,12 @@ export interface NormalizedStudent {
   registeredAt?: string;
   status: StudentStatus;
   academicSession?: string;
+  /** Current academic placement (hydrated from student_enrollments). */
+  sessionId?: string;
+  sectionId?: string;
+  levelId?: string;
+  levelName?: string;
+  sectionName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +80,8 @@ export type StudentField =
   | 'status'
   | 'className'
   | 'academicSession'
+  | 'section'
+  | 'academicLevel'
   | 'guardianAddress'
   | 'previousSchool'
   | 'medicalNotes'

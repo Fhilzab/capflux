@@ -58,21 +58,49 @@
       />
     </div>
     <div>
-      <CmSelect
-        v-model="form.className"
-        label="Class"
-        :options="divisions"
-        placeholder="Select class"
-      />
-    </div>
-
-    <div>
       <CmInput
         v-model="form.admissionNumber"
         label="Admission number"
         placeholder="Auto-generated if left blank"
       />
     </div>
+
+    <!-- Academic placement (from configured Academic Structure only) -->
+    <div class="sm:col-span-2">
+      <h4 class="mb-3 text-sm font-medium text-text-primary">Academic placement</h4>
+    </div>
+    <div>
+      <CmSelect
+        v-model="form.academicSessionId"
+        label="Academic session"
+        :options="sessionOptions"
+        placeholder="Select session"
+        :error="errors.academicSessionId"
+      />
+    </div>
+    <div>
+      <CmSelect
+        v-model="form.sectionId"
+        label="Section"
+        :options="sectionOptions"
+        placeholder="Select section"
+        :error="errors.sectionId"
+      />
+    </div>
+    <div class="sm:col-span-2">
+      <CmSelect
+        v-model="form.levelId"
+        label="Academic level"
+        :options="levelOptions"
+        placeholder="Select level"
+        :error="errors.levelId"
+      />
+      <p v-if="sessionOptions.length === 0" class="mt-1 text-xs text-text-muted">
+        No academic structure configured yet — set up sessions, sections and levels under
+        Students → Academic Structure.
+      </p>
+    </div>
+
     <div>
       <CmSelect
         v-model="form.status"
@@ -82,64 +110,116 @@
       />
     </div>
 
-    <div class="sm:col-span-2">
-      <CmInput
-        v-model="form.academicSession"
-        label="Academic session"
-        placeholder="e.g. 2024/2025"
-      />
-    </div>
-
     <!-- Guardian Information -->
     <div class="sm:col-span-2">
-      <h4 class="mb-3 text-sm font-medium text-text-primary">Guardian information</h4>
+      <h4 class="mb-3 flex items-center gap-3 text-sm font-medium text-text-primary">
+        Guardian information
+        <span class="inline-flex rounded-button border border-divider p-0.5 text-xs">
+          <button
+            type="button"
+            class="rounded px-2 py-1 transition-colors"
+            :class="guardianMode === 'existing' ? 'bg-brand text-background' : 'text-text-secondary hover:text-text-primary'"
+            @click="guardianMode = 'existing'"
+          >
+            Existing guardian
+          </button>
+          <button
+            type="button"
+            class="rounded px-2 py-1 transition-colors"
+            :class="guardianMode === 'new' ? 'bg-brand text-background' : 'text-text-secondary hover:text-text-primary'"
+            @click="guardianMode = 'new'"
+          >
+            Create new
+          </button>
+        </span>
+      </h4>
     </div>
 
-    <div class="sm:col-span-2">
-      <CmInput
-        v-model="form.guardianName"
-        label="Guardian full name *"
-        :error="errors.guardianName"
-        required
-      />
-    </div>
+    <template v-if="guardianMode === 'existing'">
+      <div class="sm:col-span-2">
+        <CmInput
+          v-model="guardianSearch"
+          label="Search guardians"
+          placeholder="Search by name, phone or email"
+        />
+        <div v-if="guardianResults.length > 0" class="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-input border border-divider bg-background p-1">
+          <button
+            v-for="g in guardianResults"
+            :key="g.id"
+            type="button"
+            class="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-surface"
+            :class="form.existingGuardianId === g.id ? 'bg-surface ring-1 ring-brand' : ''"
+            @click="selectExistingGuardian(g)"
+          >
+            <span class="text-text-primary">{{ g.full_name }}</span>
+            <span class="text-xs text-text-muted">{{ g.primary_phone }}</span>
+          </button>
+        </div>
+        <p v-if="form.existingGuardianId && selectedGuardian" class="mt-2 text-xs text-success">
+          Linked to {{ selectedGuardian.full_name }} ({{ selectedGuardian.primary_phone }})
+        </p>
+        <p v-if="errors.existingGuardianId" class="mt-1 text-xs text-danger">{{ errors.existingGuardianId }}</p>
+      </div>
+    </template>
 
-    <div>
-      <CmSelect
-        v-model="form.relationship"
-        label="Relationship"
-        :options="relationshipOptions"
-        placeholder="Select relationship"
-      />
-    </div>
-    <div>
-      <CmInput
-        v-model="form.guardianPhone"
-        label="Phone number *"
-        :error="errors.guardianPhone"
-        required
-      />
-    </div>
+    <template v-else>
+      <div class="sm:col-span-2">
+        <CmInput
+          v-model="form.guardianName"
+          label="Guardian full name *"
+          :error="errors.guardianName"
+          required
+        />
+      </div>
 
-    <div>
-      <CmInput
-        v-model="form.guardianSecondaryPhone"
-        label="Alternative phone"
-      />
-    </div>
-    <div class="sm:col-span-2">
-      <CmInput
-        v-model="form.guardianEmail"
-        label="Guardian email"
-        :error="errors.guardianEmail"
-      />
-    </div>
-    <div class="sm:col-span-2">
-      <CmInput
-        v-model="form.guardianAddress"
-        label="Guardian address"
-      />
-    </div>
+      <div>
+        <CmInput
+          v-model="form.guardianPhone"
+          label="Phone number *"
+          :error="errors.guardianPhone"
+          required
+        />
+      </div>
+      <div>
+        <CmSelect
+          v-model="form.relationship"
+          label="Relationship"
+          :options="relationshipOptions"
+          placeholder="Select relationship"
+        />
+      </div>
+
+      <div>
+        <CmInput
+          v-model="form.guardianSecondaryPhone"
+          label="Alternative phone"
+        />
+      </div>
+      <div class="sm:col-span-2">
+        <CmInput
+          v-model="form.guardianEmail"
+          label="Guardian email"
+          :error="errors.guardianEmail"
+        />
+      </div>
+      <div class="sm:col-span-2">
+        <CmInput
+          v-model="form.guardianAddress"
+          label="Guardian address"
+        />
+      </div>
+    </template>
+
+    <template v-if="guardianMode === 'existing'">
+      <div>
+        <CmSelect
+          v-model="form.relationship"
+          label="Relationship"
+          :options="relationshipOptions"
+          placeholder="Select relationship"
+        />
+      </div>
+    </template>
 
     <!-- Optional Information -->
     <div class="sm:col-span-2">
@@ -194,15 +274,20 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch } from 'vue';
+import { reactive, computed, ref, watch } from 'vue';
 import { CmInput, CmSelect, CmButton } from '@/components/ui';
 import type { NormalizedStudent } from '../types';
 import type { Relationship, StudentStatus } from '@/shared/students/types';
+import type { AcademicSessionRow, SchoolDivisionRow, AcademicLevelRow, GuardianRowLike } from '../formTypes';
+import { GUARDIAN_RELATIONSHIP_OPTIONS } from '@/shared/guardians/relationshipTypes';
 
 interface Props {
   student?: NormalizedStudent | null;
   loading?: boolean;
-  divisions: { value: string; label: string }[];
+  sessions: AcademicSessionRow[];
+  sections: SchoolDivisionRow[];
+  levels: AcademicLevelRow[];
+  knownGuardians?: GuardianRowLike[];
 }
 
 interface Emits {
@@ -224,10 +309,13 @@ interface FormState {
   dateOfBirth: string;
   dateOfAdmission: string;
   gender: string;
-  className: string;
   admissionNumber: string;
   status: string;
-  academicSession: string;
+  academicSessionId: string;
+  sectionId: string;
+  levelId: string;
+  guardianMode: 'existing' | 'new';
+  existingGuardianId: string;
   guardianName: string;
   relationship: string;
   guardianPhone: string;
@@ -246,10 +334,13 @@ const form = reactive<FormState>({
   dateOfBirth: '',
   dateOfAdmission: '',
   gender: '',
-  className: '',
   admissionNumber: '',
   status: 'ACTIVE',
-  academicSession: '',
+  academicSessionId: '',
+  sectionId: '',
+  levelId: '',
+  guardianMode: 'new',
+  existingGuardianId: '',
   guardianName: '',
   relationship: 'OTHER',
   guardianPhone: '',
@@ -278,14 +369,97 @@ const statusOptions = [
   { value: 'ARCHIVED', label: 'Archived' },
 ];
 
-const relationshipOptions = [
-  { value: 'FATHER', label: 'Father' },
-  { value: 'MOTHER', label: 'Mother' },
-  { value: 'UNCLE', label: 'Uncle' },
-  { value: 'AUNT', label: 'Aunt' },
-  { value: 'GUARDIAN', label: 'Guardian' },
-  { value: 'OTHER', label: 'Other' },
-];
+const relationshipOptions = GUARDIAN_RELATIONSHIP_OPTIONS;
+
+// --- Cascading placement options ---
+
+const sessionOptions = computed(() =>
+  [...props.sessions]
+    .sort((a, b) => Number(b.is_current) - Number(a.is_current))
+    .map((s) => ({ value: s.id, label: s.is_current ? `${s.name} (current)` : s.name }))
+);
+
+const sectionOptions = computed(() =>
+  [...props.sections]
+    .filter((s) => s.status === 'ACTIVE')
+    .sort((a, b) => a.display_order - b.display_order)
+    .map((s) => ({ value: s.id, label: s.name }))
+);
+
+const levelOptions = computed(() => {
+  if (!form.sectionId) return [];
+  return props.levels
+    .filter((l) => l.section_id === form.sectionId && l.status === 'ACTIVE')
+    .sort((a, b) => a.display_order - b.display_order)
+    .map((l) => ({ value: l.id, label: l.name }));
+});
+
+// Reset dependent selections when a parent changes.
+watch(
+  () => form.sectionId,
+  () => {
+    if (!props.levels.some((l) => l.id === form.levelId && l.section_id === form.sectionId)) {
+      form.levelId = '';
+    }
+  }
+);
+
+// Default the session to the current one on create.
+watch(
+  () => props.sessions,
+  (sessions) => {
+    if (!isEditMode.value && !form.academicSessionId && sessions.length > 0) {
+      const current = sessions.find((s) => s.is_current && s.status === 'ACTIVE');
+      if (current) form.academicSessionId = current.id;
+    }
+  },
+  { immediate: true }
+);
+
+// --- Guardian search (existing mode) ---
+
+const guardianSearch = ref('');
+const guardianResults = ref<GuardianRowLike[]>([]);
+let guardianSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+const selectedGuardian = computed(() =>
+  guardianResults.value.find((g) => g.id === form.existingGuardianId) ??
+  (props.knownGuardians ?? []).find((g) => g.id === form.existingGuardianId)
+);
+
+watch(guardianSearch, (q) => {
+  if (guardianSearchTimer) clearTimeout(guardianSearchTimer);
+  guardianSearchTimer = setTimeout(() => runGuardianSearch(q), 250);
+});
+
+function runGuardianSearch(query: string) {
+  const normalized = query.trim().toLowerCase();
+  const pool = props.knownGuardians ?? [];
+  if (!normalized) {
+    guardianResults.value = pool.slice(0, 8);
+    return;
+  }
+  guardianResults.value = pool
+    .filter(
+      (g) =>
+        (g.full_name ?? '').toLowerCase().includes(normalized) ||
+        (g.primary_phone ?? '').includes(normalized) ||
+        (g.email ?? '').toLowerCase().includes(normalized)
+    )
+    .slice(0, 8);
+}
+
+function selectExistingGuardian(guardian: GuardianRowLike) {
+  form.existingGuardianId = guardian.id;
+  if (guardian.full_name) form.guardianName = guardian.full_name;
+  if (guardian.primary_phone) form.guardianPhone = guardian.primary_phone;
+}
+
+watch(
+  () => props.knownGuardians,
+  () => runGuardianSearch(guardianSearch.value),
+  { immediate: true }
+);
 
 watch(
   () => props.student,
@@ -298,17 +472,21 @@ watch(
         dateOfBirth: student.dateOfBirth || '',
         dateOfAdmission: student.admissionDate || '',
         gender: student.gender || '',
-        className: student.divisionId || '',
         admissionNumber: student.admissionNumber || '',
         status: student.status || 'ACTIVE',
-        academicSession: student.academicSession || '',
+        academicSessionId: (student as any).sessionId || '',
+        sectionId: (student as any).sectionId || student.divisionId || '',
+        levelId: (student as any).levelId || '',
+        guardianMode: student.guardian?.id ? 'existing' : 'new',
+        existingGuardianId: student.guardian?.id || '',
         guardianName: student.guardian?.fullName || '',
-        relationship: student.guardian?.relationship || 'OTHER',
+        relationship: (student.guardian?.relationship as string) || 'OTHER',
         guardianPhone: student.guardian?.phone || '',
         guardianSecondaryPhone: student.guardian?.secondaryPhone || '',
         guardianEmail: student.guardian?.email || '',
-        guardianAddress: student.guardian?.address || '',
+        guardianAddress: (student.guardian as any)?.address || '',
       });
+      runGuardianSearch('');
     }
   },
   { immediate: true }
@@ -327,26 +505,36 @@ function validate(): boolean {
   if (!form.lastName || form.lastName.length < 2) {
     errors.lastName = 'Last name must be at least 2 characters';
   }
-  if (!form.guardianName || form.guardianName.length < 2) {
-    errors.guardianName = 'Guardian name must be at least 2 characters';
-  }
-  if (!form.guardianPhone) {
-    errors.guardianPhone = 'Phone number is required';
+
+  if (guardianMode.value === 'existing') {
+    if (!form.existingGuardianId) {
+      errors.existingGuardianId = 'Select an existing guardian';
+    }
   } else {
-    const digits = form.guardianPhone.replace(/\D/g, '');
-    if (digits.length < 10) {
-      errors.guardianPhone = 'Phone number must be at least 10 digits';
+    if (!form.guardianName || form.guardianName.length < 2) {
+      errors.guardianName = 'Guardian name must be at least 2 characters';
+    }
+    if (!form.guardianPhone) {
+      errors.guardianPhone = 'Phone number is required';
+    } else {
+      const digits = form.guardianPhone.replace(/\D/g, '');
+      if (digits.length < 10) {
+        errors.guardianPhone = 'Phone number must be at least 10 digits';
+      }
+    }
+    if (form.guardianEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.guardianEmail)) {
+      errors.guardianEmail = 'Invalid email address';
     }
   }
-  if (form.guardianEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.guardianEmail)) {
-    errors.guardianEmail = 'Invalid email address';
-  }
+
   if (form.dateOfBirth && !isValidDate(form.dateOfBirth)) {
     errors.dateOfBirth = 'Invalid date format';
   }
 
   return Object.keys(errors).length === 0;
 }
+
+const guardianMode = computed(() => form.guardianMode);
 
 function isValidDate(value: string): boolean {
   if (!value) return true;
@@ -369,9 +557,14 @@ function handleSubmit() {
     registeredAt: new Date().toISOString(),
     gender: form.gender,
     admissionNumber: form.admissionNumber || undefined,
-    className: form.className,
     status: form.status as StudentStatus,
-    academicSession: form.academicSession || undefined,
+    // Placement
+    academicSessionId: form.academicSessionId || undefined,
+    sectionId: form.sectionId || undefined,
+    levelId: form.levelId || undefined,
+    // Guardian
+    guardianMode: form.guardianMode,
+    existingGuardianId: form.existingGuardianId || undefined,
     guardianName: form.guardianName,
     relationship: form.relationship as Relationship,
     guardianPhone: form.guardianPhone,

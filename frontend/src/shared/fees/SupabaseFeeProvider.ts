@@ -12,6 +12,7 @@ import { mapProviderError } from './FeeError';
 type CreateSchoolFeeInput = {
   schoolId: string;
   divisionId: string;
+  academicLevelId?: string | null;
   name: string;
   code: string;
   isMandatory: boolean;
@@ -71,6 +72,7 @@ export class SupabaseFeeProvider extends FeeProvider {
         .insert({
           school_id: input.schoolId,
           division_id: input.divisionId,
+          academic_level_id: input.academicLevelId || null,
           name: input.name,
           code: input.code,
           is_mandatory: input.isMandatory,

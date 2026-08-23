@@ -5,7 +5,14 @@ import { useSchoolStore } from '@/stores/schoolStore';
 import { useDivisionStore } from '@/stores/divisionStore';
 import { studentService } from '@/shared/students/StudentService';
 import { GuardianService } from '@/shared/services/GuardianService';
+import { EnrollmentService } from '@/shared/enrollment/EnrollmentService';
+import { useAcademicStore } from '@/stores/academicStore';
+import { db } from '@/offline/localDb';
 import { normalizeStudent, isStudentActive, isStudentArchived, sortStudents } from '../utils/normalizeStudent';
+import {
+  GUARDIAN_RELATIONSHIP_OPTIONS,
+  guardianRelationshipLabel,
+} from '@/shared/guardians/relationshipTypes';
 import type { NormalizedStudent, StudentSortField, FilterState } from '../types';
 
 const DEBOUNCE_MS = 300;
@@ -15,6 +22,7 @@ export function useStudentManagement() {
   const studentStore = useStudentStore();
   const schoolStore = useSchoolStore();
   const divisionStore = useDivisionStore();
+  const academicStore = useAcademicStore();
 
   // Core data
   const students = ref<NormalizedStudent[]>([]);
@@ -88,14 +96,9 @@ export function useStudentManagement() {
       }
     }
     if (rels.size === 0) {
-      return [
-        { value: 'FATHER', label: 'Father' },
-        { value: 'MOTHER', label: 'Mother' },
-        { value: 'GUARDIAN', label: 'Guardian' },
-        { value: 'OTHER', label: 'Other' },
-      ];
+      return GUARDIAN_RELATIONSHIP_OPTIONS;
     }
-    return Array.from(rels).map(r => ({ value: r, label: r }));
+    return Array.from(rels).map(r => ({ value: r, label: guardianRelationshipLabel(r) }));
   });
 
   const sortOptions = [
@@ -106,27 +109,65 @@ export function useStudentManagement() {
     { value: 'status', label: 'Status' },
   ];
 
-  const sessionOptions: { value: string; label: string }[] = [];
+  // Academic session filter options come from the local academic cache.
+  const sessionOptions = computed(() => {
+    void academicStore.sessions;
+    return academicStore.sessions
+      .slice()
+      .sort((a, b) => (b.start_date ?? '').localeCompare(a.start_date ?? ''))
+      .map((s) => ({ value: s.name, label: s.name }));
+  });
 
-  // Statistics
+  // Statistics — shaped for the MetricCard grid on the Students page.
   const stats = computed(() => {
     const all = students.value;
-    const uniqueClasses = new Set(all.map(s => s.class).filter(c => c && c !== '—'));
+    const uniqueLevels = new Set(
+      all.map((s) => s.levelName || s.class).filter((c) => c && c !== '—')
+    );
     const uniqueGuardians = new Set<string>();
     for (const s of all) {
-      if (s.guardian?.phone) {
-        uniqueGuardians.add(s.guardian.phone);
-      } else if (s.guardian?.id) {
-        uniqueGuardians.add(s.guardian.id);
-      }
+      if (s.guardian?.phone) uniqueGuardians.add(s.guardian.phone);
+      else if (s.guardian?.id) uniqueGuardians.add(s.guardian.id);
     }
-    return {
-      total: all.length,
-      active: all.filter(s => isStudentActive(s.status)).length,
-      archived: all.filter(s => isStudentArchived(s.status)).length,
-      classes: uniqueClasses.size,
-      guardians: uniqueGuardians.size,
-    };
+    const active = all.filter((s) => isStudentActive(s.status)).length;
+    const archived = all.filter((s) => isStudentArchived(s.status)).length;
+    return [
+      {
+        key: 'total',
+        label: 'Total Students',
+        value: all.length,
+        description: 'All registered students',
+        icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z',
+      },
+      {
+        key: 'active',
+        label: 'Active Students',
+        value: active,
+        description: 'Currently enrolled',
+        icon: 'M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zm0-18c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8z',
+      },
+      {
+        key: 'archived',
+        label: 'Archived Students',
+        value: archived,
+        description: 'Inactive / left',
+        icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
+      },
+      {
+        key: 'levels',
+        label: 'Academic Levels',
+        value: uniqueLevels.size,
+        description: 'Levels in use',
+        icon: 'M4 6h16v2H4V6zm0 4h16v2H4v-2zm0 4h10v2H4v-2z',
+      },
+      {
+        key: 'guardians',
+        label: 'Guardians',
+        value: uniqueGuardians.size,
+        description: 'Unique guardians',
+        icon: 'M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-5.8 2.6-5.8 5.8V22h11.6v-1.8c0-3.2-2.6-5.8-5.8-5.8z',
+      },
+    ];
   });
 
   // Filtered + sorted students
@@ -154,7 +195,13 @@ export function useStudentManagement() {
     }
 
     if (filters.class) {
-      result = result.filter(s => s.class === filters.class);
+      // classOptions hold division IDs; students carry the resolved display
+      // name (or divisionId fallback). Match either against the filter ID.
+      const division = divisions.value.find((d) => d.id === filters.class);
+      const divisionName = division?.name || division?.code || '';
+      result = result.filter(
+        (s) => s.divisionId === filters.class || (divisionName && s.class === divisionName)
+      );
     }
     if (filters.gender) {
       result = result.filter(s => (s.gender || '').toLowerCase() === filters.gender.toLowerCase());
@@ -216,12 +263,35 @@ export function useStudentManagement() {
     error.value = null;
     try {
       await divisionStore.loadDivisions();
+      void academicStore.initialize();
       const result = await studentStore.getStudentsWithGuardians(schoolId.value, true);
-      if (Array.isArray(result)) {
-        students.value = result.map(s => normalizeStudent(s, divisions.value));
-      } else {
-        students.value = [];
+      const rawList = Array.isArray(result) ? result : [];
+      const normalized = rawList.map((s) => normalizeStudent(s, divisions.value));
+
+      // Hydrate current academic placement (session/section/level) per student.
+      for (const student of normalized) {
+        try {
+          const enrollment = await EnrollmentService.getActiveEnrollment(student.id);
+          if (enrollment) {
+            (student as any).sessionId = enrollment.academic_session_id;
+            (student as any).sectionId = enrollment.section_id;
+            (student as any).levelId = enrollment.level_id;
+            const [section, level] = await Promise.all([
+              db.school_divisions.get(enrollment.section_id),
+              db.academic_levels.get(enrollment.level_id),
+            ]);
+            if (level) (student as any).levelName = level.name;
+            if (section) {
+              (student as any).sectionName = section.name;
+              if (!student.divisionId) student.divisionId = section.id;
+            }
+          }
+        } catch {
+          // Placement hydration is best-effort.
+        }
       }
+
+      students.value = normalized;
     } catch (err: any) {
       error.value = err?.message || 'Failed to load students';
     } finally {
@@ -353,18 +423,25 @@ export function useStudentManagement() {
   async function submitStudent(data: Record<string, any>): Promise<void> {
     const schoolId = schoolStore.currentSchoolId;
 
-    const guardian = await GuardianService.getOrCreateGuardian(schoolId, {
-      full_name: data.guardian?.fullName || data.guardianFullName || '',
-      primary_phone: data.guardian?.phone || data.guardianPhone || '',
-      secondary_phone: data.guardian?.secondaryPhone || '',
-      email: data.guardian?.email || '',
-      relationship: data.guardian?.relationship || data.relationship || 'OTHER',
-    });
+    // Resolve the guardian: link an existing one, or create/reuse by phone.
+    let guardianId: string;
+    if (data.guardianMode === 'existing' && data.existingGuardianId) {
+      guardianId = data.existingGuardianId;
+    } else {
+      const guardian = await GuardianService.getOrCreateGuardian(schoolId, {
+        full_name: data.guardianName || data.guardian?.fullName || '',
+        primary_phone: data.guardianPhone || data.guardian?.phone || '',
+        secondary_phone: data.guardianSecondaryPhone || data.guardian?.secondaryPhone || '',
+        email: data.guardianEmail || data.guardian?.email || '',
+        relationship: data.relationship || data.guardian?.relationship || 'OTHER',
+      });
+      guardianId = guardian.id;
+    }
 
-    const result = await studentService.createStudent({
+    const payload = {
       schoolId,
-      divisionId: data.className || '',
-      guardianId: guardian.id,
+      divisionId: data.sectionId || data.className || '',
+      guardianId,
       firstName: data.firstName,
       lastName: data.lastName,
       middleName: data.middleName,
@@ -373,17 +450,61 @@ export function useStudentManagement() {
       admissionNumber: data.admissionNumber,
       admissionDate: data.dateOfAdmission || new Date().toISOString(),
       registeredAt: new Date().toISOString(),
-      relationshipToGuardian: data.guardian?.relationship || data.relationship || 'OTHER',
+      relationshipToGuardian: data.relationship || 'OTHER',
       discountRate: 0,
       status: data.status || 'ACTIVE',
-      academicSession: data.academicSession || undefined,
-    });
+      academicSession: undefined as string | undefined,
+    };
 
-    if (result.error) {
-      throw new Error(result.error.message || 'Failed to create student');
+    if (editingStudent.value) {
+      const result = await studentService.updateStudent(editingStudent.value.id, payload);
+      if (result.error) {
+        throw new Error(result.error.message || 'Failed to update student');
+      }
+    } else {
+      const result = await studentService.createStudent(payload);
+      if (result.error) {
+        throw new Error(result.error.message || 'Failed to create student');
+      }
+    }
+
+    // Create the academic placement record when structure info was provided.
+    // Student creation is offline-first; the created student id comes from the
+    // refreshed local cache (admission number + name match).
+    if (!editingStudent.value && data.academicSessionId && data.sectionId && data.levelId) {
+      await enrollCreatedStudent(data);
     }
 
     await refresh();
+  }
+
+  /** Find the just-created student locally and attach its initial enrollment. */
+  async function enrollCreatedStudent(data: Record<string, any>): Promise<void> {
+    try {
+      const schoolId = schoolStore.currentSchoolId;
+      const rows = (await db.students.where('school_id').equals(schoolId).toArray()) as any[];
+      const candidates = rows.filter(
+        (s) =>
+          s.first_name === data.firstName &&
+          s.last_name === data.lastName &&
+          (!data.admissionNumber || s.admission_number === data.admissionNumber)
+      );
+      const newest = candidates.sort((a, b) =>
+        (b.created_at ?? '').localeCompare(a.created_at ?? '')
+      )[0];
+      if (!newest) return;
+      await EnrollmentService.enrollStudent({
+        schoolId,
+        studentId: newest.id,
+        sessionId: data.academicSessionId,
+        sectionId: data.sectionId,
+        levelId: data.levelId,
+        reason: 'INITIAL',
+        source: 'MANUAL',
+      });
+    } catch {
+      // Placement is optional at registration; never block creation on it.
+    }
   }
 
   // Returned as a reactive object so refs/computeds auto-unwrap when accessed

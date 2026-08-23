@@ -2,6 +2,7 @@ import type { Fee } from '../fees/types';
 import { academicService } from '../academic/AcademicService';
 import { studentService } from '../students/StudentService';
 import { feeService } from '../fees/FeeService';
+import { EnrollmentService } from '../enrollment/EnrollmentService';
 import { BillingSnapshotBuilder } from './BillingSnapshot';
 import { BillingValidator } from './BillingValidator';
 import { accountingService } from '../accounting/AccountingService';
@@ -41,7 +42,20 @@ export class BillingEngine {
       }
 
       const schoolIdFromStudent = student.schoolId;
-      const divisionId = student.divisionId;
+      // Placement comes from the enrollment record (section + level); the
+      // legacy student.divisionId is only a fallback for un-migrated students.
+      // Historical charges/payments are never touched by this resolution.
+      let divisionId = student.divisionId;
+      let academicLevelId: string | null = null;
+      try {
+        const enrollment = await EnrollmentService.getActiveEnrollment(studentId);
+        if (enrollment) {
+          divisionId = enrollment.section_id;
+          academicLevelId = enrollment.level_id;
+        }
+      } catch {
+        // No local enrollment — fall back to legacy division pointer.
+      }
 
       const sessionResult = await academicService.getCurrentSession(schoolIdFromStudent);
       const termResult = await academicService.getCurrentTerm(schoolIdFromStudent);
@@ -69,7 +83,7 @@ export class BillingEngine {
         };
       }
 
-      const applicableResult = await feeService.getApplicableFees(schoolIdFromStudent, divisionId);
+      const applicableResult = await feeService.getApplicableFees(schoolIdFromStudent, divisionId, academicLevelId);
       if (applicableResult.error) {
         return {
           data: null,

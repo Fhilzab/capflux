@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": ".",
+
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+
+    "sourceMap": false,
+    "declaration": false,
+    "types": ["node"]
+  },
+  "include": [
+    "index.ts",
+    "supabaseClient.ts",
+    "types/**/*.ts",
+    "middleware/**/*.ts",
+    "routes/**/*.ts",
+    "services/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "tests"]
+}

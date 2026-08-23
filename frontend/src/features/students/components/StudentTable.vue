@@ -97,9 +97,12 @@
               </div>
             </td>
 
-            <!-- Class -->
+            <!-- Academic placement: level with section subtext -->
             <td class="hidden px-4 py-3 md:table-cell" data-label="Class">
-              <span v-if="student.class" class="text-sm text-text-primary">{{ student.class }}</span>
+              <template v-if="student.levelName || student.class">
+                <div class="text-sm text-text-primary">{{ student.levelName || student.class }}</div>
+                <div v-if="student.sectionName" class="text-xs text-text-muted">{{ student.sectionName }}</div>
+              </template>
               <span v-else class="text-sm text-text-muted">—</span>
             </td>
 

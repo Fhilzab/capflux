@@ -350,7 +350,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import {
   FileSpreadsheet, FileText, Globe, FileUp, Download,
 } from '@lucide/vue';
@@ -397,6 +397,9 @@ import type {
   BatchImportOptions,
   DuplicateHandling,
 } from '../services/StudentImportService';
+import { EnrollmentService } from '@/shared/enrollment/EnrollmentService';
+import { useAcademicStore } from '@/stores/academicStore';
+import { db } from '@/offline/localDb';
 
 interface Props {
   modelValue: boolean;
@@ -413,6 +416,42 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+const academicStore = useAcademicStore();
+
+/** Academic structure snapshot used for column validation + placement. */
+const academicStructure = ref<{
+  sessions: Array<{ id: string; name: string }>;
+  sections: Array<{ id: string; name: string }>;
+  levels: Array<{ id: string; name: string; sectionId?: string }>;
+  defaultSessionId?: string;
+} | undefined>(undefined);
+
+async function loadAcademicStructure() {
+  try {
+    await academicStore.initialize();
+    const divisions = await db.school_divisions.toArray();
+    const levels = (await db.academic_levels.toArray()).filter((l) => l.status === 'ACTIVE');
+    academicStructure.value = {
+      sessions: academicStore.sessions.map((s) => ({ id: s.id, name: s.name })),
+      sections: divisions
+        .filter((d) => d.status === 'ACTIVE')
+        .map((d) => ({ id: d.id, name: d.name })),
+      levels: levels.map((l) => ({ id: l.id, name: l.name, sectionId: l.section_id })),
+      defaultSessionId:
+        academicStore.sessions.find((s) => s.is_current && s.status === 'ACTIVE')?.id,
+    };
+  } catch {
+    academicStructure.value = undefined;
+  }
+}
+
+onMounted(loadAcademicStructure);
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (open) void loadAcademicStructure();
+  }
+);
 
 // State
 const step = ref<ImportStepName>('source');
@@ -572,6 +611,7 @@ async function validateAndPreview() {
     {
       existingStudents: props.existingStudents,
       divisions: props.divisions,
+      academicStructure: academicStructure.value,
     },
   );
   validatedRows.value = rows;
@@ -706,6 +746,9 @@ async function startImport() {
   const ctx: ImportBatchContext = {
     schoolId: props.schoolId,
     divisions: props.divisions,
+    academicStructure: academicStructure.value,
+    enrollStudent: async (input) =>
+      EnrollmentService.enrollStudent({ ...input, reason: 'IMPORT', source: 'IMPORT' }),
     createStudent: (data) => studentService.createStudent(data as any) as any,
     getOrCreateGuardian: (schoolId, data) => GuardianService.getOrCreateGuardian(schoolId, data),
   };

@@ -40,20 +40,44 @@ export class FeeService {
     return this.provider.listPlatformFees();
   }
 
-  async getApplicableFees(schoolId: string, divisionId: string): Promise<FeeResult<ApplicableFees>> {
-    const [mandatoryResult, optionalResult, platformResult] = await Promise.all([
-      this.getMandatoryFees(schoolId, divisionId),
-      this.getOptionalFees(schoolId, divisionId),
+  async getApplicableFees(
+    schoolId: string,
+    divisionId: string,
+    academicLevelId?: string | null
+  ): Promise<FeeResult<ApplicableFees>> {
+    const [schoolFeesResult, platformResult] = await Promise.all([
+      this.provider.listSchoolFees(schoolId),
       this.getPlatformFees(),
     ]);
 
+    const allFees = schoolFeesResult.data || [];
+    // Fees may target a section (divisionId) broadly or a specific academic
+    // level (academicLevelId). When a level is provided, level-specific fees
+    // take precedence over section-level defaults with the same code.
+    const inScope = (fee: Fee) =>
+      fee.isActive &&
+      fee.divisionId === divisionId &&
+      (!academicLevelId ||
+        !(fee as any).academicLevelId ||
+        (fee as any).academicLevelId === academicLevelId);
+
+    const byCodePreference = (fees: Fee[]): Fee[] => {
+      if (!academicLevelId) return fees;
+      const preferred = fees.filter((f) => (f as any).academicLevelId === academicLevelId);
+      const preferredCodes = new Set(preferred.map((f) => f.code));
+      return [
+        ...preferred,
+        ...fees.filter((f) => !(f as any).academicLevelId && !preferredCodes.has(f.code)),
+      ];
+    };
+
+    const mandatory = byCodePreference(allFees.filter((f) => f.isMandatory && inScope(f)));
+    const optional = byCodePreference(allFees.filter((f) => !f.isMandatory && inScope(f)));
+    const platform = platformResult.data || [];
+
     return {
-      data: {
-        mandatory: mandatoryResult.data || [],
-        optional: optionalResult.data || [],
-        platform: platformResult.data || [],
-      },
-      error: mandatoryResult.error || optionalResult.error || platformResult.error || null,
+      data: { mandatory, optional, platform },
+      error: schoolFeesResult.error || platformResult.error || null,
     };
   }
 

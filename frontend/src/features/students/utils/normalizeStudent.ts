@@ -1,6 +1,7 @@
 import type { StudentStatus, Relationship } from '@/shared/students/types';
 import type { NormalizedStudent, NormalizedGuardian, StudentSortField } from '../types';
 import type { SchoolDivision } from '@/shared/divisions/types';
+import { guardianRelationshipLabel } from '@/shared/guardians/relationshipTypes';
 
 /**
  * Gets a field from an object that may use either snake_case or camelCase keys.
@@ -123,23 +124,14 @@ export const STATUS_CHIP_VARIANTS: Record<string, 'success' | 'warning' | 'dange
 
 /**
  * Returns a human-readable label for a relationship value.
+ * Delegates to the centralized guardian relationship types; keeps legacy
+ * aliases (GRANDFATHER/GRANDMOTHER) that predate the enum.
  */
 export function relationshipLabel(rel: string | undefined): string {
   if (!rel) return '';
-  const labels: Record<string, string> = {
-    FATHER: 'Father',
-    MOTHER: 'Mother',
-    UNCLE: 'Uncle',
-    AUNT: 'Aunt',
-    BROTHER: 'Brother',
-    SISTER: 'Sister',
-    GRANDPARENT: 'Grandparent',
-    GRANDFATHER: 'Grandparent',
-    GRANDMOTHER: 'Grandparent',
-    OTHER: 'Other',
-    GUARDIAN: 'Guardian',
-  };
-  return labels[rel.toUpperCase()] || rel;
+  const upper = rel.toUpperCase();
+  if (upper === 'GRANDFATHER' || upper === 'GRANDMOTHER') return 'Grandparent';
+  return guardianRelationshipLabel(upper);
 }
 
 /**

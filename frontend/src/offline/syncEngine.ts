@@ -4,6 +4,22 @@ import { SyncQueue } from './syncQueue';
 const MAX_RETRIES = 3;
 
 async function executeSyncItem(item: Record<string, any>) {
+  // Primary-guardian promotions replay through the server's atomic RPC
+  // (see UploadSyncEngine for rationale).
+  if (
+    item.entity_type === 'student_guardians' &&
+    item.operation === 'UPSERT' &&
+    item.payload?.is_primary === true
+  ) {
+    const { error } = await supabase.rpc('set_student_primary_guardian', {
+      p_school_id: item.payload.school_id,
+      p_student_id: item.payload.student_id,
+      p_guardian_id: item.payload.guardian_id,
+    });
+    if (!error) return { error: null };
+    // Fall back to plain upsert; server backstops remain in place.
+  }
+
   switch (item.operation) {
     case 'DELETE':
       return supabase.from(item.entity_type).delete().eq('id', item.entity_id);

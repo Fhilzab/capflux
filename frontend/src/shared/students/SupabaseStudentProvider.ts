@@ -181,7 +181,7 @@ export class SupabaseStudentProvider extends StudentProvider {
 
     try {
       const { data, error } = await (supabase.from('students') as any)
-        .update({ status: 'INACTIVE' })
+        .update({ status: 'ARCHIVED' })
         .eq('id', studentId)
         .select()
         .single();

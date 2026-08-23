@@ -2,12 +2,26 @@
 
 Offline-first, multi-tenant school fee management SaaS for Nigerian schools (Vue 3 SPA + Express API + Supabase Postgres).
 
+## MANDATORY COMPLIANCE GATE (read before ANY change)
+
+1. **Classify** the change: does it touch payments, ledger, settlement, reconciliation, webhooks, auth middleware, RLS/migrations, tenant-scoped routes, KYC/PII, file storage, logging, pricing copy, or vendors? If yes → compliance-sensitive.
+2. **Read** `docs/compliance/CAPFLUX_COMPLIANCE_MASTER.md` and every control ID it maps to your change (`docs/compliance/compliance-status.json` is machine-readable).
+3. **Preserve**: kobo integer arithmetic, idempotency keys/constraints, ledger append-only semantics, payment state machine (clients never set SUCCESS), webhook signature verification, tenant isolation, audit logging. Full financial-change protocol: `docs/compliance/AI_AGENT_COMPLIANCE_RULES.md` §5.
+4. **Never weaken**: authentication, authorization, RLS, signature checks, security tests; never add `any`, `@ts-ignore`, `@ts-expect-error`; never claim legal compliance — use statuses `PASS | PARTIAL | FAIL | NOT_IMPLEMENTED | NOT_APPLICABLE | REQUIRES_LEGAL_REVIEW | REQUIRES_OPERATIONAL_REVIEW | UNKNOWN`.
+5. **Run** after compliance-sensitive changes:
+   - `cd backend && npm run compliance:audit` (static technical-control auditor)
+   - `npm run typecheck` && `npm run typecheck:tests`
+   - targeted tests + `npm run build`
+6. **Report** in the change notes: affected control IDs, unresolved risks, every item escalated as REQUIRES_LEGAL_REVIEW.
+
+Primary reference: `docs/compliance/CAPFLUX_COMPLIANCE_MASTER.md`. Backlog of open gaps: `docs/compliance/COMPLIANCE_REMEDIATION_BACKLOG.md`.
+
 ## Layout & commands
 
 Three independent npm projects; the root `package.json` has no scripts — always run commands inside the project directory.
 
 - `frontend/` — Vue 3 + Vite + Pinia + Tailwind v4 SPA (TypeScript), dev server port 5173
-- `backend/` — Express API in plain JavaScript ESM (**never** convert to TypeScript), port 4000, health at `GET /health`
+- `backend/` — Express API in TypeScript ESM (strict; compiled with tsc to `dist/`, run in dev via tsx), port 4000, health at `GET /health`
 - `supabase/` — SQL migrations, RLS policies, triggers, one edge function
 
 Frontend tests: `npm test` (= `NODE_ENV=test vitest run`).
@@ -16,9 +30,9 @@ Frontend tests: `npm test` (= `NODE_ENV=test vitest run`).
 - Keep `NODE_ENV=test`: under `production` Vue resolves to its production build and breaks `@vue/test-utils` emit recording.
 - Student import/export specs use a dedicated node-env config: `npx vitest run --config vitest.students.config.ts`.
 
-Backend tests: `npm test` (= `node --test 'tests/*.test.js'` — Node's built-in runner, not jest/vitest).
+Backend tests: `npm test` (= `node --import=tsx --test 'tests/*.test.js'` — Node's built-in runner over tsx; test files remain `.js` and import app modules via their old `.js` specifiers, which tsx maps to `.ts`). Backend scripts: `npm run dev | build | typecheck | start`; `npm start` requires a prior `npm run build`.
 
-No lint/typecheck scripts exist anywhere. Verification = targeted tests + `cd frontend && npm run build`.
+No lint scripts exist. Verification = targeted tests + `npm run build`.
 
 ## Architecture invariants (do not violate)
 

@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "types/**/*.ts",
+    // Incrementally adopted behavioral oracles. Each file type-checks under
+    // full strict mode WITHOUT weakening any assertion. Grow this list as
+    // remaining tests are annotated — do not loosen compilerOptions instead.
+    "tests/gateway.test.ts",
+    "tests/crypto.test.ts",
+    "tests/webhook-contract.test.ts",
+    "tests/provisioning-regression.test.ts",
+    "tests/payment-lifecycle.test.ts",
+    "tests/auth-security.test.ts",
+    "tests/provider-contract.test.ts",
+    "tests/kyc-settlement-bvn.test.ts",
+    "tests/helpers/fakeSupabase.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

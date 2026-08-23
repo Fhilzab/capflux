@@ -11,17 +11,11 @@ import KycStatus from '../features/kyc/KycStatus.vue';
 import SettlementView from '../features/kyc/SettlementView.vue';
 import LandingView from '../views/LandingView.vue';
 import HomeView from '../features/dashboard/views/HomeView.vue';
-import StudentListView from '../views/StudentListView.vue';
 import GuardianListView from '../views/GuardianListView.vue';
-import BillingView from '../views/BillingView.vue';
-import PaymentsView from '../features/payments/PaymentsDashboard.vue';
 import VirtualAccountsView from '../views/VirtualAccountsView.vue';
-import SettlementsView from '../views/SettlementsView.vue';
 import AIInsightsView from '../views/AIInsightsView.vue';
 import SupportView from '../views/SupportView.vue';
 import NotificationsView from '../views/NotificationsView.vue';
-import ReportsView from '../views/ReportsView.vue';
-import SyncView from '../views/SyncView.vue';
 import SettingsView from '../views/SettingsView.vue';
 
 interface RouteMeta {
@@ -45,6 +39,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Guardians',
     component: GuardianListView,
     meta: { requiresAuth: true, permission: PERMISSIONS.USER.MANAGE },
+  },
+  {
+    path: '/guardians/:id',
+    name: 'GuardianDetail',
+    component: () => import('../views/GuardianDetailView.vue'),
+    meta: { requiresAuth: true },
   },
   {
     path: '/virtual-accounts',
@@ -78,7 +78,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/students',
     name: 'Students',
-    component: StudentListView,
+    component: () => import('../views/StudentListView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -88,15 +88,21 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/students/academic-structure',
+    name: 'AcademicStructure',
+    component: () => import('../features/students/components/academic/AcademicStructureView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/billing',
     name: 'Billing',
-    component: BillingView,
+    component: () => import('../views/BillingView.vue'),
     meta: { requiresAuth: true, permission: PERMISSIONS.BILLING.VIEW },
   },
   {
     path: '/payments',
     name: 'Payments',
-    component: PaymentsView,
+    component: () => import('../features/payments/PaymentsDashboard.vue'),
     meta: { requiresAuth: true, permission: PERMISSIONS.PAYMENT.VIEW },
   },
   {
@@ -108,13 +114,13 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/settlements',
     name: 'Settlements',
-    component: SettlementsView,
+    component: () => import('../views/SettlementsView.vue'),
     meta: { requiresAuth: true, permission: PERMISSIONS.PAYMENT.VIEW },
   },
   {
     path: '/reports',
     name: 'Reports',
-    component: ReportsView,
+    component: () => import('../views/ReportsView.vue'),
     meta: { requiresAuth: true, permission: PERMISSIONS.REPORT.VIEW },
   },
   {
@@ -138,7 +144,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/sync',
     name: 'Sync',
-    component: SyncView,
+    component: () => import('../views/SyncView.vue'),
     meta: { requiresAuth: true },
   },
   {

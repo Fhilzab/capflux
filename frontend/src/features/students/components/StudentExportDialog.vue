@@ -129,6 +129,9 @@ import {
 } from '../services/StudentExportService';
 import type { ExportField } from '../services/StudentExportService';
 import type { NormalizedStudent } from '../types';
+import { auditService } from '@/shared/audit/AuditService';
+import { createAuditContext } from '@/shared/audit/AuditContext';
+import { useSchoolStore } from '@/stores/schoolStore';
 
 interface Props {
   modelValue: boolean;
@@ -202,6 +205,25 @@ async function doExport() {
     } else {
       await exportToXLSX(studentsToExport.value, selectedFields.value, fileName);
     }
+
+    // Fire-and-forget audit trail (never blocks the export).
+    const schoolStore = useSchoolStore();
+    const schoolId = schoolStore.currentSchoolId ?? '';
+    if (schoolId) {
+      void auditService.recordExport({
+        organizationId: schoolId,
+        schoolId,
+        description: `Student export: ${studentsToExport.value.length} students as ${formatLabel.value}`,
+        context: createAuditContext('REPORTING'),
+        metadata: {
+          scope: scope.value,
+          format: format.value,
+          count: studentsToExport.value.length,
+          fields: selectedFields.value,
+        },
+      });
+    }
+
     emit('export-done');
     doClose();
   } finally {

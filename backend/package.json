@@ -4,8 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "test": "node --test 'tests/*.test.js'"
+    "dev": "tsx watch index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.compliance.json --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
+    "compliance:audit": "node --import=tsx scripts/compliance/run-compliance-audit.ts",
+    "db:types": "supabase gen types typescript --linked --schema public > types/database.types.ts",
+    "start": "node dist/index.js",
+    "test": "node --import=tsx --test 'tests/*.test.{js,ts}'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
@@ -15,5 +21,12 @@
     "dotenv": "^16.4.1",
     "express": "^4.18.4",
     "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3"
   }
 }

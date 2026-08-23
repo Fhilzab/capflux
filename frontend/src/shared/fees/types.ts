@@ -10,6 +10,7 @@ export interface Fee {
   owner: FeeOwner;
   schoolId: string | null;      // null when owner === PLATFORM
   divisionId: string | null;    // null when owner === PLATFORM
+  academicLevelId?: string | null; // optional level-specific override (e.g. Primary 3 tuition)
   name: string;
   code: string;
   isMandatory: boolean;

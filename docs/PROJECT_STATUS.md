@@ -207,6 +207,14 @@ Evidence:
 - `StudentListView`, `StudentDetailView` (README §134-141)
 - `students` table, `guardians` table (migrations)
 - `docs/database/GUARDIAN_MIGRATION_NOTES.md`
+- Multi-guardian relationships (2026-08-23): `student_guardians` join table with per-link
+  relationship + one-primary invariant (partial unique index); atomic server RPC
+  `set_student_primary_guardian` (demote→promote→mirror `students.guardian_id`, tenant-checked)
+  used by online promotions and sync replay; consistency verify/repair RPCs; widened
+  `guardian_relationship` enum; centralized relationship types in
+  `shared/guardians/relationshipTypes.ts`; Student Detail Guardians card (add/link/edit/
+  primary/remove), Guardians registry with add + single-scan counts, new `/guardians/:id`
+  detail view with two-way navigation; offline via existing Dexie outbox.
 
 ## Academic Sessions & Terms
 

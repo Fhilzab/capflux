@@ -13,6 +13,94 @@ import type {
   TuitionConfiguration,
   FeeRule,
 } from '../types/billing';
+import type { GuardianRelationship } from '../shared/guardians/relationshipTypes';
+
+// ============================================================================
+// STUDENTS & ACADEMIC STRUCTURE ROW TYPES (snake_case = Supabase columns)
+// ============================================================================
+
+export interface AcademicSessionRow {
+  id: string;
+  school_id: string;
+  name: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_current: boolean;
+  status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AcademicTermRow {
+  id: string;
+  session_id: string;
+  school_id: string;
+  name: string;
+  term_number: number;
+  display_order: number;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_current: boolean;
+  status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SchoolDivisionRow {
+  id: string;
+  school_id: string;
+  name: string;
+  code: string;
+  display_order: number;
+  description?: string | null;
+  status: 'ACTIVE' | 'INACTIVE';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AcademicLevelRow {
+  id: string;
+  school_id: string;
+  section_id: string;
+  name: string;
+  code?: string | null;
+  display_order: number;
+  status: 'ACTIVE' | 'INACTIVE';
+  created_at: string;
+  updated_at: string;
+}
+
+export type EnrollmentStatus = 'ACTIVE' | 'SUPERSEDED' | 'COMPLETED' | 'WITHDRAWN';
+export type EnrollmentReason = 'INITIAL' | 'MOVEMENT' | 'PROMOTION' | 'IMPORT' | 'MIGRATION';
+
+export interface StudentEnrollmentRow {
+  id: string;
+  school_id: string;
+  student_id: string;
+  academic_session_id: string;
+  section_id: string;
+  level_id: string;
+  status: EnrollmentStatus;
+  effective_date: string;
+  ended_at?: string | null;
+  reason?: EnrollmentReason | null;
+  source?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentGuardianRow {
+  id: string;
+  school_id: string;
+  student_id: string;
+  guardian_id: string;
+  relationship: GuardianRelationship;
+  is_primary: boolean;
+  created_at: string;
+  /** Server-set on upsert; locally set when a link row is mutated offline. */
+  updated_at?: string;
+}
 
 // Source tracking types for data ownership
 export type DataSource = 'LOCAL' | 'SERVER' | 'WEBHOOK';
@@ -49,6 +137,12 @@ class CapfluxDB extends Dexie {
     updated_at: string;
     raw_response: Record<string, unknown>;
   }, string>;
+  academic_sessions!: Table<AcademicSessionRow & EntitySource, string>;
+  academic_terms!: Table<AcademicTermRow & EntitySource, string>;
+  school_divisions!: Table<SchoolDivisionRow & EntitySource, string>;
+  academic_levels!: Table<AcademicLevelRow & EntitySource, string>;
+  student_enrollments!: Table<StudentEnrollmentRow & EntitySource, string>;
+  student_guardians!: Table<StudentGuardianRow & EntitySource, string>;
 
   constructor() {
     super('capflux_local_db');
@@ -71,6 +165,17 @@ class CapfluxDB extends Dexie {
       tuition_configurations: 'id, school_id, academic_session, academic_term, category, tuition_amount, created_at, source, version, updated_at',
       fee_rules: 'id, school_id, is_active, effective_date, created_at, source, version, updated_at',
     });
+    // v4: Students & Academic Structure — sessions/terms/divisions/levels
+    // cached locally, enrollments + student_guardians offline-first.
+    this.version(4)
+      .stores({
+        academic_sessions: 'id, school_id, name, is_current, status, start_date, created_at, updated_at, source, version',
+        academic_terms: 'id, session_id, school_id, name, is_current, status, display_order, created_at, updated_at, source, version',
+        school_divisions: 'id, school_id, name, code, status, display_order, created_at, updated_at, source, version',
+        academic_levels: 'id, school_id, section_id, name, code, status, display_order, created_at, updated_at, source, version',
+        student_enrollments: 'id, school_id, student_id, academic_session_id, section_id, level_id, status, effective_date, reason, created_at, updated_at, source, version',
+        student_guardians: 'id, school_id, student_id, guardian_id, relationship, is_primary, created_at, source, version',
+      });
   }
 }
 
@@ -81,7 +186,20 @@ const db = new CapfluxDB();
 // ============================================================================
 
 // LOCAL OWNED entities - created locally, synced upward
-const LOCAL_OWNED_ENTITIES = ['students', 'guardians', 'tuition_configurations', 'fee_rules', 'notifications'] as const;
+const LOCAL_OWNED_ENTITIES = [
+  'students',
+  'guardians',
+  'tuition_configurations',
+  'fee_rules',
+  'notifications',
+  // Students & Academic Structure (offline-first)
+  'academic_sessions',
+  'academic_terms',
+  'school_divisions',
+  'academic_levels',
+  'student_enrollments',
+  'student_guardians',
+] as const;
 
 // CLOUD OWNED entities - created by backend, read-only in browser
 const CLOUD_OWNED_ENTITIES = ['payment_transactions', 'settlement_records'] as const;
@@ -297,6 +415,96 @@ export const LocalRepository = {
     return db.fee_rules.where('school_id').equals(school_id).toArray();
   },
 
+  // Academic structure methods (LOCAL OWNED, cached from server or created locally)
+  async saveAcademicSession(session: AcademicSessionRow) {
+    const entity: AcademicSessionRow & EntitySource = { ...session, source: 'LOCAL', version: 1, updated_at: new Date().toISOString() };
+    await db.academic_sessions.put(entity);
+    return entity;
+  },
+
+  getAcademicSessionsBySchool(school_id: string) {
+    return db.academic_sessions.where('school_id').equals(school_id).toArray();
+  },
+
+  async saveAcademicTerm(term: AcademicTermRow) {
+    const entity: AcademicTermRow & EntitySource = { ...term, source: 'LOCAL', version: 1, updated_at: new Date().toISOString() };
+    await db.academic_terms.put(entity);
+    return entity;
+  },
+
+  getAcademicTermsBySession(session_id: string) {
+    return db.academic_terms.where('session_id').equals(session_id).toArray();
+  },
+
+  async saveSchoolDivision(division: SchoolDivisionRow) {
+    const entity: SchoolDivisionRow & EntitySource = { ...division, source: 'LOCAL', version: 1, updated_at: new Date().toISOString() };
+    await db.school_divisions.put(entity);
+    return entity;
+  },
+
+  getSchoolDivisionsBySchool(school_id: string) {
+    return db.school_divisions.where('school_id').equals(school_id).toArray();
+  },
+
+  async saveAcademicLevel(level: AcademicLevelRow) {
+    const entity: AcademicLevelRow & EntitySource = { ...level, source: 'LOCAL', version: 1, updated_at: new Date().toISOString() };
+    await db.academic_levels.put(entity);
+    return entity;
+  },
+
+  getAcademicLevelsBySection(section_id: string) {
+    return db.academic_levels.where('section_id').equals(section_id).toArray();
+  },
+
+  getAcademicLevelsBySchool(school_id: string) {
+    return db.academic_levels.where('school_id').equals(school_id).toArray();
+  },
+
+  // Enrollment methods (LOCAL OWNED - immutable history rows)
+  async saveStudentEnrollment(enrollment: StudentEnrollmentRow) {
+    const entity: StudentEnrollmentRow & EntitySource = { ...enrollment, source: 'LOCAL', version: 1, updated_at: new Date().toISOString() };
+    await db.student_enrollments.put(entity);
+    return entity;
+  },
+
+  getEnrollmentsByStudent(student_id: string) {
+    return db.student_enrollments.where('student_id').equals(student_id).toArray();
+  },
+
+  getEnrollmentsBySchool(school_id: string) {
+    return db.student_enrollments.where('school_id').equals(school_id).toArray();
+  },
+
+  getActiveEnrollmentForStudent(student_id: string, academic_session_id?: string) {
+    return db.student_enrollments
+      .where('student_id')
+      .equals(student_id)
+      .and((e) =>
+        e.status === 'ACTIVE' &&
+        (!academic_session_id || e.academic_session_id === academic_session_id)
+      )
+      .last();
+  },
+
+  // Student-guardian link methods (LOCAL OWNED)
+  async saveStudentGuardian(link: StudentGuardianRow) {
+    const entity: StudentGuardianRow & EntitySource = { ...link, source: 'LOCAL', version: 1, updated_at: new Date().toISOString() };
+    await db.student_guardians.put(entity);
+    return entity;
+  },
+
+  deleteStudentGuardian(id: string) {
+    return db.student_guardians.delete(id);
+  },
+
+  getGuardianLinksForStudent(student_id: string) {
+    return db.student_guardians.where('student_id').equals(student_id).toArray();
+  },
+
+  getStudentsForGuardian(guardian_id: string) {
+    return db.student_guardians.where('guardian_id').equals(guardian_id).toArray();
+  },
+
   // Sync queue methods
   enqueueSyncItem(item: Partial<SyncQueueItem> & { 
     school_id: string; 
@@ -389,4 +597,5 @@ export const LocalRepository = {
   },
 };
 
+export { db };
 export default db;

@@ -1,6 +1,7 @@
 <template>
   <div class="flex min-h-[calc(100vh-56px)] flex-col bg-background">
     <StudentPageHeader @import="openImportDialog" @add="management.addStudent" />
+    <StudentsAreaNav />
 
     <div class="flex-1 overflow-y-auto">
       <div class="p-6">
@@ -86,7 +87,10 @@
       <StudentForm
         :student="management.editingStudent"
         :loading="formSubmitting"
-        :divisions="management.classOptions"
+        :sessions="academicStore.sessions"
+        :sections="divisionRows"
+        :levels="academicStore.levels"
+        :known-guardians="knownGuardians"
         @submit="handleFormSubmit"
         @cancel="management.closeForm"
       />
@@ -126,24 +130,66 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, defineAsyncComponent, onMounted } from 'vue';
 import { useStudentManagement } from '@/features/students/composables/useStudentManagement';
 import StudentPageHeader from '@/features/students/components/StudentPageHeader.vue';
+import StudentsAreaNav from '@/features/students/components/StudentsAreaNav.vue';
 import StudentStats from '@/features/students/components/StudentStats.vue';
 import StudentToolbar from '@/features/students/components/StudentToolbar.vue';
 import StudentTable from '@/features/students/components/StudentTable.vue';
 import StudentForm from '@/features/students/components/StudentForm.vue';
-import StudentImportDialog from '@/features/students/components/StudentImportDialog.vue';
-import StudentExportDialog from '@/features/students/components/StudentExportDialog.vue';
 import StudentEmptyState from '@/features/students/components/StudentEmptyState.vue';
 import CmModal from '@/components/ui/CmModal.vue';
 import CmLoading from '@/components/ui/CmLoading.vue';
 import CmAlert from '@/components/ui/CmAlert.vue';
 import CmToast from '@/components/ui/CmToast.vue';
+import { useAcademicStore } from '@/stores/academicStore';
+import { useDivisionStore } from '@/stores/divisionStore';
+import { db } from '@/offline/localDb';
+import type { SchoolDivisionRow } from '@/offline/localDb';
+import type { GuardianRowLike } from '@/features/students/formTypes';
 import type { StudentSortField, FilterState, NormalizedStudent } from '@/features/students/types';
 
+// Import/export dialogs pull in SheetJS — load them only when opened.
+const StudentImportDialog = defineAsyncComponent(
+  () => import('@/features/students/components/StudentImportDialog.vue')
+);
+const StudentExportDialog = defineAsyncComponent(
+  () => import('@/features/students/components/StudentExportDialog.vue')
+);
+
 const management = useStudentManagement();
+const academicStore = useAcademicStore();
+const divisionStore = useDivisionStore();
 const formSubmitting = ref(false);
+
+/** Divisions in the snake_case row shape the form expects. */
+const divisionRows = computed<SchoolDivisionRow[]>(() =>
+  (divisionStore.divisions ?? []).map((d: any) => ({
+    id: d.id,
+    school_id: d.schoolId ?? d.school_id,
+    name: d.name,
+    code: d.code ?? '',
+    display_order: d.displayOrder ?? d.display_order ?? 0,
+    description: d.description ?? null,
+    status: d.status,
+    created_at: d.createdAt ?? d.created_at ?? new Date().toISOString(),
+    updated_at: d.updatedAt ?? d.updated_at ?? new Date().toISOString(),
+  }))
+);
+
+/** Known guardians for the existing-guardian picker (local cache). */
+const knownGuardians = ref<GuardianRowLike[]>([]);
+
+async function loadKnownGuardians() {
+  const schoolId = management.schoolId;
+  if (!schoolId) return;
+  try {
+    knownGuardians.value = await db.guardians.where('school_id').equals(schoolId).toArray();
+  } catch {
+    knownGuardians.value = [];
+  }
+}
 
 const toast = ref<{
   variant: 'success' | 'warning' | 'danger' | 'info';
@@ -237,8 +283,10 @@ function handleExportComplete() {
   showToast('success', 'Export Complete', 'Student data exported successfully');
 }
 
-onMounted(() => {
+onMounted(async () => {
   management.load();
+  void academicStore.initialize();
+  void loadKnownGuardians();
 });
 </script>
 

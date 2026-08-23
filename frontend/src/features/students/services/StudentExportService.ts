@@ -61,6 +61,16 @@ export const EXPORT_FIELDS: ExportField[] = [
     getValue: (s) => s.class || '',
   },
   {
+    key: 'section',
+    label: 'Section',
+    getValue: (s) => (s as any).sectionName || s.class || '',
+  },
+  {
+    key: 'academicLevel',
+    label: 'Academic Level',
+    getValue: (s) => (s as any).levelName || s.class || '',
+  },
+  {
     key: 'status',
     label: 'Status',
     getValue: (s) => s.status,

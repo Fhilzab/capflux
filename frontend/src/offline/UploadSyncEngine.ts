@@ -26,6 +26,25 @@ async function executeUploadSyncItem(item: SyncQueueItem) {
     throw new Error(`Entity ${item.entity_type} is not LOCAL OWNED - cannot upload`);
   }
 
+  // Primary-guardian promotions must go through the server's atomic RPC:
+  // a plain upsert(is_primary=true) would violate the one-primary-per-student
+  // partial unique index without demoting the incumbent first.
+  if (
+    item.entity_type === 'student_guardians' &&
+    item.operation === 'UPSERT' &&
+    (item.payload as Record<string, unknown> | null)?.is_primary === true
+  ) {
+    const payload = item.payload as Record<string, unknown>;
+    const { error } = await supabase.rpc('set_student_primary_guardian', {
+      p_school_id: payload.school_id,
+      p_student_id: payload.student_id,
+      p_guardian_id: payload.guardian_id,
+    });
+    if (!error) return { error: null };
+    // Fall back to a plain upsert; the partial unique index plus the
+    // consistency-repair RPC remain the backstop.
+  }
+
   // Use type-safe approach for supabase calls
   const response = await supabase.from(item.entity_type);
   
