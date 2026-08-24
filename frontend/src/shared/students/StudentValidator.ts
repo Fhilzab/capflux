@@ -6,32 +6,27 @@ export interface StudentValidationResult {
 export class StudentValidator {
   static validateCreate(input: {
     schoolId: string;
-    divisionId: string;
-    guardianId: string;
+    divisionId?: string;
+    guardianId?: string;
     firstName: string;
     lastName: string;
     admissionNumber?: string;
-    gender: string;
-    admissionDate: string;
-    registeredAt: string;
-    relationshipToGuardian: string;
-    discountRate: number;
+    gender?: string;
+    admissionDate?: string;
+    registeredAt?: string;
+    relationshipToGuardian?: string;
+    discountRate?: number;
     status?: string;
     academicSession?: string;
   }): StudentValidationResult {
     const errors: Record<string, string> = {};
 
     if (!input.schoolId) errors.schoolId = 'School is required';
-    if (!input.divisionId) errors.divisionId = 'Division is required';
-    if (!input.guardianId) errors.guardianId = 'Guardian is required';
+    // Guardian/division/relationship are established at link/enrollment time
+    // (multi-guardian architecture); they are not identity requirements.
     if (!input.firstName || input.firstName.trim().length < 2) errors.firstName = 'First name is required';
     if (!input.lastName || input.lastName.trim().length < 2) errors.lastName = 'Last name is required';
-    if (!input.gender) errors.gender = 'Gender is required';
-    if (!input.admissionDate) errors.admissionDate = 'Admission date is required';
-    if (!input.registeredAt) errors.registeredAt = 'Registration date is required';
-    if (!input.relationshipToGuardian) errors.relationshipToGuardian = 'Relationship is required';
-
-    if (input.discountRate < 0 || input.discountRate > 100) {
+    if (input.discountRate !== undefined && (input.discountRate < 0 || input.discountRate > 100)) {
       errors.discountRate = 'Discount must be between 0 and 100';
     }
 

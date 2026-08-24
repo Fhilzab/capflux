@@ -37,6 +37,23 @@ async function bootstrap(): Promise<void> {
   rbacStore.registerWithService();
   await syncStore.refreshStatus();
   SyncService.startBackgroundSync(30000);
+
+  // Students-domain download pull (academic structure, students, guardians,
+  // enrollments). Fire-and-forget: never blocks initial render. Runs once
+  // after auth when a school context exists, then rides the online event.
+  void (async () => {
+    try {
+      const { useSchoolStore } = await import('./stores/schoolStore');
+      const schoolId = useSchoolStore(pinia).currentSchoolId;
+      if (!schoolId) return;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      await SyncService.downloadStudentsDomainData(schoolId);
+    } catch (e) {
+      console.error('Students-domain download sync failed:', e);
+    }
+  })();
+  SyncService.startStudentsDomainDownloadSync();
+
   app.mount('#app');
 }
 

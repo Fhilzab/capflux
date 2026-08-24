@@ -449,13 +449,11 @@ export function useStudentManagement() {
       dateOfBirth: data.dateOfBirth,
       admissionNumber: data.admissionNumber,
       admissionDate: data.dateOfAdmission || new Date().toISOString(),
-      registeredAt: new Date().toISOString(),
-      relationshipToGuardian: data.relationship || 'OTHER',
-      discountRate: 0,
+      guardianPhone: data.guardianPhone || data.guardian?.phone || '',
       status: data.status || 'ACTIVE',
-      academicSession: undefined as string | undefined,
     };
 
+    let createdRecord: any = null;
     if (editingStudent.value) {
       const result = await studentService.updateStudent(editingStudent.value.id, payload);
       if (result.error) {
@@ -466,45 +464,29 @@ export function useStudentManagement() {
       if (result.error) {
         throw new Error(result.error.message || 'Failed to create student');
       }
+      createdRecord = result.data;
     }
 
     // Create the academic placement record when structure info was provided.
-    // Student creation is offline-first; the created student id comes from the
-    // refreshed local cache (admission number + name match).
-    if (!editingStudent.value && data.academicSessionId && data.sectionId && data.levelId) {
-      await enrollCreatedStudent(data);
+    // The created student's client UUID is known immediately (offline-first),
+    // so the enrollment deterministically references a materialized local row.
+    if (!editingStudent.value && createdRecord && data.academicSessionId && data.sectionId && data.levelId) {
+      try {
+        await EnrollmentService.enrollStudent({
+          schoolId,
+          studentId: createdRecord.id,
+          sessionId: data.academicSessionId,
+          sectionId: data.sectionId,
+          levelId: data.levelId,
+          reason: 'INITIAL',
+          source: 'MANUAL',
+        });
+      } catch {
+        // Placement is optional at registration; never block creation on it.
+      }
     }
 
     await refresh();
-  }
-
-  /** Find the just-created student locally and attach its initial enrollment. */
-  async function enrollCreatedStudent(data: Record<string, any>): Promise<void> {
-    try {
-      const schoolId = schoolStore.currentSchoolId;
-      const rows = (await db.students.where('school_id').equals(schoolId).toArray()) as any[];
-      const candidates = rows.filter(
-        (s) =>
-          s.first_name === data.firstName &&
-          s.last_name === data.lastName &&
-          (!data.admissionNumber || s.admission_number === data.admissionNumber)
-      );
-      const newest = candidates.sort((a, b) =>
-        (b.created_at ?? '').localeCompare(a.created_at ?? '')
-      )[0];
-      if (!newest) return;
-      await EnrollmentService.enrollStudent({
-        schoolId,
-        studentId: newest.id,
-        sessionId: data.academicSessionId,
-        sectionId: data.sectionId,
-        levelId: data.levelId,
-        reason: 'INITIAL',
-        source: 'MANUAL',
-      });
-    } catch {
-      // Placement is optional at registration; never block creation on it.
-    }
   }
 
   // Returned as a reactive object so refs/computeds auto-unwrap when accessed

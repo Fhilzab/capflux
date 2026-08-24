@@ -34,6 +34,12 @@ vi.mock('@/offline/localDb', async () => {
     db: d,
     LocalRepository: {
       saveStudentEnrollment: async (row: any) => d.student_enrollments.put(row),
+      getActiveEnrollmentsForLevel: (levelId: string) =>
+        d.student_enrollments
+          .where('level_id')
+          .equals(levelId)
+          .and((e: any) => e.status === 'ACTIVE')
+          .toArray(),
       getEnrollmentsByStudent: (id: string) =>
         d.student_enrollments.where('student_id').equals(id).toArray(),
       getEnrollmentsBySchool: (schoolId: string) =>

@@ -48,7 +48,8 @@ Rule: P0/P1 items are **not auto-implemented** without owner approval where they
 | COMP-041 | P3 | raw_payload contents unreviewed | PCI note | Provider payload CHD-hint potential | payment_transactions.raw_payload | Review PSP sandbox payloads; bound retention (ties COMP-007) | Backend owner | OPEN | No | n/a |
 | COMP-042 | P2 | Complaint-handling procedure undefined | CONSUMER-003 | SupportView exists; no SLA/process | org-level + support page copy | Define intake→SLA→escalation; publish channel | Product owner | OPEN | Yes (consumer regs) | n/a |
 | COMP-043 | P2 | Privacy notice/terms absent | NDPC-DP-002 / CONSUMER-006 | No notice anywhere in product | frontend | Draft via counsel; surface at signup + landing + guardian touchpoints | Legal + Product | OPEN | Yes | n/a |
+| COMP-044 | P3 | RLS per-row current_setting()/auth.* re-evaluation | PERF/RLS note | Supabase advisor: policy 'Users can view own identity' on public.users evaluates auth.uid() per row at scale | supabase migrations (users policies); linter output | Rewrite predicates as `(select auth.uid())` (initplan) in a dedicated hardening pass — NOT during Phase 1 (would invalidate fresh T15 baseline=24 and expand scope). Phase 8 guidance: author future requesting_user_id() policies as `(select public.requesting_user_id())` from day one | Backend/DBA owner | OPEN | No | n/a |
 
 ## Counts
 
-P0: 3 · P1: 12 · P2: 12 · P3: 16
+P0: 3 · P1: 12 · P2: 12 · P3: 17

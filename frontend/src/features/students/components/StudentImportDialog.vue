@@ -750,6 +750,15 @@ async function startImport() {
     enrollStudent: async (input) =>
       EnrollmentService.enrollStudent({ ...input, reason: 'IMPORT', source: 'IMPORT' }),
     createStudent: (data) => studentService.createStudent(data as any) as any,
+    updateStudent: (id, patch) =>
+      studentStore.updateStudent(id, {
+        first_name: String(patch.firstName ?? ''),
+        last_name: String(patch.lastName ?? ''),
+        middle_name: patch.middleName ? String(patch.middleName) : null,
+        gender: String(patch.gender ?? ''),
+        date_of_birth: patch.dateOfBirth ? String(patch.dateOfBirth) : null,
+        division_id: String(patch.divisionId ?? ''),
+      }) as any,
     getOrCreateGuardian: (schoolId, data) => GuardianService.getOrCreateGuardian(schoolId, data),
   };
 

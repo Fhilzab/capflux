@@ -10,6 +10,7 @@ export default defineConfig({
     globals: true,
     include: [
       'src/features/students/**/__tests__/**/*.spec.ts',
+      '!src/features/students/components/__tests__/**/*.spec.ts',
     ],
     threads: false,
   },

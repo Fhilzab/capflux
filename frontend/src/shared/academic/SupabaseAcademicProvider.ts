@@ -132,29 +132,26 @@ export class SupabaseAcademicProvider extends AcademicProvider {
     }
 
     try {
-      // First, deactivate all sessions for this school
       const session = await this.getSession(sessionId);
       if (session.error || !session.data) {
         return session;
       }
+      const schoolId = (session.data as any).school_id || (session.data as any).schoolId;
 
-      await (supabase.from('academic_sessions') as any)
-        .update({ is_current: false, status: 'COMPLETED' })
-        .eq('school_id', session.data.schoolId)
-        .neq('id', sessionId);
-
-      // Then activate the requested session
-      const { data, error } = await (supabase.from('academic_sessions') as any)
-        .update({ is_current: true, status: 'ACTIVE' })
-        .eq('id', sessionId)
-        .select()
-        .single();
+      // Atomic server-side swap (demote-all → promote-one) via SECURITY
+      // DEFINER RPC. The partial unique index uq_one_current_session makes
+      // any non-atomic path fail loudly, so two devices can never both win.
+      const { data, error } = await (supabase as any).rpc('activate_academic_session', {
+        p_school_id: schoolId,
+        p_session_id: sessionId,
+      });
 
       if (error) {
         return { data: null, error: mapProviderError(error, 'SESSION_UPDATE_FAILED') };
       }
 
-      return { data: data as AcademicSession, error: null };
+      // Re-read the activated row for the caller.
+      return this.getSession(sessionId);
     } catch (error) {
       return { data: null, error: mapProviderError(error, 'SESSION_UPDATE_FAILED') };
     }

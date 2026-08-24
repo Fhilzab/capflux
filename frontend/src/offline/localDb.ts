@@ -143,6 +143,8 @@ class CapfluxDB extends Dexie {
   academic_levels!: Table<AcademicLevelRow & EntitySource, string>;
   student_enrollments!: Table<StudentEnrollmentRow & EntitySource, string>;
   student_guardians!: Table<StudentGuardianRow & EntitySource, string>;
+  /** Flat key-value settings rows (school settings, sync cursors). */
+  app_settings!: Table<Record<string, any> & { school_id: string }, string>;
 
   constructor() {
     super('capflux_local_db');
@@ -175,6 +177,18 @@ class CapfluxDB extends Dexie {
         academic_levels: 'id, school_id, section_id, name, code, status, display_order, created_at, updated_at, source, version',
         student_enrollments: 'id, school_id, student_id, academic_session_id, section_id, level_id, status, effective_date, reason, created_at, updated_at, source, version',
         student_guardians: 'id, school_id, student_id, guardian_id, relationship, is_primary, created_at, source, version',
+      });
+    // v5: Students-domain hardening —
+    //  - students.division_id indexed (denormalized current-section pointer)
+    //  - student_enrollments compound indexes for active-lookup patterns
+    //    (active enrollment per student; active roster per level) replacing
+    //    full-scan + JS filter
+    //  - student_guardians.updated_at (mirrors Postgres migration 202608230001)
+    this.version(5)
+      .stores({
+        students: 'id, school_id, first_name, last_name, class_name, category, guardian_id, division_id, status, client_sequence, device_id, admission_number, created_at, updated_at, source, version',
+        student_enrollments: 'id, school_id, student_id, [student_id+status], [level_id+status], academic_session_id, [academic_session_id+status], section_id, level_id, status, effective_date, reason, created_at, updated_at, source, version',
+        student_guardians: 'id, school_id, student_id, guardian_id, relationship, is_primary, created_at, updated_at, source, version',
       });
   }
 }
@@ -484,6 +498,22 @@ export const LocalRepository = {
         (!academic_session_id || e.academic_session_id === academic_session_id)
       )
       .last();
+  },
+
+  /** Active enrollment via the [student_id+status] compound index (v5). */
+  getActiveEnrollmentIndexed(student_id: string) {
+    return db.student_enrollments
+      .where('[student_id+status]')
+      .equals([student_id, 'ACTIVE'])
+      .last();
+  },
+
+  /** Active roster for a level via the [level_id+status] compound index (v5). */
+  getActiveEnrollmentsForLevel(level_id: string) {
+    return db.student_enrollments
+      .where('[level_id+status]')
+      .equals([level_id, 'ACTIVE'])
+      .toArray();
   },
 
   // Student-guardian link methods (LOCAL OWNED)

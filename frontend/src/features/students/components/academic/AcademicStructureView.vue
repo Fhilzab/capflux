@@ -191,6 +191,13 @@
                       <ArrowDown class="h-3.5 w-3.5" />
                     </button>
                     <button
+                      class="rounded p-1 text-text-muted hover:bg-surface hover:text-primary disabled:opacity-30"
+                      title="Promote cohort to next session/level"
+                      @click="openPromotion(level)"
+                    >
+                      <GraduationCap class="h-3.5 w-3.5" />
+                    </button>
+                    <button
                       class="rounded p-1 text-text-muted hover:bg-surface hover:text-text-primary"
                       :title="level.status === 'ACTIVE' ? 'Deactivate' : 'Activate'"
                       @click="toggleLevel(level)"
@@ -288,6 +295,17 @@
       :duration="toast.duration"
       @close="toast = null"
     />
+
+    <!-- Session→session promotion (whole-level cohort) -->
+    <BulkStudentMovementModal
+      v-if="promotionLevelId"
+      :model-value="showPromotion"
+      @update:model-value="showPromotion = $event"
+      mode="PROMOTION"
+      :from-level-id="promotionLevelId"
+      :sections="divisionRowsForModal"
+      @applied="onPromotionApplied"
+    />
   </div>
 </template>
 
@@ -301,6 +319,7 @@ import {
   ArrowUp,
   ArrowDown,
   Power,
+  GraduationCap,
 } from '@lucide/vue';
 import CmButton from '@/components/ui/CmButton.vue';
 import CmInput from '@/components/ui/CmInput.vue';
@@ -310,11 +329,13 @@ import CmAlert from '@/components/ui/CmAlert.vue';
 import CmToast from '@/components/ui/CmToast.vue';
 import CmStatusChip from '@/components/ui/CmStatusChip.vue';
 import StudentsAreaNav from '@/features/students/components/StudentsAreaNav.vue';
+import BulkStudentMovementModal from '@/features/students/components/BulkStudentMovementModal.vue';
 import { useAcademicStore } from '@/stores/academicStore';
 import { useDivisionStore } from '@/stores/divisionStore';
 import { useEnrollmentStore } from '@/stores/enrollmentStore';
 import { useSchoolStore } from '@/stores/schoolStore';
-import type { AcademicSessionRow, AcademicLevelRow } from '@/offline/localDb';
+import { LocalRepository } from '@/offline/localDb';
+import type { AcademicSessionRow, AcademicLevelRow, SchoolDivisionRow } from '@/offline/localDb';
 
 const academic = useAcademicStore();
 const divisionStore = useDivisionStore();
@@ -359,6 +380,21 @@ const divisionOptions = computed(() =>
 );
 const currentSessionName = computed(
   () => academic.currentSession?.name ?? null
+);
+
+/** Snake_case division rows matching BulkStudentMovementModal's prop shape. */
+const divisionRowsForModal = computed<SchoolDivisionRow[]>(() =>
+  (divisionStore.divisions ?? []).map((d: any) => ({
+    id: d.id,
+    school_id: d.schoolId ?? d.school_id,
+    name: d.name,
+    code: d.code ?? '',
+    display_order: d.displayOrder ?? d.display_order ?? 0,
+    description: d.description ?? null,
+    status: d.status,
+    created_at: d.createdAt ?? d.created_at ?? new Date().toISOString(),
+    updated_at: d.updatedAt ?? d.updated_at ?? new Date().toISOString(),
+  }))
 );
 
 onMounted(async () => {
@@ -496,9 +532,28 @@ async function toggleLevel(level: AcademicLevelRow) {
   }
 }
 
+/** Active enrollment count via the [level_id+status] compound index. */
 async function countActiveEnrollments(levelId: string): Promise<number> {
-  await enrollmentStore.planBulkMove(levelId, { sessionId: '', sectionId: '', levelId }, []);
-  const plan = enrollmentStore.lastPlan;
-  return plan?.eligible.length ?? 0;
+  const rows = await LocalRepository.getActiveEnrollmentsForLevel(levelId);
+  return rows.length;
+}
+
+// ── Session→session promotion (per-level cohort entry point) ─────────
+const showPromotion = ref(false);
+const promotionLevelId = ref('');
+
+function openPromotion(level: AcademicLevelRow) {
+  promotionLevelId.value = level.id;
+  showPromotion.value = true;
+}
+
+async function onPromotionApplied(result: { moved: number; failed: number }) {
+  showPromotion.value = false;
+  await academic.initialize();
+  showToast(
+    result.failed > 0 ? 'warning' : 'success',
+    result.failed > 0 ? 'Promotion completed with failures' : 'Promotion applied',
+    `${result.moved} promoted, ${result.failed} failed.`,
+  );
 }
 </script>

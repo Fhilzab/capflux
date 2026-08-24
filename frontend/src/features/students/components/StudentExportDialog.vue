@@ -199,11 +199,11 @@ async function doExport() {
   if (studentsToExport.value.length === 0 || selectedFields.value.length === 0) return;
   exporting.value = true;
   try {
-    const fileName = `students-export-${new Date().toISOString().slice(0, 10)}`;
+    const fileBase = `students-export-${new Date().toISOString().slice(0, 10)}`;
     if (format.value === 'csv') {
-      exportToCSV(studentsToExport.value, selectedFields.value, fileName);
+      exportToCSV(studentsToExport.value, selectedFields.value, `${fileBase}.csv`);
     } else {
-      await exportToXLSX(studentsToExport.value, selectedFields.value, fileName);
+      await exportToXLSX(studentsToExport.value, selectedFields.value, `${fileBase}.xlsx`);
     }
 
     // Fire-and-forget audit trail (never blocks the export).

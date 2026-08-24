@@ -49,6 +49,7 @@
             @sort-change="handleSortChange"
             @export="openExportDialog"
             @export-selected="openExportDialog"
+            @move-selected="openBulkMove('MOVEMENT')"
             @import="openImportDialog"
             @add="management.addStudent"
             @archive-selected="management.archiveSelected"
@@ -117,6 +118,18 @@
       @export-done="handleExportComplete"
     />
 
+    <!-- Bulk movement / promotion (selection-scoped cohort move) -->
+    <BulkStudentMovementModal
+      v-if="bulkMoveLevelId"
+      :model-value="showBulkMove"
+      @update:model-value="showBulkMove = $event"
+      mode="MOVEMENT"
+      :from-level-id="bulkMoveLevelId"
+      :sections="divisionRows"
+      :selected-student-ids="Array.from(management.selectedIds.value ?? [])"
+      @applied="onBulkApplied"
+    />
+
     <!-- Toast -->
     <CmToast
       v-if="toast"
@@ -156,6 +169,9 @@ const StudentImportDialog = defineAsyncComponent(
 );
 const StudentExportDialog = defineAsyncComponent(
   () => import('@/features/students/components/StudentExportDialog.vue')
+);
+const BulkStudentMovementModal = defineAsyncComponent(
+  () => import('@/features/students/components/BulkStudentMovementModal.vue')
 );
 
 const management = useStudentManagement();
@@ -248,6 +264,57 @@ function clearError() {
 
 function handleArchive(student: NormalizedStudent) {
   management.archiveStudent(student.id);
+}
+
+// ── Bulk movement / promotion (selection-scoped) ────────────────────
+const showBulkMove = ref(false);
+const bulkMoveLevelId = ref('');
+const bulkMoveMode = ref<'MOVEMENT' | 'PROMOTION'>('MOVEMENT');
+
+async function openBulkMove(mode: 'MOVEMENT' | 'PROMOTION') {
+  // Derive the source level from the selection's current placements.
+  const ids = Array.from(management.selectedIds.value ?? []);
+  if (ids.length === 0) return;
+  try {
+    const enrollments = await db.student_enrollments
+      .where('student_id')
+      .anyOf(ids)
+      .toArray();
+    const activeByRecency = enrollments
+      .filter((e) => e.status === 'ACTIVE')
+      .sort((a, b) => (b.effective_date ?? '').localeCompare(a.effective_date ?? ''));
+    const levelCounts = new Map<string, number>();
+    for (const e of activeByRecency) {
+      levelCounts.set(e.level_id, (levelCounts.get(e.level_id) ?? 0) + 1);
+    }
+    const dominant = [...levelCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (!dominant) {
+      showToast('warning', 'No placement', 'Selected students have no active academic placement to move from.');
+      return;
+    }
+    if (levelCounts.size > 1) {
+      showToast(
+        'info',
+        'Mixed levels',
+        `Selection spans ${levelCounts.size} levels; using the most common one.`,
+      );
+    }
+    bulkMoveLevelId.value = dominant[0];
+    bulkMoveMode.value = mode;
+    showBulkMove.value = true;
+  } catch (e: any) {
+    showToast('danger', 'Error', e?.message || 'Failed to plan bulk movement');
+  }
+}
+
+async function onBulkApplied(result: { moved: number; failed: number }) {
+  management.clearSelection();
+  await management.refresh();
+  showToast(
+    result.failed > 0 ? 'warning' : 'success',
+    result.failed > 0 ? 'Completed with failures' : 'Students moved',
+    `${result.moved} moved, ${result.failed} failed.`,
+  );
 }
 
 async function handleFormSubmit(data: Record<string, any>) {

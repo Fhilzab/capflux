@@ -98,6 +98,8 @@ const props = defineProps<{
   mode: 'MOVEMENT' | 'PROMOTION';
   fromLevelId: string;
   sections: SchoolDivisionRow[];
+  /** Optional register-selection scope: only these students are planned/applied. */
+  selectedStudentIds?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -208,11 +210,15 @@ function close() {
 
 async function recomputePlan() {
   if (!props.fromLevelId || !targetLevelId.value) return;
-  await enrollmentStore.planBulkMove(props.fromLevelId, {
-    sessionId: targetSessionId.value,
-    sectionId: targetSectionId.value,
-    levelId: targetLevelId.value,
-  });
+  await enrollmentStore.planBulkMove(
+    props.fromLevelId,
+    {
+      sessionId: targetSessionId.value,
+      sectionId: targetSectionId.value,
+      levelId: targetLevelId.value,
+    },
+    props.selectedStudentIds
+  );
 }
 
 async function apply() {

@@ -571,6 +571,10 @@ export function validateAllRows(
       result.errors.push(
         `A student with admission number "${admissionNum}" already exists in CAPFLUX.`,
       );
+      const match = options.existingStudents.find(
+        (s) => s.admissionNumber === admissionNum,
+      );
+      if (match) result.existingStudentId = (match as { id?: string }).id;
     }
 
     if (phone && existingPhones.has(phone)) {
@@ -588,6 +592,7 @@ export function validateAllRows(
       errors: result.errors,
       warnings: result.warnings,
       exists: result.exists,
+      existingStudentId: (result as { existingStudentId?: string }).existingStudentId,
     });
   }
 
@@ -642,6 +647,15 @@ export interface ImportBatchContext {
     status?: string;
     academicSession?: string;
   }) => Promise<StudentResult<Student>>;
+  /** Offline-first update used by duplicate-handling UPDATE; blank values are ignored. */
+  updateStudent?: (id: string, data: {
+    firstName?: string;
+    lastName?: string;
+    middleName?: string;
+    gender?: string;
+    dateOfBirth?: string | null;
+    divisionId?: string;
+  }) => Promise<unknown>;
   getOrCreateGuardian: (
     schoolId: string,
     data: {
@@ -692,9 +706,8 @@ export async function batchImport(
   const now = new Date().toISOString();
   const defaultAdmissionDate = new Date(now).toISOString().split('T')[0];
 
-  // Pre-index existing admission numbers for duplicate handling
-  // (these rows were flagged as exists=true in validation)
-  const existingRows = validRows.filter((r) => r.exists && duplicateHandling === 'SKIP');
+  // Rows flagged as existing duplicates that SKIP will not touch.
+  const skipCount = validRows.filter((r) => r.exists && duplicateHandling === 'SKIP').length;
 
   // Helper: look up division ID by class name
   const findDivisionId = (className: string | undefined): string => {
@@ -743,6 +756,29 @@ export async function batchImport(
 
     const batchPromises = batch.map(async (row) => {
       const mapped = row.mapped as unknown as ReturnType<typeof mapRow>;
+
+      // UPDATE path: merge non-blank fields into the existing student via the
+      // same offline-first domain service used by manual editing. Identity,
+      // tenant and financial fields are never touched. A blank incoming value
+      // does NOT clear the stored value.
+      if (row.exists && duplicateHandling === 'UPDATE') {
+        const id = row.existingStudentId;
+        if (!id || !ctx.updateStudent) {
+          throw new Error(
+            `Cannot update ${mapped.firstName} ${mapped.lastName}: existing student not resolved or update unsupported.`,
+          );
+        }
+        const patch: Record<string, unknown> = {};
+        if (mapped.firstName) patch.firstName = mapped.firstName;
+        if (mapped.lastName) patch.lastName = mapped.lastName;
+        if (mapped.middleName) patch.middleName = mapped.middleName;
+        if (mapped.gender) patch.gender = mapped.gender;
+        if (mapped.dateOfBirth) patch.dateOfBirth = mapped.dateOfBirth;
+        const divisionIdU = findDivisionId(mapped.className);
+        if (divisionIdU) patch.divisionId = divisionIdU;
+        await ctx.updateStudent(id, patch);
+        return { updated: true as const };
+      }
 
       // Determine division ID
       const divisionId = findDivisionId(mapped.className);
@@ -856,15 +892,12 @@ export async function batchImport(
       }
     }
 
-    // Track skipped existing rows
-    result.skipped += existingRows.length;
-
     onProgress?.({
       imported: result.imported,
       updated: result.updated,
-      skipped: result.skipped,
+      skipped: result.skipped + skipCount,
       failed: result.failed,
-      total: rowsToProcess.length + existingRows.length,
+      total: rowsToProcess.length + skipCount,
     });
 
     // Yield to the event loop between batches
@@ -872,6 +905,9 @@ export async function batchImport(
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
+
+  // Skipped existing rows counted exactly once, after all batches.
+  result.skipped += skipCount;
 
   return result;
 }

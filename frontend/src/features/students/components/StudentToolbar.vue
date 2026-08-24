@@ -84,6 +84,10 @@
         <span class="text-sm text-text-secondary">
           {{ selectedCount }} selected
         </span>
+        <CmButton variant="secondary" size="sm" @click="$emit('move-selected')">
+          <ArrowRightLeft class="mr-1 h-4 w-4" />
+          Move
+        </CmButton>
         <CmButton variant="secondary" size="sm" @click="$emit('export-selected')">
           <FileSpreadsheet class="mr-1 h-4 w-4" />
           Export
@@ -139,7 +143,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Search, X, ChevronDown, ChevronUp, MoreHorizontal, Upload, UserPlus, FileSpreadsheet, Archive } from '@lucide/vue';
+import { Search, X, ChevronDown, ChevronUp, MoreHorizontal, Upload, UserPlus, FileSpreadsheet, Archive, ArrowRightLeft } from '@lucide/vue';
 import CmButton from '@/components/ui/CmButton.vue';
 import CmSelect from '@/components/ui/CmSelect.vue';
 import CmDropdown from '@/components/ui/CmDropdown.vue';
@@ -166,6 +170,7 @@ interface Emits {
   (e: 'sort-change', field: string, order: 'asc' | 'desc'): void;
   (e: 'export'): void;
   (e: 'export-selected'): void;
+  (e: 'move-selected'): void;
   (e: 'import'): void;
   (e: 'add'): void;
   (e: 'archive-selected'): void;

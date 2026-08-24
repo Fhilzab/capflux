@@ -99,6 +99,8 @@ export interface ValidatedRow {
   errors: string[];
   warnings: string[];
   exists: boolean;
+  /** Matched existing student id when `exists` resolved against the register. */
+  existingStudentId?: string;
 }
 
 export type ImportStepName = 'source' | 'upload' | 'mapping' | 'validation' | 'duplicates' | 'confirm' | 'results';

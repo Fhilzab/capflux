@@ -7,6 +7,17 @@ import type {
   AcademicLevelRow,
 } from '../offline/localDb';
 import type { BulkMovePlan, ApplyMoveResult, MoveInput } from '../shared/enrollment/EnrollmentService';
+import { useAuthStore } from './authStore';
+
+/** Actor context stamped onto every movement for the audit trail. */
+function movementContext(): { createdBy: string | null; source: string | null } {
+  try {
+    const user = useAuthStore().user;
+    return { createdBy: user?.id ?? null, source: 'UI' };
+  } catch {
+    return { createdBy: null, source: 'UI' };
+  }
+}
 
 export interface HydratedEnrollment {
   enrollment: StudentEnrollmentRow;
@@ -76,7 +87,7 @@ export const useEnrollmentStore = defineStore('enrollment', {
       this.loading = true;
       this.error = null;
       try {
-        const result = await EnrollmentService.moveStudent(studentId, to, reason);
+        const result = await EnrollmentService.moveStudent(studentId, to, reason, movementContext());
         if (!result.ok) {
           this.error = result.error.message;
           return false;
@@ -106,7 +117,7 @@ export const useEnrollmentStore = defineStore('enrollment', {
       this.loading = true;
       this.error = null;
       try {
-        const result: ApplyMoveResult = await EnrollmentService.applyMove(studentIds, to, reason);
+        const result: ApplyMoveResult = await EnrollmentService.applyMove(studentIds, to, reason, movementContext());
         return result;
       } catch (e: any) {
         this.error = e?.message || 'Failed to apply movement';

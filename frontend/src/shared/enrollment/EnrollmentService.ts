@@ -56,10 +56,11 @@ export interface EnrollmentError {
   code:
     | 'STUDENT_NOT_FOUND'
     | 'SESSION_NOT_FOUND'
+    | 'SESSION_INACTIVE'
     | 'SECTION_NOT_FOUND'
+    | 'SECTION_INACTIVE'
     | 'LEVEL_NOT_FOUND'
     | 'LEVEL_INACTIVE'
-    | 'SECTION_INACTIVE'
     | 'NO_ACTIVE_ENROLLMENT'
     | 'ALREADY_AT_TARGET'
     | 'VALIDATION_ERROR'
@@ -267,11 +268,9 @@ export const EnrollmentService = {
    * and explicit exceptions instead of silently skipping them.
    */
   async planBulkMove(fromLevelId: string, to: MoveInput, selectedIds?: string[]): Promise<BulkMovePlan> {
-    const enrollments = await db.student_enrollments
-      .where('level_id')
-      .equals(fromLevelId)
-      .toArray();
-    const active = enrollments.filter((e) => e.status === 'ACTIVE');
+    // [level_id+status] compound index (Dexie v5): active roster only,
+    // no full-history scan + JS filter.
+    const active = await LocalRepository.getActiveEnrollmentsForLevel(fromLevelId);
 
     const targetLevel = await db.academic_levels.get(to.levelId);
     const targetSection = targetLevel ? await db.school_divisions.get(targetLevel.section_id) : undefined;
@@ -377,6 +376,86 @@ export const EnrollmentService = {
         plan,
         to: { sessionId: activeFrom.academic_session_id, sectionId: fromLevel.section_id, levelId: next.data.id },
         toLevelName: next.data.name,
+      },
+    };
+  },
+
+  /**
+   * SESSION→SESSION promotion planning.
+   *
+   * Promotion is a session-boundary operation: the source cohort (students
+   * actively enrolled at `fromLevelId`) moves to `to` — typically the next
+   * session with the next display-order level. Validates the destination
+   * session is ACTIVE/UPCOMING and detects students already enrolled at the
+   * destination session (any placement), which same-session movement never
+   * needs to consider. Deterministic: same local state ⇒ same plan.
+   */
+  async planSessionPromotion(
+    fromSessionId: string,
+    fromLevelId: string,
+    to: MoveInput,
+    selectedIds?: string[]
+  ): Promise<EnrollmentResult<{
+    plan: BulkMovePlan;
+    sourceSession: AcademicSessionRow;
+    destinationSession: AcademicSessionRow;
+    destinationSection: SchoolDivisionRow | undefined;
+    destinationLevel: AcademicLevelRow;
+  }>> {
+    if (fromSessionId === to.sessionId) {
+      // Same-session cohort movement — use planPromotion/planBulkMove instead.
+      return err('VALIDATION_ERROR', 'Source and destination sessions must differ for session promotion');
+    }
+
+    const [sourceSession, destinationSession] = await Promise.all([
+      db.academic_sessions.get(fromSessionId),
+      db.academic_sessions.get(to.sessionId),
+    ]);
+    if (!sourceSession) return err('SESSION_NOT_FOUND', 'Source session not found');
+    if (!destinationSession) return err('SESSION_NOT_FOUND', 'Destination session not found');
+    if (destinationSession.status !== 'ACTIVE' && destinationSession.status !== 'UPCOMING') {
+      return err('SESSION_INACTIVE', `Destination session "${destinationSession.name}" is ${destinationSession.status}`);
+    }
+
+    const destinationLevel = await db.academic_levels.get(to.levelId);
+    if (!destinationLevel) return err('LEVEL_NOT_FOUND', 'Destination level not found');
+    if (destinationLevel.status !== 'ACTIVE') {
+      return err('LEVEL_INACTIVE', `Destination level "${destinationLevel.name}" is inactive`);
+    }
+    const destinationSection = await db.school_divisions.get(to.sectionId);
+    if (!destinationSection) return err('SECTION_NOT_FOUND', 'Destination section not found');
+
+    // Students already holding ANY enrollment in the destination session
+    // (active or superseded) cannot be promoted there again.
+    const destEnrollments = await db.student_enrollments
+      .where('academic_session_id')
+      .equals(to.sessionId)
+      .toArray();
+    const alreadyInDestSession = new Set(destEnrollments.map((e) => e.student_id));
+
+    const basePlan = await this.planBulkMove(fromLevelId, to, selectedIds);
+
+    const eligible = basePlan.eligible.filter((s) => !alreadyInDestSession.has(s.studentId));
+    const extraSkipped = basePlan.eligible
+      .filter((s) => alreadyInDestSession.has(s.studentId))
+      .map((s) => ({
+        studentId: s.studentId,
+        name: s.name,
+        reason: 'Already has an enrollment in the destination session',
+      }));
+
+    return {
+      ok: true,
+      data: {
+        plan: {
+          eligible: [...eligible, ...([] as typeof eligible)],
+          skipped: [...basePlan.skipped, ...extraSkipped],
+          fromLevelId,
+        },
+        sourceSession,
+        destinationSession,
+        destinationSection,
+        destinationLevel,
       },
     };
   },

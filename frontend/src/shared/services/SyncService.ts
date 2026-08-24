@@ -2,6 +2,7 @@ import { processSyncQueue, startBackgroundSync } from '../../offline/syncEngine'
 import { SyncQueue } from '../../offline/syncQueue';
 import { processUploadSyncQueue, startUploadSync, enqueueUpload } from '../../offline/UploadSyncEngine';
 import { downloadFinancialData, downloadPaymentAccounts, startDownloadSync } from '../../offline/DownloadSyncEngine';
+import { downloadStudentsDomainData, startStudentsDomainDownloadSync } from '../../offline/studentsDownloadSync';
 import { subscribeToAll, unsubscribeAll } from '../../offline/RealtimeSyncService';
 
 export const SyncService = {
@@ -36,6 +37,19 @@ export const SyncService = {
 
   startDownloadSync(intervalMs = 60000, school_id: string) {
     return startDownloadSync(intervalMs, school_id);
+  },
+
+  /**
+   * Students-domain pull (academic structure, students, guardians,
+   * enrollments) into Dexie. Incremental via persisted per-table cursors.
+   */
+  downloadStudentsDomainData(school_id: string) {
+    return downloadStudentsDomainData(school_id);
+  },
+
+  /** Periodic incremental students-domain pull + online-event refresh. */
+  startStudentsDomainDownloadSync(intervalMs = 300000) {
+    return startStudentsDomainDownloadSync(intervalMs);
   },
 
   // Realtime sync methods
