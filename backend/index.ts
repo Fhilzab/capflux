@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { supabase, hasSupabaseConfig } from './supabaseClient.js';
 import webhookRoutes from './routes/webhook.js';
+import workosWebhookRoutes from './routes/workos-webhook.js';
 import paymentAccountRoutes from './routes/payment-accounts.js';
 import dvaRoutes from './routes/dva.js'; // Canonical DVA lifecycle
 import paymentsRoutes from './routes/payments.js';
@@ -62,6 +63,12 @@ app.use(cors({
   },
   credentials: true, // Allow the HttpOnly session cookie.
 }));
+
+// ==========================================================
+// WORKOS WEBHOOK — MUST BE REGISTERED BEFORE express.json()
+// to preserve raw request body for signature verification
+// ==========================================================
+app.use('/api/webhooks/workos', express.raw({ type: 'application/json' }), workosWebhookRoutes);
 
 app.use(express.json());
 
