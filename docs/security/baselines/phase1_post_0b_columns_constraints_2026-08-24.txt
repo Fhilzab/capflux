@@ -1,0 +1,149 @@
+| kind | obj                  | ord | detail                                                 | extra                                                                                            |
+| ---- | -------------------- | --- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| col  | audit_logs           | 1   | id                                                     | uuid                                                                                             |
+| col  | audit_logs           | 2   | school_id                                              | uuid                                                                                             |
+| col  | audit_logs           | 3   | actor_id                                               | uuid                                                                                             |
+| col  | audit_logs           | 4   | action                                                 | text                                                                                             |
+| col  | audit_logs           | 4   | action                                                 | text                                                                                             |
+| col  | audit_logs           | 5   | entity                                                 | text                                                                                             |
+| col  | audit_logs           | 6   | entity_id                                              | uuid                                                                                             |
+| col  | audit_logs           | 7   | metadata                                               | jsonb                                                                                            |
+| col  | audit_logs           | 8   | created_at                                             | timestamp with time zone                                                                         |
+| con  | audit_logs           | 0   | audit_logs_pkey                                        | PRIMARY KEY (id)                                                                                 |
+| con  | audit_logs           | 0   | audit_logs_school_id_fkey                              | FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE                                 |
+| col  | ledger_entries       | 1   | id                                                     | uuid                                                                                             |
+| col  | ledger_entries       | 2   | school_id                                              | uuid                                                                                             |
+| col  | ledger_entries       | 3   | student_id                                             | uuid                                                                                             |
+| col  | ledger_entries       | 4   | amount                                                 | numeric(12,2)                                                                                    |
+| col  | ledger_entries       | 5   | entry_type                                             | ledger_entry_type                                                                                |
+| col  | ledger_entries       | 6   | entry_category                                         | ledger_entry_category                                                                            |
+| col  | ledger_entries       | 7   | reference_id                                           | uuid                                                                                             |
+| col  | ledger_entries       | 8   | metadata                                               | jsonb                                                                                            |
+| col  | ledger_entries       | 9   | client_sequence                                        | integer                                                                                          |
+| col  | ledger_entries       | 10  | device_id                                              | text                                                                                             |
+| col  | ledger_entries       | 11  | created_at                                             | timestamp with time zone                                                                         |
+| col  | ledger_entries       | 12  | idempotency_key                                        | text                                                                                             |
+| col  | ledger_entries       | 13  | source_document_type                                   | text                                                                                             |
+| col  | ledger_entries       | 14  | source_document_id                                     | text                                                                                             |
+| con  | ledger_entries       | 0   | ledger_entries_amount_check                            | CHECK ((amount >= (0)::numeric))                                                                 |
+| con  | ledger_entries       | 0   | ledger_entries_pkey                                    | PRIMARY KEY (id)                                                                                 |
+| con  | ledger_entries       | 0   | ledger_entries_school_id_device_id_client_sequence_key | UNIQUE (school_id, device_id, client_sequence)                                                   |
+| con  | ledger_entries       | 0   | ledger_entries_school_id_fkey                          | FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE                                 |
+| con  | ledger_entries       | 0   | ledger_entries_student_id_fkey                         | FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE RESTRICT                              |
+| col  | payment_accounts     | 1   | id                                                     | uuid                                                                                             |
+| col  | payment_accounts     | 2   | school_id                                              | uuid                                                                                             |
+| col  | payment_accounts     | 3   | student_id                                             | uuid                                                                                             |
+| col  | payment_accounts     | 4   | provider_name                                          | text                                                                                             |
+| col  | payment_accounts     | 5   | account_number                                         | text                                                                                             |
+| col  | payment_accounts     | 6   | bank_name                                              | text                                                                                             |
+| col  | payment_accounts     | 7   | account_reference                                      | text                                                                                             |
+| col  | payment_accounts     | 8   | provider_student_reference                             | text                                                                                             |
+| col  | payment_accounts     | 9   | status                                                 | text                                                                                             |
+| col  | payment_accounts     | 10  | provider                                               | text                                                                                             |
+| col  | payment_accounts     | 11  | provider_account_id                                    | text                                                                                             |
+| col  | payment_accounts     | 11  | provider_account_id                                    | text                                                                                             |
+| col  | payment_accounts     | 12  | provider_reference                                     | text                                                                                             |
+| col  | payment_accounts     | 13  | virtual_account_number                                 | text                                                                                             |
+| col  | payment_accounts     | 14  | account_name                                           | text                                                                                             |
+| col  | payment_accounts     | 15  | account_status                                         | text                                                                                             |
+| col  | payment_accounts     | 16  | is_primary                                             | boolean                                                                                          |
+| col  | payment_accounts     | 17  | deactivated_at                                         | timestamp with time zone                                                                         |
+| col  | payment_accounts     | 18  | created_at                                             | timestamp with time zone                                                                         |
+| col  | payment_accounts     | 19  | updated_at                                             | timestamp with time zone                                                                         |
+| col  | payment_accounts     | 20  | idempotency_key                                        | text                                                                                             |
+| col  | payment_accounts     | 21  | provisioning_error                                     | text                                                                                             |
+| col  | payment_accounts     | 22  | provider_event_ref                                     | text                                                                                             |
+| con  | payment_accounts     | 0   | payment_accounts_account_status_check                  | CHECK ((account_status = ANY (ARRAY['ACTIVE'::text, 'INACTIVE'::text, 'SUSPENDED'::text])))      |
+| con  | payment_accounts     | 0   | payment_accounts_pkey                                  | PRIMARY KEY (id)                                                                                 |
+| con  | payment_accounts     | 0   | payment_accounts_provider_name_check                   | CHECK ((provider_name = ANY (ARRAY['monnify'::text, 'flutterwave'::text, 'remita'::text])))      |
+| con  | payment_accounts     | 0   | payment_accounts_school_id_account_number_key          | UNIQUE (school_id, account_number)                                                               |
+| con  | payment_accounts     | 0   | payment_accounts_school_id_fkey                        | FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE                                 |
+| con  | payment_accounts     | 0   | payment_accounts_school_id_student_id_is_primary_key   | UNIQUE (school_id, student_id, is_primary)                                                       |
+| con  | payment_accounts     | 0   | payment_accounts_status_check                          | CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'INACTIVE'::text, 'SUSPENDED'::text])))              |
+| con  | payment_accounts     | 0   | payment_accounts_student_id_fkey                       | FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE                               |
+| con  | payment_accounts     | 0   | payment_accounts_student_id_key                        | UNIQUE (student_id)                                                                              |
+| col  | payment_transactions | 1   | id                                                     | uuid                                                                                             |
+| col  | payment_transactions | 2   | school_id                                              | uuid                                                                                             |
+| col  | payment_transactions | 3   | student_id                                             | uuid                                                                                             |
+| col  | payment_transactions | 4   | gateway_txn_ref                                        | text                                                                                             |
+| col  | payment_transactions | 5   | reference                                              | text                                                                                             |
+| col  | payment_transactions | 6   | amount                                                 | numeric(12,2)                                                                                    |
+| col  | payment_transactions | 7   | entry_category                                         | text                                                                                             |
+| col  | payment_transactions | 8   | settlement_status                                      | text                                                                                             |
+| col  | payment_transactions | 9   | verified_at                                            | timestamp with time zone                                                                         |
+| col  | payment_transactions | 10  | raw_payload                                            | jsonb                                                                                            |
+| col  | payment_transactions | 11  | idempotency_key                                        | text                                                                                             |
+| col  | payment_transactions | 12  | status                                                 | payment_txn_status                                                                               |
+| col  | payment_transactions | 13  | amount_minor                                           | bigint                                                                                           |
+| col  | payment_transactions | 14  | currency                                               | text                                                                                             |
+| col  | payment_transactions | 15  | provider_event_id                                      | text                                                                                             |
+| col  | payment_transactions | 16  | payment_method                                         | text                                                                                             |
+| col  | payment_transactions | 17  | failure_reason                                         | text                                                                                             |
+| col  | payment_transactions | 18  | reversed_at                                            | timestamp with time zone                                                                         |
+| col  | payment_transactions | 19  | reversed_by                                            | uuid                                                                                             |
+| con  | payment_transactions | 0   | chk_amount_positive                                    | CHECK ((amount > (0)::numeric))                                                                  |
+| con  | payment_transactions | 0   | payment_transactions_amount_check                      | CHECK ((amount >= (0)::numeric))                                                                 |
+| con  | payment_transactions | 0   | payment_transactions_entry_category_check              | CHECK ((entry_category = ANY (ARRAY['TUITION'::text, 'TECH_LEVY'::text, 'PLATFORM_FEE'::text]))) |
+| con  | payment_transactions | 0   | payment_transactions_pkey                              | PRIMARY KEY (id)                                                                                 |
+| con  | payment_transactions | 0   | payment_transactions_reversed_by_fkey                  | FOREIGN KEY (reversed_by) REFERENCES users(id) ON DELETE SET NULL                                |
+| con  | payment_transactions | 0   | payment_transactions_school_id_fkey                    | FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE                                 |
+| con  | payment_transactions | 0   | payment_transactions_settlement_status_check           | CHECK ((settlement_status = ANY (ARRAY['PENDING'::text, 'SUCCESS'::text, 'FAILED'::text])))      |
+| con  | payment_transactions | 0   | payment_transactions_student_id_fkey                   | FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE RESTRICT                              |
+| col  | roles                | 1   | id                                                     | uuid                                                                                             |
+| col  | roles                | 2   | organization_id                                        | uuid                                                                                             |
+| col  | roles                | 3   | name                                                   | text                                                                                             |
+| col  | roles                | 4   | name                                                   | text                                                                                             |
+| col  | roles                | 4   | name                                                   | text                                                                                             |
+| col  | roles                | 4   | name                                                   | text                                                                                             |
+| col  | roles                | 4   | name                                                   | text                                                                                             |
+| col  | roles                | 4   | name                                                   | text                                                                                             |
+| col  | roles                | 5   | description                                            | text                                                                                             |
+| col  | roles                | 6   | system_role                                            | text                                                                                             |
+| col  | roles                | 7   | is_system_role                                         | boolean                                                                                          |
+| col  | roles                | 8   | created_at                                             | timestamp with time zone                                                                         |
+| col  | roles                | 9   | updated_at                                             | timestamp with time zone                                                                         |
+| con  | roles                | 0   | roles_organization_id_fkey                             | FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE                     |
+| con  | roles                | 0   | roles_pkey                                             | PRIMARY KEY (id)                                                                                 |
+| col  | school_members       | 1   | id                                                     | uuid                                                                                             |
+| col  | school_members       | 2   | user_id                                                | uuid                                                                                             |
+| col  | school_members       | 3   | school_id                                              | uuid                                                                                             |
+| col  | school_members       | 3   | school_id                                              | uuid                                                                                             |
+| col  | school_members       | 3   | school_id                                              | uuid                                                                                             |
+| col  | school_members       | 3   | school_id                                              | uuid                                                                                             |
+| col  | school_members       | 4   | role_id                                                | uuid                                                                                             |
+| col  | school_members       | 5   | invited_by                                             | uuid                                                                                             |
+| col  | school_members       | 6   | joined_at                                              | timestamp with time zone                                                                         |
+| col  | school_members       | 7   | left_at                                                | timestamp with time zone                                                                         |
+| col  | school_members       | 8   | is_active                                              | boolean                                                                                          |
+| con  | school_members       | 0   | school_members_invited_by_fkey                         | FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE SET NULL                                 |
+| con  | school_members       | 0   | school_members_pkey                                    | PRIMARY KEY (id)                                                                                 |
+| con  | school_members       | 0   | school_members_role_id_fkey                            | FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT                                    |
+| con  | school_members       | 0   | school_members_school_id_fkey                          | FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE                                 |
+| con  | school_members       | 0   | school_members_user_id_fkey                            | FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE                                     |
+| con  | school_members       | 0   | school_members_user_id_school_id_role_id_key           | UNIQUE (user_id, school_id, role_id)                                                             |
+| col  | settlement_records   | 1   | id                                                     | uuid                                                                                             |
+| col  | settlement_records   | 2   | payment_transaction_id                                 | uuid                                                                                             |
+| col  | settlement_records   | 3   | destination                                            | text                                                                                             |
+| col  | settlement_records   | 4   | account_number                                         | text                                                                                             |
+| col  | settlement_records   | 5   | bank_name                                              | text                                                                                             |
+| col  | settlement_records   | 6   | amount                                                 | numeric(12,2)                                                                                    |
+| col  | settlement_records   | 7   | settled_at                                             | timestamp with time zone                                                                         |
+| col  | settlement_records   | 8   | raw_response                                           | jsonb                                                                                            |
+| col  | settlement_records   | 9   | settlement_account_id                                  | uuid                                                                                             |
+| col  | settlement_records   | 10  | status                                                 | text                                                                                             |
+| col  | settlement_records   | 11  | idempotency_key                                        | text                                                                                             |
+| col  | settlement_records   | 12  | failure_reason                                         | text                                                                                             |
+| con  | settlement_records   | 0   | settlement_records_amount_check                        | CHECK ((amount >= (0)::numeric))                                                                 |
+| con  | settlement_records   | 0   | settlement_records_destination_check                   | CHECK ((destination = ANY (ARRAY['school'::text, 'capflux'::text])))                             |
+| con  | settlement_records   | 0   | settlement_records_payment_transaction_id_fkey         | FOREIGN KEY (payment_transaction_id) REFERENCES payment_transactions(id) ON DELETE CASCADE       |
+| con  | settlement_records   | 0   | settlement_records_pkey                                | PRIMARY KEY (id)                                                                                 |
+| con  | settlement_records   | 0   | settlement_records_settlement_account_id_fkey          | FOREIGN KEY (settlement_account_id) REFERENCES settlement_accounts(id) ON DELETE SET NULL        |
+| con  | settlement_records   | 0   | settlement_records_status_check                        | CHECK ((status = ANY (ARRAY['PENDING'::text, 'SUCCESS'::text, 'FAILED'::text])))                 |
+| col  | users                | 1   | id                                                     | uuid                                                                                             |
+| col  | users                | 2   | email                                                  | text                                                                                             |
+| col  | users                | 3   | auth_provider                                          | text                                                                                             |
+| col  | users                | 4   | email_verified                                         | boolean                                                                                          |
+| col  | users                | 5   | created_at                                             | timestamp with time zone                                                                         |
+| col  | users                | 6   | updated_at                                             | timestamp with time zone                                                                         |
+| con  | users                | 0   | users_email_key                                        | UNIQUE (email)                                                                                   |
+| con  | users                | 0   | users_pkey                                             | PRIMARY KEY (id)                                                                                 |
