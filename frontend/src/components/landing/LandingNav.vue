@@ -3,12 +3,21 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useThemeStore } from '../../stores/themeStore';
 import CmButton from '../../components/ui/CmButton.vue';
+import CmBadge from '../../components/ui/CmBadge.vue';
 
 const router = useRouter();
 const themeStore = useThemeStore();
 
 const isScrolled = ref(false);
 const isMobileMenuOpen = ref(false);
+
+const navItems = [
+  { id: 'features', label: 'Features' },
+  { id: 'how-it-works', label: 'How It Works' },
+  { id: 'offline-first', label: 'Offline Engine' },
+  { id: 'pricing', label: 'Pricing' },
+  { id: 'faq', label: 'FAQ' },
+];
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 20;
@@ -58,19 +67,26 @@ onUnmounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 8a7 7 0 0114 0c0 2.21-.9 4.2-2.25 5.64A6.97 6.97 0 0112 15a6.97 6.97 0 01-4.75-1.36C5.9 12.2 5 10.21 5 8z" />
               </svg>
             </div>
-            <span class="text-lg font-semibold text-text-primary">CAPFLUX</span>
+            <span class="text-lg font-bold tracking-tight text-text-primary">CAPFLUX</span>
+            <CmBadge
+              variant="brand"
+              label="Financial OS"
+              size="sm"
+              pill
+              class="hidden lg:inline-flex"
+            />
           </a>
         </div>
 
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center space-x-8">
           <CmButton
-            v-for="item in ['features', 'how-it-works', 'pricing', 'faq']"
-            :key="item"
-            @click="navigateTo(item)"
+            v-for="item in navItems"
+            :key="item.id"
+            @click="navigateTo(item.id)"
             variant="link"
           >
-            {{ item === 'how-it-works' ? 'How It Works' : item.charAt(0).toUpperCase() + item.slice(1) }}
+            {{ item.label }}
           </CmButton>
         </div>
 
@@ -137,13 +153,13 @@ onUnmounted(() => {
           class="md:hidden py-4 space-y-2 border-t border-divider"
         >
           <CmButton
-            v-for="item in ['features', 'how-it-works', 'pricing', 'faq']"
-            :key="item"
-            @click="navigateTo(item)"
+            v-for="item in navItems"
+            :key="item.id"
+            @click="navigateTo(item.id)"
             variant="link"
             class="w-full block text-left"
           >
-            {{ item === 'how-it-works' ? 'How It Works' : item.charAt(0).toUpperCase() + item.slice(1) }}
+            {{ item.label }}
           </CmButton>
           <CmButton
             @click="navigateToAuth('login')"

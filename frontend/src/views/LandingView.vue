@@ -22,61 +22,84 @@ const visibleSections = ref<Record<string, boolean>>({});
 
 // Feature icons (simplified inline SVG paths)
 const featureIcons = {
-  billing: 'M3 10h18M7 15h1m4 0h1m4 0h1M3 7h18c.552 0 1 .448 1 1s-.448 1-1 1H3c-.552 0-1-.448-1-1s0.448-1 1-1z',
   accounts: 'M3 10h18M7 15h1m4 0h1m4 0h1M3 7h18c.552 0 1 .448 1 1s-.448 1-1 1H3c-.552 0-1-.448-1-1s0.448-1 1-1z',
   reconciliation: 'M9 5l7 7-7 7',
   dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11v10a1 1 0 01-1 1h-3m-6 0h6',
   guardians: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   offline: 'M4 4v5h5M19 20v-5h-5M4 20L20 4',
-  reporting: 'M9 19v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5m12-12V7a2 2 0 012-2h2a2 2 0 012-2v10a2 2 0 01-2 2H9a2 2 0 01-2-2z',
   verification: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
   receipts: 'M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
-  cloud: 'M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z',
   tracking: 'M9 19v-5a2 2 0 00-2-2H5a2 2 0 00-2 2v5m12-12V7a2 2 0 012-2h2a2 2 0 012-2v10a2 2 0 01-2 2H9a2 2 0 01-2-2z',
-  notifications: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+  audit: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
 };
 
 // Trust features for hero badges
 const trustFeatures = [
-  { id: 'offline', title: 'No Setup Fee', description: 'Zero cost to deploy. Schools never pay for software.' },
-  { id: 'accounts', title: 'Dedicated Virtual Account for Every Student', description: 'Unique account numbers eliminate payment confusion.' },
-  { id: 'reconciliation', title: 'Automatic Payment Verification', description: 'Every payment is verified and matched automatically.' },
-  { id: 'verification', title: 'Built for Nigerian Private Schools', description: 'Designed specifically for Nigerian school financial workflows.' },
+  { id: 'offline', title: 'Zero Setup Fee' },
+  { id: 'accounts', title: 'Dedicated Virtual Account (DVA) per Student' },
+  { id: 'reconciliation', title: 'Automatic Payment Verification' },
+  { id: 'verification', title: 'Built for Nigerian Private Schools (Offline-First Ready)' },
 ];
 
-// Feature list for feature grid
-const features = [
-  { id: 'accounts', title: 'Dedicated Virtual Account for Every Student', description: 'Each student receives a unique account number. Parents pay using any Nigerian banking channel. Payments match themselves.' },
-  { id: 'verification', title: 'Automatic Payment Verification', description: 'No screenshots. No fake alerts. Every payment is verified through the banking system and matched to the correct student.' },
-  { id: 'dashboard', title: 'Live Collections Dashboard', description: 'Real-time visibility into who has paid, who hasn\'t, and exactly how much revenue your school has collected.' },
-  { id: 'tracking', title: 'Outstanding Balance Tracking', description: 'Know every outstanding balance instantly. No more manual spreadsheet tracking or uncertain revenue projections.' },
-  { id: 'receipts', title: 'Digital Receipts', description: 'Automatically generated receipts for every payment. Parents receive confirmations. Your records stay complete.' },
-  { id: 'notifications', title: 'Guardian Notifications', description: 'Parents receive automatic payment confirmations and balance reminders. Reduce follow-up calls and WhatsApp messages.' },
-  { id: 'cloud', title: 'Secure Cloud Records', description: 'Your financial data is encrypted and securely stored. Access your records from anywhere, anytime.' },
-  { id: 'offline', title: 'Offline-First Architecture', description: 'Operates without reliable internet. Changes queue locally and sync automatically when connectivity returns.' },
-  { id: 'billing', title: 'Zero Setup Cost', description: 'No setup fees. No onboarding fees. No annual licence fees. Deploy your school in minutes at no cost.' },
-  { id: 'guardians', title: 'Built for Nigerian Private Schools', description: 'Designed specifically for Nigerian school fee collection workflows. Not a generic ERP forced into education.' },
+// Target segments for hero trust bar
+const targetSegments = [
+  'Nursery & Primary Schools',
+  'Secondary Schools',
+  'Faith-Based Institutions',
+  'Private Academies',
 ];
 
-// Capabilities section data (replaces fabricated metrics)
+// Problem section comparison ("The Old Way" vs "The CAPFLUX Way")
+const oldWayPainPoints = [
+  'Payment screenshots scattered across WhatsApp groups',
+  'Fake alerts and unverified receipts treated as proof of payment',
+  'Hours spent auditing bank statements against ledger books',
+  'Misallocated payments and endless dispute resolution',
+  'Records that go missing when staff or systems change',
+];
+
+const capfluxWayPoints = [
+  'Every student pays into their own Dedicated Virtual Account',
+  'Payments verified automatically through the banking system',
+  'Balances, receipts and ledgers update in real time',
+  'Zero manual reconciliation — no screenshots, no guesswork',
+  'Immutable audit records that never go missing',
+];
+
+// Founder's Story Block (trust element)
+const founderStory = {
+  quote: 'My parents owned Fairwell Academy. I saw firsthand how manual reconciliation, unverified receipts, and missing records slowly eroded our financial stability... We built CAPFLUX to be the financial bedrock that protects private schools.',
+  name: 'Philips Douglas',
+  role: 'Founder & Lead Engineer',
+};
+
+// Pricing zero-cost anchors
+const zeroCostAnchors = [
+  { label: 'Setup' },
+  { label: 'Onboarding' },
+  { label: 'License fees' },
+];
+
+// Bento grid data (What You Get With CAPFLUX)
 const capabilities = [
-  { title: 'Dedicated Virtual Accounts', description: 'Every student gets their own payment account. No confusion. No misallocated payments.' },
-  { title: 'Automatic Payment Verification', description: 'Payments are verified through the banking system automatically. No manual checks required.' },
-  { title: 'Real-Time Collections Dashboard', description: 'See exactly who has paid and who hasn\'t. Live updates as payments come in.' },
-  { title: 'Digital Payment Receipts', description: 'Receipts are generated automatically for every transaction. Parents get instant confirmation.' },
-  { title: 'Outstanding Balance Tracking', description: 'Know every outstanding balance. Track payment history per student.' },
-  { title: 'Offline-First Operation', description: 'Continue collecting fees during network outages. Syncs automatically when connectivity returns.' },
+  { id: 'accounts', title: 'Dedicated Virtual Accounts', description: 'Every student gets their own payment account. No confusion. No misallocated payments.' },
+  { id: 'verification', title: 'Automatic Payment Verification', description: 'Payments are verified through the banking system automatically. No manual checks required.' },
+  { id: 'dashboard', title: 'Real-Time Executive Dashboard', description: 'See exactly who has paid and who hasn\'t. Live updates as payments come in.' },
+  { id: 'receipts', title: 'Digital Payment Receipts', description: 'Receipts are generated automatically for every transaction. Parents get instant confirmation.' },
+  { id: 'tracking', title: 'Automated Balance Tracking', description: 'Know every outstanding balance. Track payment history per student.' },
+  { id: 'offline', title: 'Offline-First Synchronisation', description: 'Continue collecting fees during network outages. Syncs automatically when connectivity returns.' },
+  { id: 'guardians', title: 'Guardian Multi-Child View', description: 'Parents with multiple children see every balance, receipt and payment in one consolidated view.' },
+  { id: 'audit', title: 'Immutable Audit Ledger', description: 'Every financial action is recorded permanently. Full traceability for audits, disputes and compliance.' },
 ];
 
-// FAQ items
+// FAQ items (security, DVA operation, parent banking app independence, offline usage, pricing, onboarding timeline)
 const faqItems = ref([
-  { question: 'Is our school\'s money safe?', answer: 'Yes. CAPFLUX handles only payment reconciliation and data. Funds are processed through secure licensed payment gateways and bank transfers. Schools maintain full ownership and control of their accounts. We never hold school funds.', open: false },
-  { question: 'What is a Dedicated Virtual Account?', answer: 'A Dedicated Virtual Account (DVA) is a unique bank account number assigned to each student. When a parent pays into that account, the payment is automatically identified and matched to the correct student. No payment reference numbers needed.', open: false },
-  { question: 'How do parents pay?', answer: 'Parents pay directly into their child\'s Dedicated Virtual Account using any Nigerian banking channel — bank transfer, USSD, mobile app, or POS. The payment is automatically verified and matched without any manual work from the school.', open: false },
-  { question: 'Who pays the Platform Levy?', answer: 'Parents pay a small transparent CAPFLUX Platform Levy. Schools never pay setup fees, installation fees, onboarding fees, or annual licence fees. The levy covers payment processing, Dedicated Virtual Account infrastructure, automatic verification, and platform maintenance.', open: false },
-  { question: 'How are payments verified?', answer: 'When a parent pays into a Dedicated Virtual Account, the payment gateway sends a webhook notification to CAPFLUX. The system automatically matches the payment to the correct student and updates the balance. No manual review required.', open: false },
-  { question: 'Does CAPFLUX work with poor internet?', answer: 'Yes. CAPFLUX is built with an offline-first architecture. The application continues working during network outages. All changes queue locally and synchronize automatically when connectivity returns. Only payment processing requires a live connection.', open: false },
-  { question: 'How long does implementation take?', answer: 'Most schools are set up within minutes. Register your school, import your students, and each student gets a Dedicated Virtual Account. No installation, no hardware, no lengthy onboarding processes. Deploy in minutes with zero setup cost.', open: false },
+  { question: 'Is our school\'s money and data safe?', answer: 'Yes. CAPFLUX handles only payment reconciliation and data. Funds are processed through secure licensed payment gateways and bank transfers. Schools maintain full ownership and control of their accounts — we never hold school funds. All records are encrypted, access-controlled and backed by an immutable audit ledger.', open: false },
+  { question: 'What is a Dedicated Virtual Account (DVA) and how does it work?', answer: 'A DVA is a unique bank account number assigned to each student. When a parent pays into that account, the banking system automatically identifies the payer and matches the payment to the correct student. No reference numbers, no screenshots, no manual matching required.', open: false },
+  { question: 'Do parents need a specific banking app to pay?', answer: 'No. Parents pay from any Nigerian banking channel they already use — bank transfer, USSD, mobile app, or POS. The DVA works with every bank, so there is nothing new for parents to install or learn.', open: false },
+  { question: 'Does CAPFLUX work when the internet goes down?', answer: 'Yes. CAPFLUX is offline-first: attendance, balances, receipts and records keep working during network outages. Everything queues locally and synchronizes automatically when connectivity returns. Only payment processing requires a live connection.', open: false },
+  { question: 'How much does CAPFLUX cost?', answer: 'Schools pay ₦0 — no setup fee, no onboarding fee, no licence fee. Parents pay a small, transparent platform levy attached to each fee invoice. That levy covers payment processing, DVA infrastructure, automatic verification and platform maintenance.', open: false },
+  { question: 'How long does onboarding take?', answer: 'Under 24 hours. Register your school workspace free of charge, import your students, and Dedicated Virtual Accounts are provisioned automatically. No installation, no hardware, no lengthy implementation projects.', open: false },
 ]);
 
 const toggleFaq = (index: number) => {
@@ -114,25 +137,18 @@ onMounted(() => {
       <div class="mx-auto max-w-4xl text-center">
         <CmBadge
           variant="primary"
-          label="Africa's School Fee Collection Platform"
+          label="Financial Operating System for African Private Schools"
           class="mb-8 mx-auto"
         />
-        
-        <h1 class="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-text-primary mb-6">
+
+        <h1 class="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight text-text-primary mb-6">
           School Fee Collection,<br>Finally Without the Stress.
         </h1>
-        
+
         <p class="text-xl md:text-2xl text-text-secondary max-w-3xl mx-auto mb-12">
-          Every student gets a dedicated bank account.<br>
-          Every payment is verified automatically.<br>
-          Every kobo is accounted for.
+          Every student receives a Dedicated Virtual Account. Payments are verified automatically through the banking system. Every kobo is accounted for in real time—even when your internet goes down.
         </p>
-        
-        <p class="text-base text-text-secondary max-w-2xl mx-auto mb-8">
-          CAPFLUX eliminates manual fee reconciliation, fake payment alerts and endless follow-ups with parents. 
-          Deploy your school in minutes with zero setup cost and let fee collection run itself.
-        </p>
-        
+
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
           <CmButton
             @click="navigateToAuth('signup')"
@@ -151,84 +167,109 @@ onMounted(() => {
             Book a Live Demo
           </CmButton>
         </div>
-        
-        <div class="mb-16">
-          <span class="text-text-secondary">Already have an account?</span>
-          <CmButton
-            @click="navigateToAuth('login')"
-            variant="link"
-          >
-            Log In
-          </CmButton>
+
+        <div class="mb-12">
+          <span class="text-text-secondary">Built by FHILZAB NIG LTD (RC-1656168)</span>
         </div>
 
-        <!-- Feature Highlights - Clean badges -->
+        <!-- Hero Bullet Points - Clean badges -->
         <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-16 border-t border-divider">
-          <div class="flex items-center gap-2 text-sm text-text-muted">
+          <div
+            v-for="feature in trustFeatures"
+            :key="feature.id"
+            class="flex items-center gap-2 text-sm text-text-muted"
+          >
             <div class="h-2 w-2 rounded-full bg-success"></div>
-            <span class="font-mono">No Setup Fee</span>
-          </div>
-          <div class="flex items-center gap-2 text-sm text-text-muted">
-            <div class="h-2 w-2 rounded-full bg-success"></div>
-            <span class="font-mono">Dedicated Virtual Account for Every Student</span>
-          </div>
-          <div class="flex items-center gap-2 text-sm text-text-muted">
-            <div class="h-2 w-2 rounded-full bg-success"></div>
-            <span class="font-mono">Automatic Payment Verification</span>
-          </div>
-          <div class="flex items-center gap-2 text-sm text-text-muted">
-            <div class="h-2 w-2 rounded-full bg-success"></div>
-            <span class="font-mono">Built for Nigerian Private Schools</span>
+            <span class="font-mono">{{ feature.title }}</span>
           </div>
         </div>
-        
-        <!-- Small caption -->
-        <p class="mt-8 text-xs text-text-muted">
-          A Product by FHILZAB NIG LTD
-        </p>
       </div>
     </section>
 
-    <!-- SCHOOL SPOTLIGHT SECTION -->
-    <section id="school-spotlight" class="py-16 px-6 border-y border-divider bg-surface/50">
+    <!-- TARGET SEGMENT TRUST BAR -->
+    <section id="school-spotlight" class="py-16 px-6 border-y border-divider bg-sidebar/50">
       <div class="mx-auto max-w-6xl">
         <p class="text-center text-sm uppercase tracking-wider text-text-muted mb-8">Built for Nigerian private schools</p>
-        <div class="flex flex-wrap items-center justify-center gap-12">
-          <span class="text-2xl font-bold text-text-secondary">Nursery & Primary Schools</span>
-          <span class="text-2xl font-bold text-text-secondary">Secondary Schools</span>
-          <span class="text-2xl font-bold text-text-secondary">Faith-Based Schools</span>
-          <span class="text-2xl font-bold text-text-secondary">Private Academies</span>
+        <div class="flex flex-wrap items-center justify-center gap-x-12 gap-y-4">
+          <span
+            v-for="segment in targetSegments"
+            :key="segment"
+            class="text-2xl font-bold text-text-secondary"
+          >{{ segment }}</span>
         </div>
       </div>
     </section>
 
-    <!-- PROBLEM SECTION -->
+    <!-- PROBLEM & AGITATION SECTION -->
     <section id="problem" class="py-32 px-6">
-      <div class="mx-auto max-w-6xl grid md:grid-cols-2 gap-16 items-center">
-        <div>
+      <div class="mx-auto max-w-6xl">
+        <div class="text-center mb-16">
           <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
-            Fee collection should not feel like a second job.
+            Fee collection shouldn't feel like a second job.
           </h2>
-          <p class="text-lg text-text-secondary mb-6">
-            Fake payment alerts. Manual reconciliation. Spreadsheet tracking. Cash payments. Uncertainty. Delayed cash flow.
-          </p>
-          <p class="text-text-secondary">
-            Schools waste hundreds of hours monthly chasing payments, verifying transactions against bank statements, and updating ledger books. Every fake alert creates a dispute. Every unmatched payment requires hours of investigation. This is time that should be spent on education, not accounting.
+          <p class="text-lg text-text-secondary max-w-3xl mx-auto">
+            Every term, school owners and bursars spend hundreds of hours chasing payments, auditing bank statements, and resolving disputes instead of focusing on education.
           </p>
         </div>
-        
-        <div class="relative h-80">
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div class="grid grid-cols-3 gap-4">
-              <div
-                v-for="i in 6"
-                :key="i"
-                class="h-20 w-20 rounded-lg border-2 border-border bg-card animate-pulse"
-                :style="{ animationDelay: `${i * 100}ms` }"
-              ></div>
-            </div>
+
+        <div class="grid md:grid-cols-2 gap-8 items-stretch">
+          <!-- The Old Way -->
+          <div class="premium-card bg-card p-8">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-text-muted mb-6">The Old Way</h3>
+            <ul class="space-y-4">
+              <li
+                v-for="point in oldWayPainPoints"
+                :key="point"
+                class="flex items-start gap-3"
+              >
+                <svg class="h-5 w-5 text-danger flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span class="text-text-secondary">{{ point }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- The CAPFLUX Way -->
+          <div class="premium-card bg-card p-8 border-brand/30">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-brand mb-6">The CAPFLUX Way</h3>
+            <ul class="space-y-4">
+              <li
+                v-for="point in capfluxWayPoints"
+                :key="point"
+                class="flex items-start gap-3"
+              >
+                <svg class="h-5 w-5 text-success flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-text-primary">{{ point }}</span>
+              </li>
+            </ul>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- FOUNDER'S STORY BLOCK -->
+    <section id="founder-story" class="py-16 px-6">
+      <div class="mx-auto max-w-4xl">
+        <figure class="bg-zinc-950 rounded-card p-10 md:p-14 shadow-elevated">
+          <svg class="h-10 w-10 text-emerald-500 mb-6" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M9.983 3v7.391c0 5.704-3.731 9.57-8.983 10.609l-.995-2.151c2.432-.917 3.995-3.638 3.995-5.849h-4v-10h9.983zm14.017 0v7.391c0 5.704-3.748 9.571-9 10.609l-.996-2.151c2.433-.917 3.996-3.638 3.996-5.849h-3.983v-10h9.983z" />
+          </svg>
+          <blockquote class="text-xl md:text-2xl font-semibold leading-relaxed text-white mb-8">
+            "{{ founderStory.quote }}"
+          </blockquote>
+          <figcaption class="flex items-center gap-4">
+            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/30">
+              <span class="text-lg font-bold text-emerald-500">PD</span>
+            </div>
+            <div>
+              <p class="font-bold text-white">{{ founderStory.name }}</p>
+              <p class="text-sm text-zinc-400">{{ founderStory.role }}</p>
+            </div>
+          </figcaption>
+        </figure>
       </div>
     </section>
 
@@ -265,7 +306,7 @@ onMounted(() => {
       <div class="mx-auto max-w-6xl">
         <div class="text-center mb-16">
           <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
-            How CAPFLUX works.
+            Get started in three simple steps.
           </h2>
           <p class="text-lg text-text-secondary max-w-3xl mx-auto">
             Three simple steps. From school registration to automatic fee collection. No complexity. No hidden costs.
@@ -277,7 +318,7 @@ onMounted(() => {
             <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-4">
               <span class="text-2xl font-bold text-brand">1</span>
             </div>
-            <h3 class="text-xl font-semibold text-text-primary mb-3">Set Up Your School — Free</h3>
+            <h3 class="text-xl font-semibold text-text-primary mb-3">Configure Your School Workspace (Free)</h3>
             <p class="text-text-secondary">
               Configure your school. Register your students. No setup costs. No installation. No lengthy onboarding.
             </p>
@@ -286,7 +327,7 @@ onMounted(() => {
             <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-4">
               <span class="text-2xl font-bold text-brand">2</span>
             </div>
-            <h3 class="text-xl font-semibold text-text-primary mb-3">Every Student Gets Their Own Payment Account</h3>
+            <h3 class="text-xl font-semibold text-text-primary mb-3">Auto-Provision Dedicated Virtual Accounts</h3>
             <p class="text-text-secondary">
               Each student receives a Dedicated Virtual Account. Parents pay using any Nigerian banking channel. Payments are automatically matched.
             </p>
@@ -295,7 +336,7 @@ onMounted(() => {
             <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-4">
               <span class="text-2xl font-bold text-brand">3</span>
             </div>
-            <h3 class="text-xl font-semibold text-text-primary mb-3">Watch Payments Update Automatically</h3>
+            <h3 class="text-xl font-semibold text-text-primary mb-3">Watch Payments Reconcile in Real Time</h3>
             <p class="text-text-secondary">
               Balances update instantly. Receipts are generated. Parents receive confirmations. No reconciliation. No disputes.
             </p>
@@ -336,31 +377,6 @@ onMounted(() => {
       </div>
     </section>
 
-    <!-- FEATURE GRID SECTION -->
-    <section id="features" class="py-32 px-6">
-      <div class="mx-auto max-w-6xl">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
-            Everything you need to collect school fees.
-          </h2>
-          <p class="text-lg text-text-secondary max-w-3xl mx-auto">
-            CAPFLUX is purpose-built for school fee collection. Every feature earns its place by making fee collection simpler, faster, or more reliable.
-          </p>
-        </div>
-        
-        <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <FeatureCard
-            v-for="(feature, index) in features"
-            :key="feature.id"
-            :icon="featureIcons[feature.id as keyof typeof featureIcons]"
-            :title="feature.title"
-            :description="feature.description"
-            :delay="index * 100"
-          />
-        </div>
-      </div>
-    </section>
-
     <!-- OFFLINE-FIRST SECTION -->
     <section id="offline-first" class="py-32 px-6 bg-surface/30">
       <div class="mx-auto max-w-6xl grid md:grid-cols-2 gap-16 items-center">
@@ -369,11 +385,11 @@ onMounted(() => {
             Works when infrastructure doesn't.
           </h2>
           <p class="text-lg text-text-secondary mb-6">
-            Internet disconnects? The application continues. Changes queue locally. When connectivity returns, synchronization happens automatically.
+            Internet disconnects? Your school operations don't stop.
           </p>
           <p class="text-sm text-text-muted font-mono">
             Only payment processing requires a live connection.<br>
-            Everything else works offline.
+            Everything else operates continuously offline.
           </p>
         </div>
         
@@ -381,33 +397,27 @@ onMounted(() => {
       </div>
     </section>
 
-    <!-- CAPABILITIES SECTION (replaces fabricated metrics) -->
-    <section id="capabilities" class="py-32 px-6">
+    <!-- BENTO GRID SECTION (What You Get With CAPFLUX) -->
+    <section id="features" class="py-32 px-6">
       <div class="mx-auto max-w-6xl">
         <div class="text-center mb-16">
           <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
             What you get with CAPFLUX.
           </h2>
           <p class="text-lg text-text-secondary max-w-3xl mx-auto">
-            No fabricated statistics. No inflated numbers. Just real capabilities that work for Nigerian private schools.
+            No fabricated metrics. No vanity features. Just raw financial infrastructure purpose-built for Nigerian schools.
           </p>
         </div>
-        
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <FeatureCard
             v-for="(capability, index) in capabilities"
-            :key="index"
-            class="premium-card bg-card p-6 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
-            :style="{ animationDelay: `${index * 100}ms` }"
-          >
-            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 mb-4">
-              <svg class="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 class="text-lg font-semibold text-text-primary mb-2">{{ capability.title }}</h3>
-            <p class="text-sm text-text-secondary">{{ capability.description }}</p>
-          </div>
+            :key="capability.id"
+            :icon="featureIcons[capability.id as keyof typeof featureIcons]"
+            :title="capability.title"
+            :description="capability.description"
+            :delay="index * 100"
+          />
         </div>
       </div>
     </section>
@@ -419,70 +429,30 @@ onMounted(() => {
           Start today without paying for software.
         </h2>
         
-        <div class="max-w-2xl mx-auto text-left space-y-6 mb-12">
-          <p class="text-lg text-text-secondary">
-            Schools never pay:
-          </p>
-          <ul class="space-y-3">
-            <li class="flex items-start gap-3">
-              <svg class="h-6 w-6 text-success flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-text-secondary">Setup fees</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="h-6 w-6 text-success flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-text-secondary">Onboarding fees</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="h-6 w-6 text-success flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-text-secondary">Installation fees</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="h-6 w-6 text-success flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-text-secondary">Annual licence fees</span>
-            </li>
-          </ul>
-          
-          <p class="text-lg text-text-secondary pt-4">
-            Instead, parents pay a small transparent CAPFLUX Platform Levy. The levy covers:
-          </p>
-          <ul class="space-y-3">
-            <li class="flex items-start gap-3">
-              <svg class="h-6 w-6 text-brand flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-text-secondary">Payment processing</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="h-6 w-6 text-brand flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-text-secondary">Dedicated Virtual Accounts</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="h-6 w-6 text-brand flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-text-secondary">Automatic payment verification</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <svg class="h-6 w-6 text-brand flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span class="text-text-secondary">Platform maintenance and continuous improvements</span>
-            </li>
-          </ul>
+        <div class="max-w-3xl mx-auto text-left space-y-10 mb-12">
+          <div>
+            <p class="text-lg font-semibold text-text-primary mb-6">Schools pay:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div
+                v-for="zero in zeroCostAnchors"
+                :key="zero.label"
+                class="premium-card bg-card p-6 text-center"
+              >
+                <p class="text-4xl font-extrabold tracking-tight text-brand mb-1">₦0</p>
+                <p class="text-sm font-medium text-text-secondary">{{ zero.label }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center">
+            <p class="text-lg text-text-secondary">
+              Parents pay a small, transparent platform levy attached to the fee invoice — covering payment processing, Dedicated Virtual Account infrastructure, automatic verification and platform maintenance.
+            </p>
+          </div>
         </div>
-        
-        <p class="text-2xl font-bold text-text-primary mt-8">
-          Simple. Predictable. Risk-free.
+
+        <p class="text-2xl md:text-3xl font-extrabold tracking-tight text-text-primary mt-8">
+          Simple. Predictable. Risk-Free.
         </p>
       </div>
     </section>
@@ -536,6 +506,8 @@ onMounted(() => {
           >
             <button
               @click="toggleFaq(index)"
+              :aria-expanded="item.open"
+              :aria-controls="`faq-answer-${index}`"
               class="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-surface transition-colors focus-ring"
             >
               <span class="font-semibold text-text-primary">{{ item.question }}</span>
@@ -558,7 +530,11 @@ onMounted(() => {
               leave-from-class="opacity-100 translate-y-0"
               leave-to-class="opacity-0 -translate-y-1"
             >
-              <div v-show="item.open" class="px-6 pb-4">
+              <div
+                v-show="item.open"
+                :id="`faq-answer-${index}`"
+                class="px-6 pb-4"
+              >
                 <p class="text-text-secondary">{{ item.answer }}</p>
               </div>
             </transition>
@@ -569,35 +545,34 @@ onMounted(() => {
 
     <!-- FINAL CTA SECTION -->
     <section id="demo" class="py-32 px-6">
-      <div class="mx-auto max-w-4xl text-center">
-        <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
-          Stop Chasing School Fees.<br>
-          Start Managing Them with Confidence.
-        </h2>
-        
-        <p class="text-lg text-text-secondary max-w-2xl mx-auto mb-8">
-          Join Nigerian private schools simplifying fee collection with CAPFLUX.
-          No setup fees. No fake alerts. No manual reconciliation.
-          Just faster collections, predictable cash flow and accurate financial records.
-        </p>
-        
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
-          <CmButton
-            @click="navigateToAuth('signup')"
-            variant="primary"
-            size="lg"
-            class="px-8 shadow-lg hover:shadow-xl transition-all duration-300"
-          >
-            Get Started Free Today
-          </CmButton>
-          <CmButton
-            variant="secondary"
-            size="lg"
-            class="px-8"
-            @click="navigateToAuth('signup')"
-          >
-            Book a Live Demo
-          </CmButton>
+      <div class="mx-auto max-w-6xl">
+        <div class="bg-zinc-950 rounded-card px-8 py-16 md:p-20 text-center shadow-elevated">
+          <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-6">
+            Stop Chasing School Fees. Start Managing Them with Confidence.
+          </h2>
+
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+            <CmButton
+              @click="navigateToAuth('signup')"
+              variant="primary"
+              size="lg"
+              class="px-8 shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              Get Started Free Today
+            </CmButton>
+            <CmButton
+              variant="secondary"
+              size="lg"
+              class="px-8"
+              @click="navigateToAuth('signup')"
+            >
+              Book a Live Demo
+            </CmButton>
+          </div>
+
+          <p class="text-sm md:text-base text-zinc-400 mt-10">
+            CAPFLUX by FHILZAB NIG LTD — The Financial Operating System for Private Schools in Africa.
+          </p>
         </div>
       </div>
     </section>
