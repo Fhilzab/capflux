@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, RouteRecordRaw, RouteLocationNormalized
 import { useAuthStore } from '../stores/authStore';
 import { useSchoolStore } from '../stores/schoolStore';
 import { authorizeRoute } from '../shared/rbac/RouteGuard';
+import { runtimeEnvironment } from '../shared/environment/runtimeEnvironment';
 import { PERMISSIONS, type PermissionCode } from '../shared/rbac/permissions';
 import type { SystemRole } from '../shared/rbac/types';
 import AuthView from '../features/auth/AuthView.vue';
@@ -147,6 +148,17 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/SyncView.vue'),
     meta: { requiresAuth: true },
   },
+  // Sandbox execution mode only — the control panel itself is mode-guarded.
+  ...(runtimeEnvironment.isSandbox
+    ? [
+        {
+          path: '/sandbox',
+          name: 'SandboxControl',
+          component: () => import('../views/SandboxControlView.vue'),
+          meta: { requiresAuth: true },
+        },
+      ]
+    : []),
   {
     path: '/school',
     name: 'SchoolProfile',

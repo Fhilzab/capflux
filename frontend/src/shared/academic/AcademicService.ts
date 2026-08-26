@@ -2,6 +2,7 @@ import { SupabaseAcademicProvider } from './SupabaseAcademicProvider';
 import { AcademicProvider } from './AcademicProvider';
 import { AcademicValidator } from './AcademicValidator';
 import type { AcademicSession, AcademicTerm, AcademicResult } from './types';
+import { createAcademicProvider } from '../../sandbox/providers/providerFactories';
 
 export class AcademicService {
   private provider: AcademicProvider;
@@ -157,4 +158,4 @@ export class AcademicService {
   }
 }
 
-export const academicService = new AcademicService();
+export const academicService = new AcademicService(createAcademicProvider());

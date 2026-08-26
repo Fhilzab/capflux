@@ -34,6 +34,15 @@ class FakeCollection {
   async last(): Promise<Row | undefined> {
     return this.rows[this.rows.length - 1];
   }
+
+  async count(): Promise<number> {
+    return this.rows.length;
+  }
+
+  async modify(changes: Row): Promise<number> {
+    for (const row of this.rows) Object.assign(row, changes);
+    return this.rows.length;
+  }
 }
 
 export class FakeTable {
@@ -50,6 +59,11 @@ export class FakeTable {
     return row.id;
   }
 
+  /** Dexie's add() — tests treat it as an upsert (key-collision strictness is not asserted anywhere). */
+  async add(row: Row): Promise<string> {
+    return this.put(row);
+  }
+
   bulkPut(rows: Row[]): Promise<unknown> {
     for (const row of rows) void this.put(row);
     return Promise.resolve();
@@ -59,7 +73,9 @@ export class FakeTable {
     this.rows.delete(id);
   }
 
-  async clear(): Promise<void> {}
+  async clear(): Promise<void> {
+    this.rows.clear();
+  }
 
   async update(id: string, changes: Row): Promise<number> {
     const row = this.rows.get(id);

@@ -13,16 +13,18 @@ import { NotificationProvider } from './NotificationProvider';
 import type { Notification, NotificationResult, NotificationChannel, DeliveryAttempt } from './types';
 import { createNotificationError, mapNotificationError } from './NotificationError';
 import { generateUuidV7 } from '../core/IdGenerator';
+import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment';
 
 /**
  * Dexie database for the notification module.
  * Separate from localDb.ts to avoid type conflicts.
+ * Sandbox mode uses its own database name for full isolation.
  */
 class NotificationDB extends Dexie {
   notifications!: Table<Notification, string>;
 
   constructor() {
-    super('capflux_notifications_db');
+    super(runtimeEnvironment.isSandbox ? 'capflux_sandbox_notifications_db' : 'capflux_notifications_db');
     this.version(1).stores({
       notifications: 'id, organizationId, schoolId, studentId, guardianId, dedupeKey, status, createdAt',
     });

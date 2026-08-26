@@ -15,12 +15,22 @@ import contextRoutes from './routes/context.js';
 import financialAdminRoutes from './routes/financial-admin.js';
 import requireAuthSupabase from './middleware/requireAuthSupabase.js';
 import ProviderStatusService from './services/ProviderStatusService.js';
+import { validateRuntimeConfiguration } from './services/RuntimeConfiguration.js';
 import providerStatusRoutes from './routes/provider-status.js';
 import { errorMessage, errorCode } from './types/http.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const isProduction = process.env.NODE_ENV === 'production';
+
+// Validate CAPFLUX_MODE / CAPFLUX_DATABASE_ENV / provider composition at
+// startup. Fails closed: inconsistent configurations never serve traffic.
+try {
+  validateRuntimeConfiguration();
+} catch (err) {
+  console.error('[startup] Runtime configuration validation failed:', errorMessage(err));
+  process.exit(1);
+}
 
 // Validate PAYMENTS_PROVIDER_MODE at startup.
 try {

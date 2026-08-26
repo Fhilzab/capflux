@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Interlocked Diamond Logo">
+  <title>o</title>
+    <desc>Editable SVG icon: blue and orange interlocking rounded ribbons forming a 45-degree diamond, with a central golden orange bar.</desc>
+
+      <!-- ===== Defs: gradients & reusable styles =====
+             Edit the colors here to rebrand — every shape updates automatically.
+               -->
+                 <defs>
+                     <!-- Blue ribbon gradient: deep sapphire → vibrant sky blue -->
+                         <linearGradient id="blueGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                               <stop offset="0%"   stop-color="#0B2A8A"/>
+                                     <stop offset="55%"  stop-color="#1263F2"/>
+                                           <stop offset="100%" stop-color="#2FA8FF"/>
+                                               </linearGradient>
+
+                                                   <!-- Orange ribbon gradient: bright yellow → deep reddish-orange -->
+                                                       <linearGradient id="orangeGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                                                             <stop offset="0%"   stop-color="#FFC528"/>
+                                                                   <stop offset="55%"  stop-color="#FF7A1A"/>
+                                                                         <stop offset="100%" stop-color="#E84A12"/>
+                                                                             </linearGradient>
+
+                                                                                 <!-- Central accent bar gradient -->
+                                                                                     <linearGradient id="accentGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                                                                                           <stop offset="0%"   stop-color="#FFB620"/>
+                                                                                                 <stop offset="100%" stop-color="#FF6A1A"/>
+                                                                                                     </linearGradient>
+
+                                                                                                         <!-- Subtle highlight (optional polish on top edges) -->
+                                                                                                             <linearGradient id="glossHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                                                                                   <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.35"/>
+                                                                                                                         <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+                                                                                                                             </linearGradient>
+                                                                                                                               </defs>
+
+                                                                                                                                 <!-- Background (pure black). Remove this <rect> for a transparent icon. -->
+                                                                                                                                   <rect id="background" x="0" y="0" width="512" height="512" fill="#000000"/>
+
+                                                                                                                                     <!-- =============================================================
+                                                                                                                                            Composition centered on a 512×512 canvas.
+                                                                                                                                                   The diamond is ~ 360px wide, rotated 45°, made of rounded ribbons.
+                                                                                                                                                          Outer "ring" radius ≈ 180px, inner ring radius ≈ 95px, stroke ≈ 38px.
+                                                                                                                                                                 ============================================================= -->
+
+                                                                                                                                                                   <!-- BLUE RIBBON (bottom-left) -->
+                                                                                                                                                                     <g id="ribbon-blue" transform="rotate(-45 256 256)">
+                                                                                                                                                                         <rect x="76"  y="236" width="360" height="40"
+                                                                                                                                                                                   rx="20" ry="20"
+                                                                                                                                                                                             fill="url(#blueGradient)"
+                                                                                                                                                                                                       stroke="#000000" stroke-width="14"/>
+                                                                                                                                                                                                           <rect x="236" y="76"  width="40"  height="360"
+                                                                                                                                                                                                                     rx="20" ry="20"
+                                                                                                                                                                                                                               fill="url(#blueGradient)"
+                                                                                                                                                                                                                                         stroke="#000000" stroke-width="14"/>
+                                                                                                                                                                                                                                           </g>
+
+                                                                                                                                                                                                                                             <!-- ORANGE RIBBON (top-right, interlocking) -->
+                                                                                                                                                                                                                                               <g id="ribbon-orange" transform="rotate(45 256 256)">
+                                                                                                                                                                                                                                                   <rect x="76"  y="236" width="360" height="40"
+                                                                                                                                                                                                                                                             rx="20" ry="20"
+                                                                                                                                                                                                                                                                       fill="url(#orangeGradient)"
+                                                                                                                                                                                                                                                                                 stroke="#000000" stroke-width="14"/>
+                                                                                                                                                                                                                                                                                     <rect x="236" y="76"  width="40"  height="360"
+                                                                                                                                                                                                                                                                                               rx="20" ry="20"
+                                                                                                                                                                                                                                                                                                         fill="url(#orangeGradient)"
+                                                                                                                                                                                                                                                                                                                   stroke="#000000" stroke-width="14"/>
+                                                                                                                                                                                                                                                                                                                     </g>
+
+                                                                                                                                                                                                                                                                                                                       <!-- CENTRAL ACCENT BAR (golden-orange diagonal pill) -->
+                                                                                                                                                                                                                                                                                                                         <g id="accent-bar" transform="rotate(-45 256 256)">
+                                                                                                                                                                                                                                                                                                                             <rect x="190" y="236" width="140" height="40"
+                                                                                                                                                                                                                                                                                                                                       rx="20" ry="20"
+                                                                                                                                                                                                                                                                                                                                                 fill="url(#accentGradient)"
+                                                                                                                                                                                                                                                                                                                                                           stroke="#000000" stroke-width="6"/>
+                                                                                                                                                                                                                                                                                                                                                             </g>
+                                                                                                                                                                                                                                                                                                                                                             </svg>

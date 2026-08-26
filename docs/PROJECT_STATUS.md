@@ -24,7 +24,12 @@
 
 ```
 Current active work:
-  Phase 9 — Onboarding Analytics & Error Recovery (recommended next milestone after 8.3)
+  Sandbox / Demo Environment — full-system simulation mode ✅ COMPLETE
+  (docs/sandbox/SANDBOX_MODE.md — isolated execution mode: deterministic demo
+  dataset, in-browser API/payment/KYC simulators, offline-first sync, reset)
+
+Next recommended milestone:
+  Phase 9 — Onboarding Analytics & Error Recovery
 
 Previous completed work:
   Phase 8.3 — Setup Center Recovery, Verification UX & Offline-Resilient UI Hardening ✅ COMPLETE

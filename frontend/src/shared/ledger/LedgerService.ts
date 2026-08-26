@@ -1,8 +1,9 @@
 import { LedgerEngine, type CreateEntryInput } from './LedgerEngine';
 import { SupabaseLedgerProvider } from './SupabaseLedgerProvider';
 import type { LedgerEntry, LedgerResult } from './types';
+import { createLedgerProvider } from '../../sandbox/providers/providerFactories';
 
-const provider = new SupabaseLedgerProvider();
+const provider = createLedgerProvider();
 
 export class LedgerService {
   /**

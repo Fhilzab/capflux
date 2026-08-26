@@ -11,6 +11,7 @@
  */
 
 import type { ParseResult } from '../types';
+import { runtimeEnvironment } from '../../../shared/environment/runtimeEnvironment';
 
 export interface GoogleSheetsConfig {
   configured: boolean;
@@ -22,6 +23,54 @@ export interface GoogleSheetInfo {
   spreadsheetId: string;
   title: string;
   sheetNames: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Sandbox execution mode: simulated Google Sheets source.
+//
+// No OAuth consent, no Google API call. The wizard flows through the exact
+// same ParseResult shape, mapping, validation and commit pipeline as a real
+// connected sheet — only the transport is deterministic demo data.
+// ---------------------------------------------------------------------------
+
+const SANDBOX_SHEET_ID = 'demo-student-import-sheet';
+const SANDBOX_SHEET_INFO: GoogleSheetInfo = {
+  spreadsheetId: SANDBOX_SHEET_ID,
+  title: 'Demo Student Import Sheet',
+  sheetNames: ['Students'],
+};
+
+const SANDBOX_HEADERS = [
+  'Admission Number', 'First Name', 'Last Name', 'Gender',
+  'Date of Birth', 'Class', 'Guardian Name', 'Guardian Phone',
+];
+
+function buildSandboxRows(): Record<string, string>[] {
+  const firstNames = ['Ada', 'Chidi', 'Emeka', 'Fatima', 'Gozie', 'Halima', 'Ifeanyi', 'Jide'];
+  const lastNames = ['Nwosu', 'Okafor', 'Bello', 'Adeyemi', 'Eze', 'Sanni'];
+  const classes = ['Primary 1', 'Primary 2', 'JSS 1', 'JSS 2', 'SS 1'];
+  const rows: Record<string, string>[] = [];
+  for (let i = 0; i < 12; i++) {
+    rows.push({
+      'Admission Number': `CAP-SHEET-${String(i + 1).padStart(3, '0')}`,
+      'First Name': firstNames[i % firstNames.length]!,
+      'Last Name': lastNames[i % lastNames.length]!,
+      Gender: i % 2 === 0 ? 'Male' : 'Female',
+      'Date of Birth': `201${i % 5}-0${(i % 9) + 1}-1${i % 3}`,
+      Class: classes[i % classes.length]!,
+      'Guardian Name': `${lastNames[(i + 1) % lastNames.length]} Parent`,
+      'Guardian Phone': `+2348099${String(100000 + i).slice(-6)}`,
+    });
+  }
+  return rows;
+}
+
+function sandboxParseResult(sheetName?: string): ParseResult {
+  return {
+    fileName: sheetName ? `Google Sheet: ${sheetName} (demo)` : 'Google Sheet: Demo Student Import Sheet',
+    headers: SANDBOX_HEADERS,
+    rows: buildSandboxRows(),
+  };
 }
 
 /** Whether the Google Sheets integration is configured. */
@@ -120,6 +169,10 @@ function initTokenClient(clientId: string): void {
  * Prompt the user for Google OAuth consent and obtain an access token.
  */
 export async function authenticate(): Promise<{ token: string | null; error: string | null }> {
+  // Sandbox: no OAuth — report a simulated connected session.
+  if (runtimeEnvironment.isSandbox) {
+    return { token: 'sandbox-simulated-token', error: null };
+  }
   const config = getGoogleSheetsConfig();
   if (!config.configured || !config.clientId) {
     return { token: null, error: config.error };
@@ -157,6 +210,9 @@ export async function authenticate(): Promise<{ token: string | null; error: str
  * Fetch spreadsheet metadata to list available sheets.
  */
 export async function getSheetInfo(spreadsheetId: string): Promise<{ info: GoogleSheetInfo | null; error: string | null }> {
+  if (runtimeEnvironment.isSandbox) {
+    return { info: { ...SANDBOX_SHEET_INFO, spreadsheetId }, error: null };
+  }
   const config = getGoogleSheetsConfig();
   if (!config.configured) {
     return { info: null, error: config.error };
@@ -208,6 +264,9 @@ export async function fetchSheetData(
   spreadsheetId: string,
   sheetName?: string,
 ): Promise<{ result: ParseResult | null; error: string | null }> {
+  if (runtimeEnvironment.isSandbox) {
+    return { result: sandboxParseResult(sheetName), error: null };
+  }
   const config = getGoogleSheetsConfig();
   if (!config.configured) {
     return { result: null, error: config.error };

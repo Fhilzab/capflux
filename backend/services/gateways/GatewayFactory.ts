@@ -8,10 +8,17 @@
 import { MonnifyGateway } from './MonnifyGateway.js';
 import { PaystackGateway } from './PaystackGateway.js';
 import { TestGateway } from './TestGateway.js';
+import { SandboxGateway } from './SandboxGateway.js';
 import { errorMessage } from '../../types/http.js';
+import {
+  getCapfluxMode,
+  SandboxConfigurationError,
+  ProductionConfigurationError,
+  LIVE_PAYMENT_PROVIDERS,
+} from '../RuntimeConfiguration.js';
 
 /** Any adapter resolvable through the factory (structural union). */
-export type PaymentGateway = MonnifyGateway | PaystackGateway | TestGateway;
+export type PaymentGateway = MonnifyGateway | PaystackGateway | TestGateway | SandboxGateway;
 
 // Provider registry
 const _providers = new Map<string, PaymentGateway>(); // lazy-init — call get() to resolve.
@@ -19,9 +26,36 @@ const _registry = new Map<string, { factory: () => PaymentGateway }>([
   ['monnify', { factory: () => new MonnifyGateway() }],
   ['paystack', { factory: () => new PaystackGateway() }],
   ['test', { factory: () => { if (process.env.NODE_ENV === 'production') throw new Error('TestGateway is not available in production.'); return new TestGateway(); } }],
+  ['sandbox', { factory: () => { if (process.env.NODE_ENV === 'production') throw new Error('SandboxGateway is not available in production.'); return new SandboxGateway(); } }],
 ]);
 
+/**
+ * Mode isolation guard — THROWS (loudly, no silent fallback):
+ *  - a sandbox process can never initialize a live payment provider;
+ *  - a deployed production process can never initialize test/sandbox adapters.
+ * Called BEFORE the lenient try/catch so configuration errors are never
+ * swallowed into `null`.
+ */
+function assertProviderAllowedForMode(name: string): void {
+  const mode = getCapfluxMode();
+  if (
+    mode === 'sandbox' &&
+    (LIVE_PAYMENT_PROVIDERS as readonly string[]).includes(name.toLowerCase())
+  ) {
+    throw new SandboxConfigurationError(
+      `Attempt to initialize live payment provider "${name}" while CAPFLUX_MODE=sandbox. ` +
+        'Sandbox payments must terminate at the deterministic SandboxGateway.',
+    );
+  }
+  if (process.env.NODE_ENV === 'production' && (name === 'test' || name === 'sandbox')) {
+    throw new ProductionConfigurationError(
+      `Attempt to initialize the "${name}" adapter in a deployed production process.`,
+    );
+  }
+}
+
 function _getOrInit(name: string): PaymentGateway | null {
+  assertProviderAllowedForMode(name);
   if (!_providers.has(name)) {
     const entry = _registry.get(name);
     if (!entry) return null;

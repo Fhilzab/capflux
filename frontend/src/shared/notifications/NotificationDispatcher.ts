@@ -24,8 +24,15 @@ export class NotificationDispatcher {
   private smsProvider: SMSProvider;
   private whatsappProvider: WhatsAppProvider;
   private pushProvider: PushProvider;
+  /**
+   * Optional per-channel provider overrides (used by the sandbox execution
+   * mode to deliver notifications into the demo inbox instead of failing
+   * unconfigured channel stubs). Production behaviour is unchanged.
+   */
+  private overrides: Partial<Record<NotificationChannel, NotificationProvider>>;
 
-  constructor() {
+  constructor(overrides: Partial<Record<NotificationChannel, NotificationProvider>> = {}) {
+    this.overrides = overrides;
     this.inAppProvider = new InAppProvider();
     this.emailProvider = new EmailProvider();
     this.smsProvider = new SMSProvider();
@@ -119,6 +126,8 @@ export class NotificationDispatcher {
    * Get the provider for a specific channel.
    */
   private getProvider(channel: NotificationChannel): NotificationProvider | null {
+    const override = this.overrides[channel];
+    if (override) return override;
     switch (channel) {
       case 'IN_APP':
         return this.inAppProvider;

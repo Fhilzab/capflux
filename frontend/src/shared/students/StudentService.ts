@@ -6,6 +6,7 @@ import { StudentRepository } from '../repositories/StudentRepository';
 import type { Student, Guardian, StudentResult } from './types';
 import type { SchoolAdmissionSettings } from '../school/types';
 import { db as offlineDb } from '../../offline/localDb';
+import { createStudentProvider } from '../../sandbox/providers/providerFactories';
 
 export class StudentService {
   private provider: StudentProvider;
@@ -309,4 +310,4 @@ export class StudentService {
   }
 }
 
-export const studentService = new StudentService();
+export const studentService = new StudentService(createStudentProvider());

@@ -105,7 +105,12 @@ const iconComponents: Record<string, any> = {
 };
 
 // Flat navigation structure — no section heading labels, just dividers
+import { runtimeEnvironment } from '../shared/environment/runtimeEnvironment';
+
 const navItems = [
+  ...(runtimeEnvironment.isSandbox
+    ? [{ name: 'SandboxControl', label: 'Sandbox Controls', icon: 'settings' }]
+    : []),
   { name: 'Home', label: 'Overview', icon: 'dashboard' },
   { name: 'Students', label: 'Students', icon: 'users' },
   { name: 'Guardians', label: 'Guardians', icon: 'user-group' },

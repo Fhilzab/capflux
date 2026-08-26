@@ -44,6 +44,10 @@ const ALLOWED_FRONTEND_ENV_VARS = new Set([
   // Google OAuth client ID — a public identifier by design (same class as
   // VITE_WORKOS_CLIENT_ID). No Google client secret may ever appear here.
   'VITE_GOOGLE_CLIENT_ID',
+
+  // Sandbox execution mode flag — a non-secret build-time selector
+  // ('production' | 'sandbox'). Fail-closed: unknown values resolve to production.
+  'VITE_CAPFLUX_MODE',
 ]);
 
 describe('Frontend security: no WorkOS secrets exposed', () => {

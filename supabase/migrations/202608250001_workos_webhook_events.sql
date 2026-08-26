@@ -5,9 +5,9 @@
 -- Purpose: Persistent idempotency for WorkOS webhook events.
 --
 -- The WorkOS webhook endpoint receives events (user.created, user.updated,
- * user.deleted, session.revoked) that must be processed exactly once.
- * This table provides durable, database-backed idempotency to survive
- * process restarts, crashes, and horizontal scaling.
+-- * user.deleted, session.revoked) that must be processed exactly once.
+-- * This table provides durable, database-backed idempotency to survive
+-- * process restarts, crashes, and horizontal scaling.
 --
 -- Design:
 --   * WorkOS event ID (evt_...) is the natural unique key.
@@ -199,3 +199,5 @@ GRANT EXECUTE ON FUNCTION public.workos_webhook_event_complete(TEXT) TO service_
 GRANT EXECUTE ON FUNCTION public.workos_webhook_event_fail(TEXT, TEXT) TO service_role;
 
 COMMIT;
+
+

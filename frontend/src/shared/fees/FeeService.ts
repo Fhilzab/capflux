@@ -2,6 +2,7 @@ import { SupabaseFeeProvider } from './SupabaseFeeProvider';
 import { FeeProvider } from './FeeProvider';
 import { FeeValidator } from './FeeValidator';
 import type { Fee, FeeResult } from './types';
+import { createFeeProvider } from '../../sandbox/providers/providerFactories';
 
 export interface ApplicableFees {
   mandatory: Fee[];
@@ -172,4 +173,4 @@ export class FeeService {
   }
 }
 
-export const feeService = new FeeService();
+export const feeService = new FeeService(createFeeProvider());

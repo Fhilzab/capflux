@@ -20,7 +20,7 @@
 import { GatewayFactory } from './gateways/GatewayFactory.js';
 
 export const PROVIDER_MODES = ['disabled', 'sandbox', 'production'];
-export const PROVIDER_NAMES = ['monnify', 'paystack'];
+export const PROVIDER_NAMES = ['monnify', 'paystack', 'sandbox'];
 
 export type PaymentsMode = 'disabled' | 'sandbox' | 'production';
 

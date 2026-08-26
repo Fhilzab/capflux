@@ -2,6 +2,7 @@ import { SupabaseDivisionProvider } from './SupabaseDivisionProvider';
 import { DivisionProvider } from './DivisionProvider';
 import { DivisionValidator } from './DivisionValidator';
 import type { SchoolDivision, DivisionResult } from './types';
+import { createDivisionProvider } from '../../sandbox/providers/providerFactories';
 
 export class DivisionService {
   private provider: DivisionProvider;
@@ -85,4 +86,4 @@ export class DivisionService {
   }
 }
 
-export const divisionService = new DivisionService();
+export const divisionService = new DivisionService(createDivisionProvider());

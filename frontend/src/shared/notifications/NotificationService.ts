@@ -49,6 +49,14 @@ export class NotificationService {
   }
 
   /**
+   * Swap per-channel delivery providers at runtime (sandbox execution mode
+   * uses this to deliver into the demo inbox). No-op in production usage.
+   */
+  setDispatcherOverrides(overrides: Parameters<NotificationDispatcher['constructor']>[0]): void {
+    this.dispatcher = new NotificationDispatcher(overrides);
+  }
+
+  /**
    * Generate a dedupe key.
    * dedupeKey = organizationId + recipientId + templateId + correlationId
    */

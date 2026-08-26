@@ -465,7 +465,12 @@ export class WorkOSWebhookService {
       });
 
     if (claimErr) {
-      console.error('[workos-webhook] Failed to claim event:', errorMessage(claimErr));
+      console.error('[workos-webhook] Failed to claim event:', {
+        message: claimErr.message,
+        code: claimErr.code,
+        details: claimErr.details,
+        hint: claimErr.hint,
+      });
       return { success: false, eventId, eventType, error: 'Failed to claim event for processing' };
     }
 
@@ -525,7 +530,12 @@ export class WorkOSWebhookService {
           p_workos_event_id: eventId,
         });
         if (completeErr) {
-          console.error('[workos-webhook] Failed to mark event as completed:', errorMessage(completeErr));
+          console.error('[workos-webhook] Failed to mark event as completed:', {
+            message: completeErr.message,
+            code: completeErr.code,
+            details: completeErr.details,
+            hint: completeErr.hint,
+          });
         }
 
         console.log(`[workos-webhook] received event=${eventType} id=${eventId} (${duration}ms)`);
@@ -537,7 +547,12 @@ export class WorkOSWebhookService {
           p_error: result.error || 'Unknown error',
         });
         if (failErr) {
-          console.error('[workos-webhook] Failed to mark event as failed:', errorMessage(failErr));
+          console.error('[workos-webhook] Failed to mark event as failed:', {
+            message: failErr.message,
+            code: failErr.code,
+            details: failErr.details,
+            hint: failErr.hint,
+          });
         }
 
         console.error(`[workos-webhook] Event processing failed: ${eventType} id=${eventId}: ${result.error}`);
@@ -550,7 +565,12 @@ export class WorkOSWebhookService {
         p_error: errorMessage(error),
       });
       if (failErr) {
-        console.error('[workos-webhook] Failed to mark event as failed:', errorMessage(failErr));
+        console.error('[workos-webhook] Failed to mark event as failed:', {
+          message: failErr.message,
+          code: failErr.code,
+          details: failErr.details,
+          hint: failErr.hint,
+        });
       }
 
       console.error('[workos-webhook] Event dispatch error:', errorMessage(error));

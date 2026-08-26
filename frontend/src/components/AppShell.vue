@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router';
 import AppHeader from './AppHeader.vue';
 import Sidebar from './Sidebar.vue';
 import { useThemeStore } from '../stores/themeStore';
+import { runtimeEnvironment } from '../shared/environment/runtimeEnvironment';
+import SandboxBanner from '../sandbox/ui/SandboxBanner.vue';
 
 const route = useRoute();
 const themeStore = useThemeStore();
@@ -49,6 +51,7 @@ const mainMarginClass = computed(() => {
       class="flex flex-col flex-1 pt-[50px] transition-all duration-300"
       :class="mainMarginClass"
     >
+      <SandboxBanner v-if="runtimeEnvironment.isSandbox" />
       <main class="flex-1 overflow-y-auto">
         <slot />
       </main>

@@ -37,7 +37,7 @@ class GatewayAssignmentService {
   async assignGateway({ schoolId, assignedBy, provider, notes }: AssignGatewayParams): Promise<AssignGatewayResult> {
     if (!schoolId) throw new Error('schoolId is required');
 
-    const selectedProvider = provider && ['paystack', 'monnify'].includes(provider)
+    const selectedProvider = provider && ['paystack', 'monnify', 'sandbox'].includes(provider)
       ? provider
       : this._selectProvider();
 

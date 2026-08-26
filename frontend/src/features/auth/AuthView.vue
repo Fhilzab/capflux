@@ -10,6 +10,8 @@ import RegisterForm from './components/RegisterForm.vue';
 import EmailVerification from './components/EmailVerification.vue';
 import ForgotPassword from './components/ForgotPassword.vue';
 import ResetPassword from './components/ResetPassword.vue';
+import SandboxDemoLogin from '../../sandbox/ui/SandboxDemoLogin.vue';
+import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment';
 
 interface Props {
   initialMode?: string;
@@ -119,6 +121,7 @@ if (props.provider === 'google') {
               @switch-state="transition"
             />
           </Transition>
+          <SandboxDemoLogin v-if="runtimeEnvironment.isSandbox && currentMode === 'login'" class="mt-4" />
         </div>
       </template>
     </AuthLayout>
