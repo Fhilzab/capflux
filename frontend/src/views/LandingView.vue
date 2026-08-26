@@ -80,6 +80,25 @@ const zeroCostAnchors = [
   { label: 'License fees' },
 ];
 
+// Pilot program perk cards
+const pilotPerks = [
+  {
+    icon: 'M9.813 15.904L9.5 18l-.313-2.096a4 4 0 00-2.091-2.09L5 13.5l2.096-.313a4 4 0 002.091-2.091L9.5 9l.313 2.096a4 4 0 002.091 2.091L14 13.5l-2.096.313a4 4 0 00-2.091 2.091zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.456-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z',
+    title: '1-on-1 Dedicated Onboarding',
+    body: 'Our team personally handles your student roster imports, class structures, and account provisioning within 24 hours.',
+  },
+  {
+    icon: 'M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5',
+    title: 'Direct Product Influence',
+    body: 'Work directly with our engineering founders to request custom workflow features tailored to your school\'s exact bursary needs.',
+  },
+  {
+    icon: 'M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.636 50.636 0 00-2.658-.813A59.906 59.906 0 0112 3.493a59.903 59.903 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5',
+    title: 'Founding Partner Status',
+    body: 'Enjoy priority system routing, early access to new accounting features, and locked-in platform benefits.',
+  },
+];
+
 // Bento grid data (What You Get With CAPFLUX)
 const capabilities = [
   { id: 'accounts', title: 'Dedicated Virtual Accounts', description: 'Every student gets their own payment account. No confusion. No misallocated payments.' },
@@ -457,34 +476,55 @@ onMounted(() => {
       </div>
     </section>
 
-    <!-- TESTIMONIALS SECTION -->
-    <section id="testimonials" class="py-32 px-6">
+    <!-- PILOT PROGRAM SECTION -->
+    <section id="pilot" class="py-32 px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
-            Trusted by school administrators.
+        <div class="bg-zinc-950 rounded-card px-8 py-16 md:p-20 text-center shadow-elevated">
+          <span class="inline-flex items-center text-xs font-mono uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+            Pilot Program • Limited Cohort
+          </span>
+
+          <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mt-4">
+            Shape the Future of Fee Management. Join Our Pilot Program.
           </h2>
-        </div>
-        
-        <div class="grid md:grid-cols-2 gap-8">
-          <div class="bg-card border border-border rounded-card p-8 shadow-card">
-            <p class="text-lg text-text-secondary mb-6">
-              "CAPFLUX eliminated our monthly reconciliation headaches. Payments now reconcile themselves, and we finally have real visibility into our cash flow."
-            </p>
-            <div>
-              <p class="font-semibold text-text-primary">Mrs. Adesola Johnson</p>
-              <p class="text-sm text-text-muted">Admin Officer, Grace High School</p>
+          <p class="text-zinc-400 text-lg max-w-2xl mx-auto mt-3">
+            We are partnering with a limited cohort of progressive private schools in Nigeria. Get white-glove setup support, direct access to our core engineering team, and early access to the CAPFLUX Financial OS.
+          </p>
+
+          <div class="mt-12 grid gap-6 text-left md:grid-cols-3">
+            <div
+              v-for="perk in pilotPerks"
+              :key="perk.title"
+              class="bg-zinc-900/60 border border-zinc-800 p-6 rounded-xl"
+            >
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-4">
+                <svg class="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" :d="perk.icon" />
+                </svg>
+              </div>
+              <h3 class="font-semibold text-white mb-2">{{ perk.title }}</h3>
+              <p class="text-sm leading-relaxed text-zinc-400">{{ perk.body }}</p>
             </div>
           </div>
-          <div class="bg-card border border-border rounded-card p-8 shadow-card">
-            <p class="text-lg text-text-secondary mb-6">
-              "The offline-first approach saved us during last month's network outage. We continued operating while other schools shut down."
-            </p>
-            <div>
-              <p class="font-semibold text-text-primary">Mr. Chinedu Okonkwo</p>
-              <p class="text-sm text-text-muted">Finance Director, Royal Academy</p>
-            </div>
+
+          <div class="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              @click="navigateToAuth('signup')"
+              class="rounded-lg bg-emerald-500 px-6 py-3 font-bold text-zinc-950 transition-colors hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+            >
+              Apply for Pilot Access
+            </button>
+            <button
+              @click="navigateToAuth('signup')"
+              class="rounded-lg border border-zinc-700 px-6 py-3 font-medium text-white transition-colors hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+            >
+              Book Founder Call
+            </button>
           </div>
+
+          <p class="mt-6 text-sm text-zinc-400">
+            🟢 Currently accepting 10 private schools for Term 1 rollout.
+          </p>
         </div>
       </div>
     </section>
