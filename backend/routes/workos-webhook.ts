@@ -90,18 +90,6 @@ router.post('/', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Invalid WorkOS signature' });
   }
 
-  if (!verifiedEvent) {
-    return res.status(401).json({ error: 'Failed to verify webhook signature' });
-  }
-
-  // Temporary production diagnostics: log event ID format (safe - no secrets)
-  console.log('[workos-webhook] event_id diagnostics:', {
-    type: verifiedEvent.event,
-    length: verifiedEvent.id.length,
-    prefix: verifiedEvent.id.slice(0, 10),
-    suffix: verifiedEvent.id.slice(-10),
-  });
-
   // 5. Dispatch event to WorkOSWebhookService
   const event = {
     id: verifiedEvent.id,
