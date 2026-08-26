@@ -8,14 +8,21 @@
  * user.deleted, session.revoked) that must be processed exactly once.
  * This table provides durable, database-backed idempotency to survive
  * process restarts, crashes, and horizontal scaling.
- *
+--
 -- Design:
 --   * WorkOS event ID (evt_...) is the natural unique key.
---   * Status tracks processing lifecycle: PENDING → PROCESSING → COMPLETED / FAILED.
+--   * Status tracks processing lifecycle: PENDING -> PROCESSING -> COMPLETED / FAILED.
 --   * Retry count and last error support safe retries with backoff.
 --   * created_at/updated_at for audit/debugging.
 --   * Unique constraint on workos_event_id enforces idempotency at DB level.
 --   * Status index supports operational queries.
+--
+-- Idempotency Protocol:
+--   The workos_webhook_event_claim() function atomically claims an event for
+--   processing. It returns a 'claimed' boolean indicating whether the caller
+--   owns the processing right:
+--     * claimed = true  -> caller owns the event, must process it
+--     * claimed = false -> another request owns it or it's already done
 --
 -- Rollback: DROP TABLE IF EXISTS public.workos_webhook_events;
 -- ==========================================================
@@ -54,7 +61,7 @@ COMMENT ON COLUMN public.workos_webhook_events.status IS
   'Processing lifecycle: PENDING (received), PROCESSING (handler running), COMPLETED (success), FAILED (retryable error).';
 
 COMMENT ON COLUMN public.workos_webhook_events.attempts IS
-  'Number of processing attempts. Incremented on each retry.';
+  'Number of processing attempts. Incremented exactly once per processing claim.';
 
 COMMENT ON COLUMN public.workos_webhook_events.last_error IS
   'Last error message on failure. Cleared on success.';
@@ -77,7 +84,7 @@ ALTER TABLE public.workos_webhook_events ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.workos_webhook_events FROM anon, authenticated;
 
 -- Helper function for idempotent event processing
--- Returns the event record if it can be processed, NULL if already completed
+-- Returns a row with 'claimed' boolean indicating whether the caller owns processing
 CREATE OR REPLACE FUNCTION public.workos_webhook_event_claim(
     p_workos_event_id TEXT,
     p_event_type TEXT
@@ -86,7 +93,8 @@ CREATE OR REPLACE FUNCTION public.workos_webhook_event_claim(
     workos_event_id TEXT,
     event_type TEXT,
     status TEXT,
-    attempts INTEGER
+    attempts INTEGER,
+    claimed BOOLEAN
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -95,38 +103,39 @@ AS $$
 DECLARE
     v_result RECORD;
 BEGIN
-    -- Attempt to insert a new PENDING event record
-    -- If a duplicate workos_event_id exists, the unique constraint will cause an error
+    -- Attempt to insert a new event record with PROCESSING status
+    -- The unique constraint on workos_event_id ensures atomic claim
     BEGIN
         INSERT INTO public.workos_webhook_events (workos_event_id, event_type, status)
         VALUES (p_workos_event_id, p_event_type, 'PROCESSING')
-        RETURNING id, workos_event_id, event_type, status, attempts
-        INTO v_result;
+        RETURNING id, workos_event_id, event_type, status, attempts, true AS claimed
+        INTO STRICT v_result;
         RETURN QUERY SELECT v_result;
         RETURN;
     EXCEPTION
         WHEN unique_violation THEN
-            -- Event already exists, check its status
+            -- Event already exists, fetch current state
             SELECT id, workos_event_id, event_type, status, attempts
-            INTO v_result
+            INTO STRICT v_result
             FROM public.workos_webhook_events
             WHERE workos_event_id = p_workos_event_id;
 
             IF v_result.status = 'COMPLETED' THEN
-                RETURN QUERY SELECT v_result;
+                -- Already successfully processed
+                RETURN QUERY SELECT v_result.id, v_result.workos_event_id, v_result.event_type, v_result.status, v_result.attempts, false AS claimed;
             ELSIF v_result.status = 'PROCESSING' THEN
-                -- Concurrent processing - return the existing record
-                RETURN QUERY SELECT v_result;
+                -- Another request is currently processing this event
+                RETURN QUERY SELECT v_result.id, v_result.workos_event_id, v_result.event_type, v_result.status, v_result.attempts, false AS claimed;
             ELSIF v_result.status = 'FAILED' THEN
-                -- Failed event can be retried - increment attempts and set to PROCESSING
+                -- Failed event can be retried - increment attempts and claim ownership
                 UPDATE public.workos_webhook_events
                 SET status = 'PROCESSING',
                     attempts = attempts + 1,
                     last_error = NULL,
                     updated_at = now()
                 WHERE id = v_result.id
-                RETURNING id, workos_event_id, event_type, status, attempts
-                INTO v_result;
+                RETURNING id, workos_event_id, event_type, status, attempts, true AS claimed
+                INTO STRICT v_result;
                 RETURN QUERY SELECT v_result;
             ELSIF v_result.status = 'PENDING' THEN
                 -- Should not happen (pending means not yet processing), but handle it
@@ -134,8 +143,8 @@ BEGIN
                 SET status = 'PROCESSING',
                     updated_at = now()
                 WHERE id = v_result.id
-                RETURNING id, workos_event_id, event_type, status, attempts
-                INTO v_result;
+                RETURNING id, workos_event_id, event_type, status, attempts, true AS claimed
+                INTO STRICT v_result;
                 RETURN QUERY SELECT v_result;
             END IF;
             RETURN;
@@ -180,5 +189,13 @@ BEGIN
     WHERE workos_event_id = p_workos_event_id;
 END;
 $$;
+
+-- Explicitly restrict execution privileges for SECURITY DEFINER functions
+REVOKE ALL ON FUNCTION public.workos_webhook_event_claim(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.workos_webhook_event_complete(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.workos_webhook_event_fail(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.workos_webhook_event_claim(TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.workos_webhook_event_complete(TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.workos_webhook_event_fail(TEXT, TEXT) TO service_role;
 
 COMMIT;

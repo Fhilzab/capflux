@@ -482,13 +482,17 @@ export class WorkOSWebhookService {
     }
 
     // If currently being processed by another request, don't duplicate work
-    if (claim.status === 'PROCESSING') {
+    if (claim.status === 'PROCESSING' && !claim.claimed) {
       console.log(`[workos-webhook] Event already processing: ${eventType} id=${eventId}`);
       return { success: true, eventId, eventType, alreadyProcessed: true };
     }
 
-    // If FAILED, it was retried - we now own the processing
-    // If PENDING, we now own the processing
+    // If this request owns the event (claimed === true), proceed to process
+    // This handles: newly claimed PROCESSING, retried FAILED, or fresh PENDING
+    if (claim.claimed !== true) {
+      console.log(`[workos-webhook] Event claimed by another request: ${eventType} id=${eventId}`);
+      return { success: true, eventId, eventType, alreadyProcessed: true };
+    }
 
     const startTime = Date.now();
 
@@ -522,11 +526,6 @@ export class WorkOSWebhookService {
         });
         if (completeErr) {
           console.error('[workos-webhook] Failed to mark event as completed:', errorMessage(completeErr));
-        }
-
-        if (result.alreadyProcessed) {
-          console.log(`[workos-webhook] Event already processed: ${eventType} id=${eventId} (${duration}ms)`);
-          return { success: true, eventId, eventType, alreadyProcessed: true };
         }
 
         console.log(`[workos-webhook] received event=${eventType} id=${eventId} (${duration}ms)`);
