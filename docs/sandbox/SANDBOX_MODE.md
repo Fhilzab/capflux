@@ -98,17 +98,85 @@ with confirmation + progress.
 
 ## 6. Deployment
 
-Independent stack, separate secrets:
+### 6.1 Environment variable classification
+
+| Variable | Class | Where | Notes |
+|---|---|---|---|
+| `VITE_CAPFLUX_MODE` | **Required · Publishable** | Frontend | `production` \| `sandbox`; invalid explicit values fail startup |
+| `VITE_CAPFLUX_DATABASE_ENV` | **Required (deployed) · Publishable** | Frontend | must agree with mode (`MODE_DATABASE_MISMATCH` otherwise) |
+| `VITE_API_BASE_URL` | **Required · Publishable** | Frontend | sandbox frontend → sandbox Render URL `/api` |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Optional in sandbox · **Publishable** | Frontend | SANDBOX project values only; publishable by design |
+| `VITE_GOOGLE_CLIENT_ID` | Optional · Publishable | Frontend | public OAuth client id; bypassed by the simulated Sheets source in sandbox |
+| `CAPFLUX_MODE` | **Required** | Backend | same two values; unset ⇒ production, invalid ⇒ exit(1) |
+| `CAPFLUX_DATABASE_ENV` | **Required when NODE_ENV=production** | Backend | must agree with `CAPFLUX_MODE`; mismatch ⇒ exit(1) |
+| `SUPABASE_URL` + `SUPABASE_SECRET_KEY` | **Required · Secret** | Backend | SANDBOX project for the sandbox Render service — service-role key NEVER reaches the browser |
+| `CORS_ORIGINS` | **Required (deployed) · Config** | Backend | exactly the sandbox frontend origin |
+| `PAYMENTS_PROVIDER_MODE` | Required | Backend | sandbox deployments keep `sandbox`; `production` value is rejected while CAPFLUX_MODE=sandbox |
+| `PAYSTACK_*` / `MONNIFY_*` (keys & webhook secrets) | **Production-only · Secret** | Backend | presence while CAPFLUX_MODE=sandbox ⇒ startup REJECTED |
+| `IDENTITY_VERIFICATION_PROVIDER` / `SETTLEMENT_VERIFICATION_PROVIDER` | Config | Backend | sandbox requires `mock` (`approved` ⇒ rejected); deployed production refuses `mock` |
+| `KYC_ENCRYPTION_KEY`, `CAPFLUX_STORAGE_SIGNING_SECRET`, `WORKOS_CLIENT_SECRET`, `WORKOS_COOKIE_PASSWORD`, `WORKOS_WEBHOOK_SECRET` | Production-only · Secret | Backend | never set on the sandbox service unless that flow is intentionally exercised there |
+| `SANDBOX_DATABASE_URL`, `SANDBOX_API_BASE_URL` | **Sandbox-only** | Backend | their presence on a production process ⇒ startup REJECTED |
+| Development-only: `CORS_ALLOW_ALL`, `COOKIE_SECURE=false` | Dev-only | Backend | `CORS_ALLOW_ALL=true` forbidden on a deployed sandbox |
+
+### 6.2 Sandbox stack
 
 ```
-Vercel  → CAPFLUX Sandbox Frontend   (VITE_CAPFLUX_MODE=sandbox; NO VITE_SUPABASE_* needed)
-Render  → CAPFLUX Sandbox Backend    (CAPFLUX_MODE=sandbox; PAYMENTS_PROVIDER_MODE=sandbox;
-                                      NODE_ENV≠production keeps sandbox gateway constructible)
-Supabase → CAPFLUX Sandbox project   (never point sandbox at production tables)
+Vercel  "CAPFLUX Sandbox Frontend"
+  Build:   npm ci && npm run build      Output: dist
+  Env:     VITE_CAPFLUX_MODE=sandbox
+           VITE_CAPFLUX_DATABASE_ENV=sandbox
+           VITE_API_BASE_URL=https://<sandbox-render-app>.onrender.com/api
+           VITE_SUPABASE_URL=<sandbox-project-url>            # optional in sandbox
+           VITE_SUPABASE_ANON_KEY=<sandbox-anon-key>          # publishable
+
+Render  "CAPFLUX Sandbox Backend"
+  Build:   npm ci && npm run build       Start: npm start
+  Env:     NODE_ENV=production
+           CAPFLUX_MODE=sandbox
+           CAPFLUX_DATABASE_ENV=sandbox
+           PORT=<Render-managed>
+           SUPABASE_URL=<sandbox-project-url>        SUPABASE_SECRET_KEY=<sandbox-service-role>  # SECRET
+           CORS_ORIGINS=https://<sandbox-frontend-domain>
+           PAYMENTS_PROVIDER_MODE=sandbox
+           IDENTITY_VERIFICATION_PROVIDER=mock       SETTLEMENT_VERIFICATION_PROVIDER=mock
+           # NO Paystack/Monnify keys. Their presence fails startup.
+
+Supabase "CAPFLUX Sandbox" project — physically separate from production.
 ```
 
-Backend env additions are documented in `backend/.env.example`
-(`CAPFLUX_MODE`). The frontend needs no Supabase or API vars in sandbox.
+Startup validation (backend `services/RuntimeConfiguration.ts`, wired in `index.ts`
+before the server accepts traffic) enforces every rule above **fail-closed**
+(`process.exit(1)`); the GatewayFactory additionally throws
+`SANDBOX_CONFIGURATION_ERROR` if sandbox code ever attempts to initialize a
+live provider and `PRODUCTION_CONFIGURATION_ERROR` if a deployed production
+process attempts to initialize test/sandbox adapters.
+
+### 6.3 Mode-mismatch protection
+
+`GET /api/providers/runtime-info` returns the non-secret descriptor
+`{ mode, paymentsMode }`. A production frontend compares it against its own
+mode after boot and blocks rendering with `CAPFLUX_ENVIRONMENT_MISMATCH` if
+they differ (frontend `shared/environment/backendModeConsistency.ts`). Client-side
+checks are UX only — isolation is enforced at the backend/database boundary.
+
+### 6.4 CORS
+
+Deployed sandbox sets `CORS_ORIGINS=https://<sandbox-frontend-domain>` only.
+`CORS_ALLOW_ALL=true` is rejected at startup when the sandbox runs with
+`NODE_ENV=production`. The production frontend origin is deliberately NOT
+included.
+
+### 6.5 Deployment smoke tests
+
+Sandbox (after deploy): open URL → demo login → dashboard → student register →
+student detail → guardian → academic structure → promotion → import → export →
+payment simulation → ledger → reports → OFFLINE mutate → Sync → Reset.
+Every step must function against demo data only.
+
+Production (immediately after): login → dashboard → students → guardians →
+academic structure → financial pages → payments → reports. No behaviour change;
+production env vars untouched; `capflux.vercel.app` / `capflux.onrender.com`
+never repointed to sandbox.
 
 ## 7. Tests
 

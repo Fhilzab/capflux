@@ -14,6 +14,8 @@
  */
 import axios from 'axios';
 import { supabase, hasSupabaseConfig } from '@/lib/supabase';
+import { runtimeEnvironment } from '@/shared/environment/runtimeEnvironment';
+import { sandboxAxiosAdapter } from '@/sandbox/api/axiosAdapter';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
@@ -22,6 +24,13 @@ const http = axios.create({
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+// Sandbox execution mode: requests are dispatched to the in-browser API
+// simulator instead of the network. No other code path changes — stores,
+// error handling and interceptors behave exactly as in production.
+if (runtimeEnvironment.isSandbox) {
+  http.defaults.adapter = sandboxAxiosAdapter;
+}
 
 // Attach Supabase access token to every request.
 http.interceptors.request.use(async (config) => {

@@ -14,6 +14,9 @@ import type {
   FeeRule,
 } from '../types/billing';
 import type { GuardianRelationship } from '../shared/guardians/relationshipTypes';
+import { runtimeEnvironment } from '../shared/environment/runtimeEnvironment';
+import { getSandboxDb } from '../sandbox/sandboxDb';
+import { SCHEMA_V3, SCHEMA_V4, SCHEMA_V5 } from './dbSchema';
 
 // ============================================================================
 // STUDENTS & ACADEMIC STRUCTURE ROW TYPES (snake_case = Supabase columns)
@@ -146,54 +149,31 @@ class CapfluxDB extends Dexie {
   /** Flat key-value settings rows (school settings, sync cursors). */
   app_settings!: Table<Record<string, any> & { school_id: string }, string>;
 
-  constructor() {
-    super('capflux_local_db');
-    this.version(3).stores({
-      schools: 'id, school_id, subscription_status, created_at, source, version, updated_at',
-      profiles: 'id, school_id, full_name, role, created_at, source, version, updated_at',
-      students: 'id, school_id, first_name, last_name, class_name, category, guardian_id, status, client_sequence, device_id, created_at, updated_at, source, version',
-      guardians: 'id, school_id, full_name, primary_phone, secondary_phone, email, relationship, created_at, updated_at, source, version',
-      ledger_entries: 'id, school_id, student_id, amount, entry_type, entry_category, reference_id, metadata, client_sequence, device_id, created_at, source, version',
-      notifications: 'id, school_id, student_id, guardian_id, recipient_phone, message_body, delivery_status, client_sequence, device_id, created_at, source, version',
-      audit_logs: 'id, school_id, actor_id, entity, entity_id, created_at',
-      sync_queue: 'id, school_id, entity_type, entity_id, status, retry_count, created_at, processed_at, error_message, payload',
-      app_settings: 'school_id, source, version, updated_at',
-      // Payment gateway tables for offline-first sync
-      payment_gateway_config: 'id, school_id, provider, api_key, secret_key, submerchant_code, settlement_account_number, settlement_account_bank, is_active, created_at, source, version, updated_at',
-      payment_accounts: 'id, school_id, student_id, provider, provider_account_id, provider_reference, virtual_account_number, account_name, bank_name, account_status, is_primary, created_at, source, version, updated_at',
-      payment_transactions: 'id, school_id, student_id, gateway_txn_ref, reference, amount, settlement_status, verified_at, source, version, updated_at',
-      settlement_records: 'id, payment_transaction_id, destination, account_number, bank_name, amount, settled_at, source, version, updated_at',
-      // Tuition and fee configuration tables
-      tuition_configurations: 'id, school_id, academic_session, academic_term, category, tuition_amount, created_at, source, version, updated_at',
-      fee_rules: 'id, school_id, is_active, effective_date, created_at, source, version, updated_at',
-    });
+  /**
+   * @param dbName Physical IndexedDB database name. The sandbox execution
+   * mode instantiates this schema under a SEPARATE database name
+   * ('capflux_sandbox_db') so production cached data is never touched.
+   */
+  constructor(dbName = 'capflux_local_db') {
+    super(dbName);
+    this.version(3).stores(SCHEMA_V3);
     // v4: Students & Academic Structure — sessions/terms/divisions/levels
     // cached locally, enrollments + student_guardians offline-first.
-    this.version(4)
-      .stores({
-        academic_sessions: 'id, school_id, name, is_current, status, start_date, created_at, updated_at, source, version',
-        academic_terms: 'id, session_id, school_id, name, is_current, status, display_order, created_at, updated_at, source, version',
-        school_divisions: 'id, school_id, name, code, status, display_order, created_at, updated_at, source, version',
-        academic_levels: 'id, school_id, section_id, name, code, status, display_order, created_at, updated_at, source, version',
-        student_enrollments: 'id, school_id, student_id, academic_session_id, section_id, level_id, status, effective_date, reason, created_at, updated_at, source, version',
-        student_guardians: 'id, school_id, student_id, guardian_id, relationship, is_primary, created_at, source, version',
-      });
-    // v5: Students-domain hardening —
-    //  - students.division_id indexed (denormalized current-section pointer)
-    //  - student_enrollments compound indexes for active-lookup patterns
-    //    (active enrollment per student; active roster per level) replacing
-    //    full-scan + JS filter
-    //  - student_guardians.updated_at (mirrors Postgres migration 202608230001)
-    this.version(5)
-      .stores({
-        students: 'id, school_id, first_name, last_name, class_name, category, guardian_id, division_id, status, client_sequence, device_id, admission_number, created_at, updated_at, source, version',
-        student_enrollments: 'id, school_id, student_id, [student_id+status], [level_id+status], academic_session_id, [academic_session_id+status], section_id, level_id, status, effective_date, reason, created_at, updated_at, source, version',
-        student_guardians: 'id, school_id, student_id, guardian_id, relationship, is_primary, created_at, updated_at, source, version',
-      });
+    this.version(4).stores(SCHEMA_V4);
+    // v5: Students-domain hardening — compound indexes for active-lookup
+    // patterns (see ./dbSchema.ts for the per-version notes).
+    this.version(5).stores(SCHEMA_V5);
   }
 }
 
-const db = new CapfluxDB();
+/**
+ * The single local database handle used by repositories, domain services and
+ * stores. In production mode this is the regular offline cache; in sandbox
+ * mode the SAME schema is instantiated under an isolated database name so
+ * sandbox activity can never read or clobber production data.
+ */
+const db: CapfluxDB = runtimeEnvironment.isSandbox ? getSandboxDb() : new CapfluxDB();
+
 
 // ============================================================================
 // ENTITY OWNERSHIP CLASSIFICATION

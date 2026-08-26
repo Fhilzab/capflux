@@ -77,11 +77,15 @@ test('SandboxGateway verifies its own webhook signatures and rejects forgeries',
 
 test('production cannot construct or resolve the sandbox gateway (fail closed)', async () => {
   process.env.NODE_ENV = 'production';
+  process.env.CAPFLUX_MODE = 'production';
   try {
     assert.throws(() => new SandboxGateway(), /not available in production/);
-    assert.equal(GatewayFactory.get('sandbox'), null);
+    // Release-gate hardening: resolution now THROWS (loud) instead of
+    // silently returning null.
+    assert.throws(() => GatewayFactory.get('sandbox'), /PRODUCTION_CONFIGURATION_ERROR/);
   } finally {
     process.env.NODE_ENV = 'test';
+    delete process.env.CAPFLUX_MODE;
   }
 });
 

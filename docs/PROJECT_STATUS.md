@@ -24,7 +24,11 @@
 
 ```
 Current active work:
-  Sandbox / Demo Environment — full-system simulation mode ✅ COMPLETE
+  Sandbox Release Gate — isolation hardening & deployment readiness ✅ COMPLETE
+  (startup configuration validation both directions, CAPFLUX_DATABASE_ENV
+  agreement, gateway-factory runtime guards, runtime-info mode descriptor,
+  cross-database isolation/reset tests, secret & fallback audits)
+  Previous: Sandbox / Demo Environment — full-system simulation mode ✅ COMPLETE
   (docs/sandbox/SANDBOX_MODE.md — isolated execution mode: deterministic demo
   dataset, in-browser API/payment/KYC simulators, offline-first sync, reset)
 

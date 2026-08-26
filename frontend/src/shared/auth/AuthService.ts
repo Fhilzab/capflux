@@ -7,6 +7,17 @@
 import { SupabaseAuthProvider } from './SupabaseAuthProvider';
 import type { User, Session, AuthResult, AuthErrorData } from './types';
 import { mapProviderError } from './AuthError';
+import { runtimeEnvironment } from '../environment/runtimeEnvironment';
+import { getSandboxAuthProvider, type SandboxAuthProvider } from '../../sandbox/session/sandboxAuth';
+
+/**
+ * Execution-mode provider resolution: production builds use Supabase Auth;
+ * sandbox builds use the demo persona provider. The rest of this module is
+ * shared unchanged by both modes.
+ */
+function createAuthProvider(): SupabaseAuthProvider | SandboxAuthProvider {
+  return runtimeEnvironment.isSandbox ? getSandboxAuthProvider() : new SupabaseAuthProvider();
+}
 
 /**
  * AuthService - Wraps AuthProvider for use by the application
@@ -15,7 +26,7 @@ import { mapProviderError } from './AuthError';
  * - No provider-specific logic outside this file
  */
 export const AuthService = {
-  _provider: new SupabaseAuthProvider() as SupabaseAuthProvider,
+  _provider: createAuthProvider() as SupabaseAuthProvider | SandboxAuthProvider,
 
   /**
    * Initiate provider auth flow. With Supabase Auth there is no hosted UI

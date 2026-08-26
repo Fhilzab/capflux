@@ -80,11 +80,11 @@ describe('backend mode-consistency evaluation (§12)', () => {
 // ---------------------------------------------------------------------------
 
 function productionProbeDb(): FakeSandboxDb {
-  const fake = createFakeDb([
+  const { db } = createFakeDb([
     'students', 'guardians', 'student_guardians', 'student_enrollments',
     'payment_transactions', 'ledger_entries', 'notifications',
-  ]) as unknown as FakeSandboxDb;
-  return fake;
+  ]);
+  return db as unknown as FakeSandboxDb;
 }
 
 async function tableRows(db: FakeSandboxDb, table: string): Promise<Array<Record<string, unknown>>> {
@@ -169,6 +169,35 @@ describe('cross-environment data isolation (§15)', () => {
   });
 
   it('sandbox audit records carry environment=sandbox (§19)', async () => {
+    // Self-contained: simulate one successful payment, then inspect its trail.
+    seedReadySchool(f.db);
+    f.db.kyc_records.put({
+      id: 'kyc-aud', school_id: 'demo-school', status: 'VERIFIED', bvn_last4: null, nin_last4: null,
+      identity_match_states: {}, rejection_reason: null, submitted_at: '', reviewed_at: '',
+      created_at: '', updated_at: '',
+    } as never);
+    f.db.settlement_accounts.put({
+      id: 'set-aud', school_id: 'demo-school', status: 'VERIFIED', bank_code: '990', bank_name: 'B',
+      account_number_sandbox: '0123456789', account_number_last4: '6789', account_name: 'N',
+      bvn_last4: null, ownership_match_state: 'MATCH', rejection_reason: null,
+      created_at: '', updated_at: '',
+    } as never);
+    f.db.gateway_assignments.put({
+      id: 'gw-aud', school_id: 'demo-school', provider: 'sandbox', status: 'ASSIGNED',
+      assigned_at: '', notes: null, created_at: '', updated_at: '',
+    } as never);
+    f.db.students.put({
+      id: 'stu-aud-1', school_id: 'demo-school', first_name: 'Audit', last_name: 'Probe',
+      admission_number: 'CAP-AUD-1', status: 'ACTIVE', guardian_id: null, guardian_phone: null,
+      created_at: '', updated_at: '',
+    } as never);
+    signInAs('demo-user-owner');
+    const { handleSandboxRequest } = await import('../api/sandboxApiServer');
+    await handleSandboxRequest({
+      method: 'post', url: '/sandbox/gateway/simulate-payment', baseURL: 'http://x/api',
+      data: { studentId: 'stu-aud-1', amountMinor: 750000, outcome: 'SUCCESS' } as never,
+    });
+
     const audit = await tableRows(f.db, 'audit_trail');
     const financial = audit.filter((a) => a.action === 'PAYMENT_RECEIVED');
     expect(financial.length).toBeGreaterThan(0);
