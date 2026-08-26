@@ -152,7 +152,7 @@ export class WorkOSWebhookService {
     }
 
     // No existing identity link - generate new canonical UUID
-    const { data: uuidData, error: uuidError } = await supabase.rpc('gen_random_uuid');
+    const { data: uuidData, error: uuidError } = await supabase.rpc('gen_random_uuid_rpc');
     if (uuidError || !uuidData) {
       throw new Error('Failed to generate UUID for new CAPFLUX user');
     }
