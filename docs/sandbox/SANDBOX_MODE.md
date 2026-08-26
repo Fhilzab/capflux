@@ -166,6 +166,31 @@ Deployed sandbox sets `CORS_ORIGINS=https://<sandbox-frontend-domain>` only.
 `NODE_ENV=production`. The production frontend origin is deliberately NOT
 included.
 
+### 6.4.1 Provisioned sandbox resources (2026-08-26)
+
+| Resource | Value |
+|---|---|
+| Sandbox Supabase project | `capflux-sandbox` · ref `jwvwetwlexvgbtzamxvb` · eu-west-1 (physically separate from production `Capflux` / `ootrovtrpoztmooiirxo`) |
+| Deployment commit | `36f0af0` — release-gate wires re-applied & hardened gate |
+| Migration status | 001–017 applied and recorded in `supabase_migrations.schema_migrations`; **018 onward BLOCKED** (see below) |
+
+**Known migration-chain defect (blocks sandbox completion):**
+`202607100018_owner_admin_role.sql` creates policies of the form
+`USING (auth.uid()::text = profiles.user_id)` where `profiles.user_id` is
+UUID → `operator does not exist: text = uuid`. This fails on any FRESH
+database; production evidently predates it. Resolution belongs to the schema
+owner as a NEW additive migration re-creating those policies with explicit
+casts (never edit 018). Until then the sandbox database stays at v017.
+
+**Operator actions still required (no programmatic access):**
+1. Render: create web service `capflux-sandbox-api` (repo `Fhilzab/capflux`,
+   root `backend`, build `npm ci && npm run build`, start `npm start`) with
+   env per §6.2 incl. sandbox `SUPABASE_URL`/`SUPABASE_SECRET_KEY`;
+   `CORS_ORIGINS=https://<sandbox-vercel-domain>`; no PSP credentials.
+   Requires RENDER_API_KEY or dashboard access.
+2. Re-run migrations after the 018 fix: `supabase db push --linked`.
+3. Vercel project `capflux-sandbox` (root `frontend`) once the Render URL exists.
+
 ### 6.5 Deployment smoke tests
 
 Sandbox (after deploy): open URL → demo login → dashboard → student register →
