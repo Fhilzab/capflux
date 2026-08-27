@@ -19,8 +19,10 @@
  * public.user_profiles.user_id). Always resolve through user_identity_links.
  * NEVER use email matching for identity resolution - it enables unauthorized
  * account merging. The identity bridge is the ONLY authoritative mapping.
+ *
+ * Idempotency: Durable, database-backed via public.workos_webhook_events table.
+ * The database is the source of truth for event processing state.
  */
-
 import { supabase } from '../supabaseClient.js';
 import { WorkOS } from '@workos-inc/node';
 import { errorMessage } from '../types/http.js';
@@ -88,23 +90,23 @@ export class WorkOSWebhookService {
   }
 
   /**
-   * Resolve a WorkOS user ID to a CAPFLUX canonical UUID.
+   * Find an existing CAPFLUX user ID by WorkOS user ID.
    *
-   * This is the core identity resolution function. It MUST be used for ALL
-   * webhook event handlers that need to write to UUID columns.
+   * Resolution ONLY - never creates new identities.
+   * Used by user.updated, user.deleted, session.revoked handlers.
    *
    * Resolution logic (strict hierarchy - NO email fallback):
    * 1. Validate WorkOS ID format
-   * 2. Look up existing identity link in user_identity_links (ACTIVE only)
+   * 2. Look up existing ACTIVE identity link in user_identity_links
    * 3. If found, return the capflux_user_id (canonical UUID)
    * 4. If not found, check for REVOKED link - if found, throw error (revoked identities cannot resurrect)
-   * 5. If not found and not revoked, generate new UUID and create identity link
+   * 5. If not found and not revoked, return null (caller must decide)
    *
    * @param workosUserId - WorkOS user ID (e.g., "user_01EHWNC0FCBHZ3BJ7EGKYXK0E6")
-   * @returns CAPFLUX canonical UUID
-   * @throws Error if resolution fails
+   * @returns CAPFLUX canonical UUID or null if no active identity exists
+   * @throws Error if revoked identity is found
    */
-  private async resolveCAPFLUXUserId(workosUserId: string): Promise<string> {
+  private async findCAPFLUXUserIdByWorkOSId(workosUserId: string): Promise<string | null> {
     // Step A: Validate WorkOS ID format
     if (!workosUserId || typeof workosUserId !== 'string') {
       throw new Error('Invalid WorkOS user ID: empty or not a string');
@@ -151,53 +153,42 @@ export class WorkOSWebhookService {
       throw new Error(`WorkOS identity ${workosUserId} has been revoked and cannot be resurrected`);
     }
 
-    // No existing identity link - generate new canonical UUID
-    const { data: uuidData, error: uuidError } = await supabase.rpc('gen_random_uuid_rpc');
-    if (uuidError || !uuidData) {
-      throw new Error('Failed to generate UUID for new CAPFLUX user');
-    }
-    const capfluxUserId = uuidData;
-    console.log(`[workos-webhook] Generated new CAPFLUX UUID: ${capfluxUserId} for WorkOS ID: ${workosUserId}`);
+    // No existing identity link (active or revoked)
+    return null;
+  }
 
-    // Create the identity link in user_identity_links
-    // Use insert with onConflict to handle race conditions - if a link already exists,
-    // the unique constraint will cause a conflict, and we should fetch the existing link
-    const { error: linkError } = await supabase
-      .from('user_identity_links')
-      .insert({
-        capflux_user_id: capfluxUserId,
-        workos_user_id: workosUserId,
-        identity_type: 'workos_authkit',
-        status: 'ACTIVE',
-        migration_source: 'WEBHOOK',
-        verified_at: new Date().toISOString(),
-      });
+  /**
+   * Provision a new CAPFLUX user from WorkOS identity using atomic database RPC.
+   *
+   * This creates the user, profile, and identity link in a single transaction.
+   * Only called by handleUserCreated when no existing identity is found.
+   *
+   * @param userData - Normalized WorkOS user data
+   * @returns CAPFLUX canonical UUID
+   * @throws Error if provisioning fails
+   */
+  private async provisionCAPFLUXUserFromWorkOS(userData: WorkOSUserData): Promise<string> {
+    console.log(`[workos-webhook] Provisioning new CAPFLUX user for WorkOS ID: ${userData.id}`);
 
-    if (linkError) {
-      // Check if this is a unique constraint violation (race condition)
-      if (linkError.code === '23505') {
-        // Another request created the link concurrently - fetch the existing link
-        const { data: existingLink, error: retryErr } = await supabase
-          .from('user_identity_links')
-          .select('capflux_user_id')
-          .eq('workos_user_id', workosUserId)
-          .eq('identity_type', 'workos_authkit')
-          .eq('status', 'ACTIVE')
-          .maybeSingle();
+    const { data: capfluxUserId, error: provisionError } = await supabase.rpc('provision_workos_user', {
+      p_workos_user_id: userData.id,
+      p_email: userData.email,
+      p_first_name: userData.firstName,
+      p_last_name: userData.lastName,
+      p_email_verified: userData.emailVerified,
+      p_profile_picture_url: userData.profilePictureUrl,
+    });
 
-        if (retryErr) {
-          throw new Error(`Failed to query identity link after conflict: ${errorMessage(retryErr)}`);
-        }
-
-        if (existingLink) {
-          console.log(`[workos-webhook] Race condition resolved: workos_user_id=${workosUserId} -> capflux_user_id=${existingLink.capflux_user_id}`);
-          return existingLink.capflux_user_id;
-        }
-      }
-      throw new Error(`Failed to create identity link: ${errorMessage(linkError)}`);
+    if (provisionError) {
+      console.error('[workos-webhook] Failed to provision CAPFLUX user:', errorMessage(provisionError));
+      throw new Error(`Failed to provision CAPFLUX user: ${errorMessage(provisionError)}`);
     }
 
-    console.log(`[workos-webhook] Created identity link: workos_user_id=${workosUserId} -> capflux_user_id=${capfluxUserId}`);
+    if (!capfluxUserId) {
+      throw new Error('Provisioning RPC returned no UUID');
+    }
+
+    console.log(`[workos-webhook] Provisioned CAPFLUX user: workos_user_id=${userData.id} -> capflux_user_id=${capfluxUserId}`);
     return capfluxUserId;
   }
 
@@ -281,7 +272,8 @@ export class WorkOSWebhookService {
 
   /**
    * Handle user.created event.
-   * Creates or updates the CAPFLUX user record using the canonical UUID.
+   * Creates the CAPFLUX user, profile, and identity link atomically.
+   * Uses the atomic provisioning RPC to ensure FK constraints are satisfied.
    */
   async handleUserCreated(event: WorkOSEvent): Promise<EventProcessingResult> {
     const eventId = event.id;
@@ -293,18 +285,29 @@ export class WorkOSWebhookService {
         return { success: false, eventId, eventType, error: 'Invalid user data in event payload' };
       }
 
-      // Resolve WorkOS ID to CAPFLUX UUID (ONLY through identity bridge)
-      const capfluxUserId = await this.resolveCAPFLUXUserId(userData.id);
+      // Step 1: Check for existing identity (resolution only)
+      const existingCapfluxUserId = await this.findCAPFLUXUserIdByWorkOSId(userData.id);
 
-      // Upsert CAPFLUX user records using the canonical UUID
-      const result = await this.upsertCAPFLUXUser(capfluxUserId, userData);
+      let capfluxUserId: string;
 
-      if (result.success) {
-        console.log(`[workos-webhook] received event=user.created id=${eventId} workos_user_id=${userData.id} capflux_user_id=${capfluxUserId}`);
-        return { success: true, eventId, eventType };
+      if (existingCapfluxUserId) {
+        // Identity already exists - this is an idempotent retry or duplicate event
+        // Update the user/profile data to match current WorkOS state
+        capfluxUserId = existingCapfluxUserId;
+        console.log(`[workos-webhook] Existing identity found for user.created: workos_user_id=${userData.id} -> capflux_user_id=${capfluxUserId}`);
+
+        // Upsert user/profile to sync any changes
+        const result = await this.upsertCAPFLUXUser(capfluxUserId, userData);
+        if (!result.success) {
+          return { success: false, eventId, eventType, error: result.error };
+        }
       } else {
-        return { success: false, eventId, eventType, error: result.error };
+        // No existing identity - provision atomically
+        capfluxUserId = await this.provisionCAPFLUXUserFromWorkOS(userData);
       }
+
+      console.log(`[workos-webhook] received event=user.created id=${eventId} workos_user_id=${userData.id} capflux_user_id=${capfluxUserId}`);
+      return { success: true, eventId, eventType };
     } catch (error) {
       console.error('[workos-webhook] Error handling user.created:', errorMessage(error));
       return { success: false, eventId, eventType, error: errorMessage(error) };
@@ -314,6 +317,8 @@ export class WorkOSWebhookService {
   /**
    * Handle user.updated event.
    * Synchronizes changed WorkOS user information using the canonical UUID.
+   * ONLY operates on existing identities - never creates new ones.
+   * Email changes in WorkOS do NOT create new CAPFLUX identities.
    */
   async handleUserUpdated(event: WorkOSEvent): Promise<EventProcessingResult> {
     const eventId = event.id;
@@ -325,8 +330,15 @@ export class WorkOSWebhookService {
         return { success: false, eventId, eventType, error: 'Invalid user data in event payload' };
       }
 
-      // Resolve WorkOS ID to CAPFLUX UUID (ONLY through identity bridge)
-      const capfluxUserId = await this.resolveCAPFLUXUserId(userData.id);
+      // Resolve WorkOS ID to CAPFLUX UUID (ONLY through identity bridge - NO provisioning)
+      const capfluxUserId = await this.findCAPFLUXUserIdByWorkOSId(userData.id);
+
+      if (!capfluxUserId) {
+        // No identity link exists - this is an update for a user that was never provisioned
+        // Log and return error (fail-closed: updates cannot create new identities)
+        console.error(`[workos-webhook] user.updated received for unknown WorkOS identity: ${userData.id}`);
+        return { success: false, eventId, eventType, error: `No identity link found for WorkOS user ${userData.id}` };
+      }
 
       // Upsert CAPFLUX user records using the canonical UUID
       const result = await this.upsertCAPFLUXUser(capfluxUserId, userData);
