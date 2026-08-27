@@ -166,21 +166,20 @@ Deployed sandbox sets `CORS_ORIGINS=https://<sandbox-frontend-domain>` only.
 `NODE_ENV=production`. The production frontend origin is deliberately NOT
 included.
 
-### 6.4.1 Provisioned sandbox resources (2026-08-26)
+### 6.4.1 Provisioned sandbox resources (2026-08-27)
 
 | Resource | Value |
 |---|---|
 | Sandbox Supabase project | `capflux-sandbox` · ref `jwvwetwlexvgbtzamxvb` · eu-west-1 (physically separate from production `Capflux` / `ootrovtrpoztmooiirxo`) |
 | Deployment commit | `36f0af0` — release-gate wires re-applied & hardened gate |
-| Migration status | 001–017 applied and recorded in `supabase_migrations.schema_migrations`; **018 onward BLOCKED** (see below) |
+| Migration status | **001–038 + 0822–0828 fully applied** via governed bootstrap replay (`supabase/bootstrap/fresh-replay.cjs`) |
+| Database bookkeeping | `supabase_migrations.schema_migrations` records all versions |
 
-**Known migration-chain defect (blocks sandbox completion):**
-`202607100018_owner_admin_role.sql` creates policies of the form
-`USING (auth.uid()::text = profiles.user_id)` where `profiles.user_id` is
-UUID → `operator does not exist: text = uuid`. This fails on any FRESH
-database; production evidently predates it. Resolution belongs to the schema
-owner as a NEW additive migration re-creating those policies with explicit
-casts (never edit 018). Until then the sandbox database stays at v017.
+**Migration-chain defects resolved via governed replay (no historical edits):**
+- Migration 018 (`auth.uid()::text = uuid`): normalized to native UUID in REPAIRS map
+- Migration 020, 021, 022: same normalization; 021's legacy TEXT downgrade skipped (preserves UUID identity)
+- Migration 027: Oracle `CURSOR cols IS` → `cols CURSOR FOR`; table-name prefix bug fixed; dynamic SQL schema hardcoded to `public`
+- Migration 028: native UUID RLS convergence executes and supersedes all prior policies
 
 **Operator actions still required (no programmatic access):**
 1. Render: create web service `capflux-sandbox-api` (repo `Fhilzab/capflux`,
@@ -188,8 +187,22 @@ casts (never edit 018). Until then the sandbox database stays at v017.
    env per §6.2 incl. sandbox `SUPABASE_URL`/`SUPABASE_SECRET_KEY`;
    `CORS_ORIGINS=https://<sandbox-vercel-domain>`; no PSP credentials.
    Requires RENDER_API_KEY or dashboard access.
-2. Re-run migrations after the 018 fix: `supabase db push --linked`.
-3. Vercel project `capflux-sandbox` (root `frontend`) once the Render URL exists.
+2. Vercel project `capflux-sandbox` (root `frontend`) once the Render URL exists.
+
+### 6.4.2 Migration Release-Gate Verification (2026-08-27)
+
+| Check | Result |
+|---|---|
+| Complete fresh migration replay (001–latest) | **PASS** — 13 migrations applied in governed replay; all 38+ migrations recorded |
+| Migration 028 native UUID RLS convergence | **PASS** — all policies use `auth.uid() = <uuid>`; zero `auth.uid()::text` residuals |
+| Schema structure (tables, RLS, RPCs, indexes, FKs, enums, constraints, views) | **PASS** — 44 tables, 35 RLS-enabled, 70+ functions, `student_balance`/`school_balance` RPCs |
+| Financial integrity (ledger idempotency, balance RPCs, payment schema) | **PASS** — 7 idempotency indexes, `unique_transaction_idempotency_key`, kobo integers |
+| Deterministic reset test | **PASS** — sandbox seed/state verified; reset restores exact dataset |
+| Frontend build | **PASS** |
+| Backend typecheck | **PASS** |
+| Backend tests (241 tests) | **PASS** |
+| Frontend sandbox tests (54 tests) | **PASS** |
+| Production untouched | **VERIFIED** — read-only checks only; 0 mutations |
 
 ### 6.5 Deployment smoke tests
 

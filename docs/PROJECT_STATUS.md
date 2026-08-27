@@ -2,7 +2,7 @@
 
 > **Canonical living source of truth for CAPFLUX development status.**
 >
-> Last updated: 2026-08-19
+> Last updated: 2026-08-27
 >
 > This document consolidates verified repository evidence — Git history, code, migrations, tests, and documentation — into a single status reference. It distinguishes what is **implemented and verified** from what is **designed only**, **partially implemented**, **deferred**, or **not yet implemented**.
 
@@ -24,13 +24,15 @@
 
 ```
 Current active work:
-  Sandbox Release Gate — isolation hardening & deployment readiness ✅ COMPLETE
-  (startup configuration validation both directions, CAPFLUX_DATABASE_ENV
-  agreement, gateway-factory runtime guards, runtime-info mode descriptor,
-  cross-database isolation/reset tests, secret & fallback audits)
+  Sandbox Release Gate — database migration release gate ✅ COMPLETE
+  (complete fresh migration replay 001–038+0822–0828 via governed bootstrap;
+   migration 028 native UUID RLS convergence; zero auth.uid()::text residuals;
+   schema/RLS/integrity verification; deterministic reset; 241 backend tests,
+   54 frontend sandbox tests; frontend build; backend typecheck/build;
+   compliance audit PASS on financial controls; production untouched)
   Previous: Sandbox / Demo Environment — full-system simulation mode ✅ COMPLETE
   (docs/sandbox/SANDBOX_MODE.md — isolated execution mode: deterministic demo
-  dataset, in-browser API/payment/KYC simulators, offline-first sync, reset)
+   dataset, in-browser API/payment/KYC simulators, offline-first sync, reset)
 
 Next recommended milestone:
   Phase 9 — Onboarding Analytics & Error Recovery
@@ -505,6 +507,16 @@ Completed work:
 - ✅ Backend: 163/163 tests passing
 - ✅ Frontend: 121/121 tests passing (81 existing + 40 new Phase 8 onboarding tests)
 - ✅ Build: SUCCESS
+
+**Migration Release-Gate Verification (2026-08-27):**
+- ✅ Complete fresh migration replay 001–038 + 0822–0828 via governed bootstrap (`supabase/bootstrap/fresh-replay.cjs`)
+- ✅ Migration 018/020/021/022 `auth.uid()::text = uuid` defects handled via explicit REPAIRS map (no historical edits)
+- ✅ Migration 027 cursor syntax + dynamic SQL bugs fixed in REPAIRS
+- ✅ Migration 028 executes and establishes final native-UUID RLS state
+- ✅ Zero `auth.uid()::text` residuals in any policy
+- ✅ All 18 user-reference columns are UUID with matching FKs
+- ✅ 241 backend tests pass (including UUID identity consistency, provisioning idempotency, school isolation)
+- ✅ 54 frontend sandbox tests pass
 
 WorkOS code is **preserved for rollback** and must NOT be described as the active authentication provider:
 - `backend/services/WorkOSAuthService.js` — preserved
