@@ -21,11 +21,7 @@ defineProps<{
             aria-label="Go to CAPFLUX home"
             class="inline-flex items-center gap-2 text-text-primary font-bold text-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
           >
-            <svg class="h-8 w-auto" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <text x="0" y="24" font-family="var(--font-family-sans)" font-weight="700" font-size="24" class="fill-text-primary">
-                CAPFLUX
-              </text>
-            </svg>
+            <img src="/icons.svg" alt="CAPFLUX" class="h-8 w-auto" />
           </RouterLink>
         </div>
 

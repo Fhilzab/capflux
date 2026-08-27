@@ -59,15 +59,7 @@ onUnmounted(() => {
         <!-- Logo -->
         <div class="flex items-center">
           <a href="/" class="flex items-center space-x-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-button bg-brand shadow-card">
-              <svg class="h-5 w-5 text-background" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2 1.343-2zm0 0v.5" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 12v3.5" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v3" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 8a7 7 0 0114 0c0 2.21-.9 4.2-2.25 5.64A6.97 6.97 0 0112 15a6.97 6.97 0 01-4.75-1.36C5.9 12.2 5 10.21 5 8z" />
-              </svg>
-            </div>
-            <span class="text-lg font-bold tracking-tight text-text-primary">CAPFLUX</span>
+            <img src="/icons.svg" alt="CAPFLUX" class="h-8 w-auto" />
             <CmBadge
               variant="brand"
               label="Financial OS"

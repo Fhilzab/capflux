@@ -129,6 +129,10 @@ const navigateToAuth = (mode: 'login' | 'signup' = 'login') => {
   router.push({ name: 'Auth', query: { mode } });
 };
 
+const navigateToSandboxDemo = () => {
+  window.location.href = 'https://capflux-sandbox.vercel.app/auth';
+};
+
 const scrollToSection = (sectionId: string) => {
   const element = document.getElementById(sectionId);
   if (element) {
@@ -178,12 +182,12 @@ onMounted(() => {
             Get Started Free
           </CmButton>
           <CmButton
-            @click="navigateToAuth('signup')"
+            @click="navigateToSandboxDemo"
             variant="secondary"
             size="lg"
             class="px-8"
           >
-            Book a Live Demo
+            Try CAPFLUX Demo
           </CmButton>
         </div>
 
@@ -601,12 +605,12 @@ onMounted(() => {
               Get Started Free Today
             </CmButton>
             <CmButton
+              @click="navigateToSandboxDemo"
               variant="secondary"
               size="lg"
               class="px-8"
-              @click="navigateToAuth('signup')"
             >
-              Book a Live Demo
+              Try CAPFLUX Demo
             </CmButton>
           </div>
 
