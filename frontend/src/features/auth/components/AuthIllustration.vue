@@ -1,15 +1,19 @@
+<script setup lang="ts">
+import { runtimeEnvironment } from '../../../shared/environment/runtimeEnvironment';
+</script>
+
 <template>
   <div class="flex h-full w-full flex-col justify-center p-8 lg:p-16">
     <!-- Logo -->
     <div class="mb-12">
-      <RouterLink
-        to="/"
+      <a
+        :href="runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/'"
         aria-label="Go to CAPFLUX home"
         class="inline-flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
       >
         <img src="/icons.svg" alt="" class="h-10 w-auto" />
         <span class="font-bold text-xl text-text-primary">CAPFLUX</span>
-      </RouterLink>
+      </a>
     </div>
 
     <!-- Headline -->

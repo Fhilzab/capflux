@@ -29,6 +29,18 @@ interface RouteMeta {
 }
 
 const routes: RouteRecordRaw[] = [
+  // Sandbox root redirects to production homepage — sandbox has no marketing landing page
+  ...(runtimeEnvironment.isSandbox
+    ? [
+        {
+          path: '/',
+          redirect: () => {
+            window.location.href = 'https://capflux.vercel.app';
+            return '/';
+          },
+        },
+      ]
+    : []),
   {
     path: '/settings',
     name: 'Settings',

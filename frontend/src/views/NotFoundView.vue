@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import CmButton from '../components/ui/CmButton.vue';
-import { useRouter } from 'vue-router';
-
-const router = useRouter();
+import { runtimeEnvironment } from '../shared/environment/runtimeEnvironment';
 
 const goHome = () => {
-  router.push({ name: 'Landing' });
+  if (runtimeEnvironment.isSandbox) {
+    window.location.href = 'https://capflux.vercel.app';
+  } else {
+    window.location.href = '/';
+  }
 };
 </script>
 

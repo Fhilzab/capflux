@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useThemeStore } from '../../stores/themeStore';
+import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment';
 import CmButton from '../../components/ui/CmButton.vue';
 import CmBadge from '../../components/ui/CmBadge.vue';
 
@@ -10,6 +11,9 @@ const themeStore = useThemeStore();
 
 const isScrolled = ref(false);
 const isMobileMenuOpen = ref(false);
+
+// In sandbox, logo links to production homepage; in production, links to local landing page
+const homeUrl = computed(() => (runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/'));
 
 const navItems = [
   { id: 'features', label: 'Features' },
@@ -58,7 +62,7 @@ onUnmounted(() => {
       <div class="flex h-16 items-center justify-between">
         <!-- Logo -->
         <div class="flex items-center">
-          <a href="/" class="flex items-center space-x-2">
+          <a :href="homeUrl" class="flex items-center space-x-2">
             <img src="/icons.svg" alt="" class="h-8 w-auto" />
             <span class="text-lg font-bold tracking-tight text-text-primary">CAPFLUX</span>
             <CmBadge

@@ -1,7 +1,19 @@
 <script setup lang="ts">
+import { runtimeEnvironment } from '../../../shared/environment/runtimeEnvironment';
+
 defineProps<{
   illustration?: boolean;
 }>();
+
+const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/';
+
+function navigateHome(): void {
+  if (runtimeEnvironment.isSandbox) {
+    window.location.href = 'https://capflux.vercel.app';
+  } else {
+    window.location.href = '/';
+  }
+}
 </script>
 
 <template>
@@ -16,14 +28,14 @@ defineProps<{
       <div class="w-full max-w-md">
         <!-- Mobile / compact branded home link -->
         <div class="mb-6 lg:hidden">
-          <RouterLink
-            to="/"
+          <a
+            :href="homeUrl"
             aria-label="Go to CAPFLUX home"
             class="inline-flex items-center gap-2 text-text-primary font-bold text-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
           >
             <img src="/icons.svg" alt="" class="h-8 w-auto" />
             <span>CAPFLUX</span>
-          </RouterLink>
+          </a>
         </div>
 
         <!-- Mobile Header -->

@@ -150,7 +150,7 @@ async function switchRole(personaId: string): Promise<void> {
   // Persist the new persona session, then cold-restart so every store,
   // provider and guard re-initializes against it (authorization included).
   await getSandboxAuthProvider().switchToPersona(personaId);
-  window.location.assign('/');
+  window.location.href = 'https://capflux.vercel.app';
 }
 
 async function resetProgressiveAccess(): Promise<void> {
@@ -179,7 +179,7 @@ async function confirmReset(): Promise<void> {
     }
     resetSteps.value.push(`Dataset hash ${result.datasetHash ?? 'n/a'} · ${result.students} students`);
     await installSandboxMode();
-    setTimeout(() => window.location.assign('/'), 600);
+    setTimeout(() => { window.location.href = 'https://capflux.vercel.app'; }, 600);
   } finally {
     resetting.value = false;
   }
