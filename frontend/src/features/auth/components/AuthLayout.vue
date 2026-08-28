@@ -21,7 +21,8 @@ defineProps<{
             aria-label="Go to CAPFLUX home"
             class="inline-flex items-center gap-2 text-text-primary font-bold text-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
           >
-            <img src="/icons.svg" alt="CAPFLUX" class="h-8 w-auto" />
+            <img src="/icons.svg" alt="" class="h-8 w-auto" />
+            <span>CAPFLUX</span>
           </RouterLink>
         </div>
 

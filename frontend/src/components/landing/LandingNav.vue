@@ -59,7 +59,8 @@ onUnmounted(() => {
         <!-- Logo -->
         <div class="flex items-center">
           <a href="/" class="flex items-center space-x-2">
-            <img src="/icons.svg" alt="CAPFLUX" class="h-8 w-auto" />
+            <img src="/icons.svg" alt="" class="h-8 w-auto" />
+            <span class="text-lg font-bold tracking-tight text-text-primary">CAPFLUX</span>
             <CmBadge
               variant="brand"
               label="Financial OS"

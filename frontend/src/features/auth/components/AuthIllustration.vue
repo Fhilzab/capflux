@@ -5,9 +5,10 @@
       <RouterLink
         to="/"
         aria-label="Go to CAPFLUX home"
-        class="inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
+        class="inline-flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
       >
-        <img src="/icons.svg" alt="CAPFLUX" class="h-10 w-auto" />
+        <img src="/icons.svg" alt="" class="h-10 w-auto" />
+        <span class="font-bold text-xl text-text-primary">CAPFLUX</span>
       </RouterLink>
     </div>
 
