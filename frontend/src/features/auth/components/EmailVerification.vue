@@ -50,10 +50,10 @@ const isCountdownReady = computed(() => countdown.value === 0);
 </script>
 
 <template>
-  <div class="w-full text-center space-y-6">
+  <div class="w-full text-center space-y-5 sm:space-y-6">
     <div>
       <h2 class="text-headline mb-1">Check your email</h2>
-      <p class="text-subheadline text-text-secondary">
+      <p class="text-sm sm:text-subheadline text-text-secondary">
         We've sent a verification link to <span class="font-medium">{{ props.email }}</span>.
       </p>
     </div>

@@ -30,6 +30,7 @@
   --color-text-primary: #111111;
   --color-text-secondary: #525252;
   --color-text-muted: #737373;
+  --color-text-tertiary: #9CA3AF;
 
   /* Brand Primary - Emerald */
   --color-brand: #059669;
@@ -80,6 +81,7 @@ html.dark {
   --color-text-primary: #FAFAFA;
   --color-text-secondary: #D4D4D8;
   --color-text-muted: #A1A1AA;
+  --color-text-tertiary: #71717A;
 
   /* Brand Primary - Emerald */
   --color-brand: #059669;

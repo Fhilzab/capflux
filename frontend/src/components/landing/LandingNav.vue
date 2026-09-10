@@ -59,12 +59,12 @@ onUnmounted(() => {
     :class="isScrolled ? 'bg-background/80 backdrop-blur-md border-b border-divider shadow-topnav' : 'bg-transparent'"
   >
     <nav class="mx-auto max-w-7xl px-6 lg:px-8">
-      <div class="flex h-16 items-center justify-between">
+      <div class="flex h-14 items-center justify-between">
         <!-- Logo -->
         <div class="flex items-center">
           <a :href="homeUrl" class="flex items-center space-x-2">
-            <img src="/icons.svg" alt="" class="h-8 w-auto" />
-            <span class="text-lg font-bold tracking-tight text-text-primary">CAPFLUX</span>
+            <img src="/icons.svg" alt="" class="h-10 w-auto" />
+            <span class="text-xl font-bold tracking-tight text-text-primary">CAPFLUX</span>
             <CmBadge
               variant="brand"
               label="Financial OS"
@@ -92,7 +92,7 @@ onUnmounted(() => {
           <!-- Theme Toggle -->
           <button
             @click="toggleTheme"
-            class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-text-secondary hover:text-text-primary transition-colors focus-ring"
+            class="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-text-secondary hover:text-text-primary transition-colors focus-ring"
             :aria-label="themeStore.mode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
           >
             <svg v-if="themeStore.mode === 'dark'" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -124,7 +124,7 @@ onUnmounted(() => {
           <!-- Mobile Menu Button -->
           <button
             @click="isMobileMenuOpen = !isMobileMenuOpen"
-            class="md:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-text-secondary hover:text-text-primary transition-colors focus-ring"
+            class="md:hidden flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-text-secondary hover:text-text-primary transition-colors focus-ring"
             :aria-label="isMobileMenuOpen ? 'Close menu' : 'Open menu'"
             :aria-expanded="isMobileMenuOpen"
           >
@@ -136,44 +136,81 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Mobile Menu -->
-      <transition
-        enter-active-class="transition ease-out duration-200"
-        enter-from-class="opacity-0 -translate-y-1"
-        enter-to-class="opacity-100 translate-y-0"
-        leave-active-class="transition ease-in duration-150"
-        leave-from-class="opacity-100 translate-y-0"
-        leave-to-class="opacity-0 -translate-y-1"
-      >
+      <!-- Mobile Menu (sheet overlay) -->
+      <transition name="mobile-menu">
         <div
-          v-show="isMobileMenuOpen"
-          class="md:hidden py-4 space-y-2 border-t border-divider"
+          v-if="isMobileMenuOpen"
+          class="md:hidden fixed inset-0 z-[var(--z-overlay)] flex"
         >
-          <CmButton
-            v-for="item in navItems"
-            :key="item.id"
-            @click="navigateTo(item.id)"
-            variant="link"
-            class="w-full block text-left"
+          <div
+            class="absolute inset-0 bg-background/60 backdrop-blur-sm"
+            @click="isMobileMenuOpen = false"
+          />
+          <div
+            class="relative ml-auto h-full w-full max-w-xs bg-card border-l border-divider shadow-xl overflow-y-auto flex flex-col animate-slide-in-right"
           >
-            {{ item.label }}
-          </CmButton>
-          <CmButton
-            @click="navigateToAuth('login')"
-            variant="black"
-            class="w-full mt-2 inline-flex"
-          >
-            Log In
-          </CmButton>
-          <CmButton
-            @click="navigateToAuth('signup')"
-            variant="primary"
-            class="w-full mt-2 inline-flex"
-          >
-            Get Started Free
-          </CmButton>
+            <div class="flex h-14 items-center justify-between px-6 border-b border-divider flex-shrink-0">
+              <a :href="homeUrl" class="flex items-center space-x-2">
+                <img src="/icons.svg" alt="" class="h-10 w-auto" />
+                <span class="text-xl font-bold tracking-tight text-text-primary">CAPFLUX</span>
+                <CmBadge variant="brand" label="Financial OS" size="sm" pill />
+              </a>
+              <button
+                type="button"
+                @click="isMobileMenuOpen = false"
+                class="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-text-primary transition-colors focus-ring"
+                aria-label="Close menu"
+              >
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <nav class="flex-1 overflow-y-auto py-3">
+              <CmButton
+                v-for="item in navItems"
+                :key="item.id"
+                @click="navigateTo(item.id)"
+                variant="link"
+                class="w-full block py-4 text-left"
+              >
+                {{ item.label }}
+              </CmButton>
+            </nav>
+            <div class="p-6 border-t border-divider space-y-3 flex-shrink-0">
+              <CmButton
+                @click="navigateToAuth('login')"
+                variant="black"
+                class="w-full"
+              >
+                Log In
+              </CmButton>
+              <CmButton
+                @click="navigateToAuth('signup')"
+                variant="primary"
+                class="w-full"
+              >
+                Get Started Free
+              </CmButton>
+            </div>
+          </div>
         </div>
       </transition>
     </nav>
   </header>
 </template>
+
+<style scoped>
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-in-right {
+    animation: none;
+  }
+  .mobile-menu-enter-active,
+  .mobile-menu-leave-active {
+    transition: none;
+  }
+  .transition-colors {
+    transition: none;
+  }
+}
+</style>

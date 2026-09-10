@@ -19,6 +19,7 @@
   --color-text-primary: var(--color-text-primary);
   --color-text-secondary: var(--color-text-secondary);
   --color-text-muted: var(--color-text-muted);
+  --color-text-tertiary: var(--color-text-tertiary);
 
   /* Brand Colors */
   --color-brand: var(--color-brand);

@@ -52,7 +52,7 @@ async function signInAs(email: string): Promise<void> {
       <button
         v-for="persona in personas"
         :key="persona.id"
-        class="flex w-full items-center justify-between rounded-md border border-divider px-3 py-2 text-left text-sm transition-colors hover:bg-background-hover"
+        class="flex w-full items-center justify-between rounded-md border border-divider px-3 py-2.5 text-left text-sm transition-colors hover:bg-background-hover"
         :data-testid="`demo-login-${persona.id}`"
         :disabled="busy !== null"
         @click="signInAs(persona.email)"

@@ -56,10 +56,10 @@ const switchToLogin = () => {
 </script>
 
 <template>
-  <div class="w-full text-center space-y-6">
+  <div class="w-full text-center space-y-5 sm:space-y-6">
     <div v-if="!isReset">
       <h2 class="text-headline mb-1">Set your new password</h2>
-      <p class="text-subheadline text-text-secondary">
+      <p class="text-sm sm:text-subheadline text-text-secondary">
         Enter a new password to continue.
       </p>
     </div>

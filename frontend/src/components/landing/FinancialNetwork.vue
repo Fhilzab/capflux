@@ -9,8 +9,8 @@ defineProps<{
     <!-- Animated gradient background -->
     <div class="absolute inset-0 bg-gradient-to-br from-brand/[0.02] via-transparent to-success/[0.02] animate-gradient-shift"></div>
     
-    <!-- Floating payment cards -->
-    <div class="absolute inset-0 pointer-events-none">
+    <!-- Floating payment cards (desktop only - decorative) -->
+    <div class="absolute inset-0 pointer-events-none hidden sm:block">
       <div
         v-for="(card, index) in 6"
         :key="index"
@@ -31,12 +31,12 @@ defineProps<{
     <div class="absolute inset-0 flex items-center justify-center">
       <div class="relative">
         <!-- Pulse rings -->
-        <div class="absolute h-32 w-32 rounded-full border border-brand/20 animate-ping-slow"></div>
-        <div class="absolute h-48 w-48 rounded-full border border-brand/10 animate-ping-slower"></div>
+        <div class="absolute h-24 w-24 sm:h-32 sm:w-32 rounded-full border border-brand/20 animate-ping-slow"></div>
+        <div class="absolute h-32 w-32 sm:h-48 sm:w-48 rounded-full border border-brand/10 animate-ping-slower"></div>
         
         <!-- Central node -->
-        <div class="h-16 w-16 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center">
-          <svg class="h-8 w-8 text-brand" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor">
+        <div class="h-12 w-12 sm:h-16 sm:w-16 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center">
+          <svg class="h-6 w-6 sm:h-8 sm:w-8 text-brand" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2 1.343-2zm0 0v.5" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 12v3.5" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v3" />

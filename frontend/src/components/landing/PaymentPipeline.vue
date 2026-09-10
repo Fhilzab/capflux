@@ -54,7 +54,7 @@ onUnmounted(() => {
 <template>
   <div class="relative">
     <!-- Pipeline visualization -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-6">
       <div
         v-for="(step, index) in pipelineSteps"
         :key="step.id"
@@ -67,7 +67,7 @@ onUnmounted(() => {
         <!-- Connection line -->
         <div
           v-if="index > 0"
-          class="absolute top-6 -left-3 w-6 h-0.5 bg-border hidden md:block"
+          class="absolute top-5 md:top-6 -left-3 w-6 h-0.5 bg-border hidden md:block"
           :class="{
             'bg-primary': activeStep >= index - 1
           }"
@@ -76,14 +76,14 @@ onUnmounted(() => {
         <!-- Step card -->
         <div class="flex flex-col items-center text-center">
           <div
-            class="flex h-12 w-12 items-center justify-center rounded-full border transition-all duration-300"
+            class="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border transition-all duration-300"
             :class="{
               'border-primary bg-primary/10': activeStep >= index,
               'border-border bg-card': activeStep < index
             }"
           >
             <svg
-              class="h-6 w-6 transition-colors duration-300"
+              class="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-300"
               :class="{
                 'text-primary': activeStep >= index,
                 'text-text-secondary': activeStep < index
@@ -97,7 +97,7 @@ onUnmounted(() => {
             </svg>
           </div>
           <p
-            class="mt-3 text-xs font-medium transition-colors duration-300"
+            class="mt-2 text-xs font-medium transition-colors duration-300"
             :class="{
               'text-text-primary': activeStep >= index,
               'text-text-secondary': activeStep < index
@@ -110,7 +110,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Animated flow indicator -->
-    <div class="mt-12 flex justify-center">
+    <div class="mt-8 sm:mt-12 flex justify-center">
       <div class="relative h-1 w-full max-w-md bg-border rounded-full overflow-hidden">
         <div
           class="absolute inset-y-0 left-0 bg-primary transition-all duration-500 rounded-full"

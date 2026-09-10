@@ -72,6 +72,10 @@ body,
   @apply font-mono text-text-primary;
 }
 
+.text-subheadline {
+  @apply text-sm font-medium text-text-secondary;
+}
+
 /* ==========================================================================
     Skeleton Animation - CEMDS Compliant
     ========================================================================== */
@@ -178,6 +182,15 @@ html.dark .focus-ring:focus {
 
 .animate-slide-out-right {
   animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobile-menu-enter-active,
+.mobile-menu-leave-active {
+  transition: opacity 0.3s ease;
+}
+.mobile-menu-enter-from,
+.mobile-menu-leave-to {
+  opacity: 0;
 }
 
 /* Fade in up - for cards */
@@ -337,5 +350,25 @@ html.dark .shadow-topnav {
   
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-in-right,
+  .animate-slide-out-right,
+  .animate-fade-in,
+  .animate-fade-out,
+  .animate-scale-in,
+  .animate-count,
+  .animate-fade-in-up,
+  .animate-pulse-glow {
+    animation: none;
+  }
+  .transition,
+  .transition-all,
+  .transition-colors,
+  .transition-transform,
+  .transition-shadow {
+    transition: none;
   }
 }

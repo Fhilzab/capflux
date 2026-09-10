@@ -41,10 +41,10 @@ const switchToLogin = () => {
 </script>
 
 <template>
-  <div class="w-full text-center space-y-6">
+  <div class="w-full text-center space-y-5 sm:space-y-6">
     <div v-if="!isSubmitted">
       <h2 class="text-headline mb-1">Reset your password</h2>
-      <p class="text-subheadline text-text-secondary">
+      <p class="text-sm sm:text-subheadline text-text-secondary">
         Enter your email and we'll send you a link to reset your password.
       </p>
     </div>

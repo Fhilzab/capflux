@@ -36,9 +36,9 @@ const featureIcons = {
 // Trust features for hero badges
 const trustFeatures = [
   { id: 'offline', title: 'Zero Setup Fee' },
-  { id: 'accounts', title: 'Dedicated Virtual Account (DVA) per Student' },
+  { id: 'accounts', title: 'DVA per Student' },
   { id: 'reconciliation', title: 'Automatic Payment Verification' },
-  { id: 'verification', title: 'Built for Nigerian Private Schools (Offline-First Ready)' },
+  { id: 'verification', title: 'Built for Nigerian Schools' },
 ];
 
 // Target segments for hero trust bar
@@ -154,30 +154,31 @@ onMounted(() => {
     <LandingNav />
 
     <!-- HERO SECTION -->
-    <section class="relative min-h-screen flex items-center justify-center px-6 pt-16">
+    <section class="relative min-h-[50vh] sm:min-h-screen flex items-center justify-center px-4 sm:px-6 pt-14 sm:pt-16">
       <FinancialNetwork class="absolute inset-0 -z-10" />
-      
+
       <div class="mx-auto max-w-4xl text-center">
         <CmBadge
           variant="primary"
           label="Financial Operating System for African Private Schools"
-          class="mb-8 mx-auto"
+          size="sm"
+          class="mb-5 sm:mb-6 mx-auto w-full sm:w-fit"
         />
 
-        <h1 class="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight text-text-primary mb-6">
+        <h1 class="text-2xl sm:text-3xl md:text-7xl lg:text-8xl font-extrabold tracking-tight text-text-primary mb-4 sm:mb-6">
           School Fee Collection,<br>Finally Without the Stress.
         </h1>
 
-        <p class="text-xl md:text-2xl text-text-secondary max-w-3xl mx-auto mb-12">
-          Every student receives a Dedicated Virtual Account. Payments are verified automatically through the banking system. Every kobo is accounted for in real time—even when your internet goes down.
+        <p class="text-sm sm:text-base md:text-lg text-text-secondary max-w-3xl mx-auto mb-6 sm:mb-8">
+          Every student receives a Dedicated Virtual Account. Payments verified automatically. Every kobo tracked in real time—even offline.
         </p>
 
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-10">
           <CmButton
             @click="navigateToAuth('signup')"
             variant="primary"
             size="lg"
-            class="px-8 shadow-lg hover:shadow-xl transition-all duration-300"
+            class="w-full sm:w-auto sm:px-8 shadow-lg hover:shadow-xl transition-all duration-300"
           >
             Get Started Free
           </CmButton>
@@ -185,22 +186,22 @@ onMounted(() => {
             @click="navigateToSandboxDemo"
             variant="secondary"
             size="lg"
-            class="px-8"
+            class="w-full sm:w-auto sm:px-8"
           >
             Try CAPFLUX Demo
           </CmButton>
         </div>
 
-        <div class="mb-12">
-          <span class="text-text-secondary">Built by FHILZAB NIG LTD (RC-1656168)</span>
+        <div class="mb-4 sm:mb-6">
+          <span class="text-xs sm:text-sm text-text-secondary">Built by FHILZAB NIG LTD (RC-1656168)</span>
         </div>
 
         <!-- Hero Bullet Points - Clean badges -->
-        <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-16 border-t border-divider">
+        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 pt-4 sm:gap-x-6 sm:gap-y-3 sm:pt-12 border-t border-divider">
           <div
             v-for="feature in trustFeatures"
             :key="feature.id"
-            class="flex items-center gap-2 text-sm text-text-muted"
+            class="flex items-center gap-2 text-xs sm:text-sm text-text-muted"
           >
             <div class="h-2 w-2 rounded-full bg-success"></div>
             <span class="font-mono">{{ feature.title }}</span>
@@ -210,24 +211,24 @@ onMounted(() => {
     </section>
 
     <!-- TARGET SEGMENT TRUST BAR -->
-    <section id="school-spotlight" class="py-16 px-6 border-y border-divider bg-sidebar/50">
+    <section id="school-spotlight" class="py-12 sm:py-16 px-4 sm:px-6 border-y border-divider bg-sidebar/50">
       <div class="mx-auto max-w-6xl">
-        <p class="text-center text-sm uppercase tracking-wider text-text-muted mb-8">Built for Nigerian private schools</p>
-        <div class="flex flex-wrap items-center justify-center gap-x-12 gap-y-4">
+        <p class="text-center text-xs sm:text-sm uppercase tracking-wider text-text-muted mb-6 sm:mb-8">Built for Nigerian private schools</p>
+        <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 sm:gap-x-12 sm:gap-y-4">
           <span
             v-for="segment in targetSegments"
             :key="segment"
-            class="text-2xl font-bold text-text-secondary"
+            class="text-base sm:text-lg md:text-2xl font-bold text-text-secondary"
           >{{ segment }}</span>
         </div>
       </div>
     </section>
 
     <!-- PROBLEM & AGITATION SECTION -->
-    <section id="problem" class="py-32 px-6">
+    <section id="problem" class="py-16 md:py-32 px-4 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
+        <div class="text-center mb-12 sm:mb-16">
+          <h2 class="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-text-primary mb-4 sm:mb-6">
             Fee collection shouldn't feel like a second job.
           </h2>
           <p class="text-lg text-text-secondary max-w-3xl mx-auto">
@@ -235,10 +236,10 @@ onMounted(() => {
           </p>
         </div>
 
-        <div class="grid md:grid-cols-2 gap-8 items-stretch">
+        <div class="grid md:grid-cols-2 gap-6 sm:gap-8 items-stretch">
           <!-- The Old Way -->
-          <div class="premium-card bg-card p-8">
-            <h3 class="text-sm font-semibold uppercase tracking-wider text-text-muted mb-6">The Old Way</h3>
+          <div class="premium-card bg-card p-6 sm:p-8">
+            <h3 class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-text-muted mb-4 sm:mb-6">The Old Way</h3>
             <ul class="space-y-4">
               <li
                 v-for="point in oldWayPainPoints"
@@ -254,8 +255,8 @@ onMounted(() => {
           </div>
 
           <!-- The CAPFLUX Way -->
-          <div class="premium-card bg-card p-8 border-brand/30">
-            <h3 class="text-sm font-semibold uppercase tracking-wider text-brand mb-6">The CAPFLUX Way</h3>
+          <div class="premium-card bg-card p-6 sm:p-8 border-brand/30">
+            <h3 class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand mb-4 sm:mb-6">The CAPFLUX Way</h3>
             <ul class="space-y-4">
               <li
                 v-for="point in capfluxWayPoints"
@@ -274,13 +275,13 @@ onMounted(() => {
     </section>
 
     <!-- FOUNDER'S STORY BLOCK -->
-    <section id="founder-story" class="py-16 px-6">
+    <section id="founder-story" class="py-12 sm:py-16 px-4 sm:px-6">
       <div class="mx-auto max-w-4xl">
-        <figure class="bg-zinc-950 rounded-card p-10 md:p-14 shadow-elevated">
-          <svg class="h-10 w-10 text-emerald-500 mb-6" fill="currentColor" viewBox="0 0 24 24">
+        <figure class="bg-zinc-950 rounded-card p-8 md:p-14 shadow-elevated">
+          <svg class="h-8 w-8 sm:h-10 sm:w-10 text-emerald-500 mb-5 sm:mb-6" fill="currentColor" viewBox="0 0 24 24">
             <path d="M9.983 3v7.391c0 5.704-3.731 9.57-8.983 10.609l-.995-2.151c2.432-.917 3.995-3.638 3.995-5.849h-4v-10h9.983zm14.017 0v7.391c0 5.704-3.748 9.571-9 10.609l-.996-2.151c2.433-.917 3.996-3.638 3.996-5.849h-3.983v-10h9.983z" />
           </svg>
-          <blockquote class="text-xl md:text-2xl font-semibold leading-relaxed text-white mb-8">
+          <blockquote class="text-lg sm:text-xl md:text-2xl font-semibold leading-relaxed text-white mb-6 sm:mb-8">
             "{{ founderStory.quote }}"
           </blockquote>
           <figcaption class="flex items-center gap-4">
@@ -297,23 +298,23 @@ onMounted(() => {
     </section>
 
     <!-- SOLUTION SECTION -->
-    <section id="solution" class="py-32 px-6 bg-surface/30">
+    <section id="solution" class="py-16 md:py-32 px-4 sm:px-6 bg-surface/30">
       <div class="mx-auto max-w-6xl text-center">
-        <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
+        <h2 class="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-text-primary mb-4 sm:mb-6">
           CAPFLUX makes school fee collection automatic.
         </h2>
-        <p class="text-lg text-text-secondary max-w-3xl mx-auto mb-16">
+        <p class="text-lg text-text-secondary max-w-3xl mx-auto mb-12 sm:mb-16">
           Dedicated virtual accounts. Automatic payment verification. Real-time visibility. Every payment finds its match without human intervention.
         </p>
-        
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           <div
             v-for="(item, index) in ['Dedicated Virtual Account', 'Automatic Verification', 'Real-Time Updates', 'No Manual Reconciliation']"
             :key="item"
             class="opacity-0 animate-fade-in"
             :style="{ animationDelay: `${index * 150}ms` }"
           >
-            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-4">
+            <div class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-3 sm:mb-4">
               <svg class="h-8 w-8 text-brand" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
               </svg>
@@ -325,10 +326,10 @@ onMounted(() => {
     </section>
 
     <!-- HOW IT WORKS SECTION -->
-    <section id="how-it-works" class="py-32 px-6">
+    <section id="how-it-works" class="py-16 md:py-32 px-4 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
+        <div class="text-center mb-12 sm:mb-16">
+          <h2 class="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-text-primary mb-4 sm:mb-6">
             Get started in three simple steps.
           </h2>
           <p class="text-lg text-text-secondary max-w-3xl mx-auto">
@@ -336,9 +337,9 @@ onMounted(() => {
           </p>
         </div>
         
-        <div class="grid md:grid-cols-3 gap-8 mb-16">
+        <div class="grid md:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
           <div class="text-center">
-            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-4">
+            <div class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-3 sm:mb-4">
               <span class="text-2xl font-bold text-brand">1</span>
             </div>
             <h3 class="text-xl font-semibold text-text-primary mb-3">Configure Your School Workspace (Free)</h3>
@@ -347,7 +348,7 @@ onMounted(() => {
             </p>
           </div>
           <div class="text-center">
-            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-4">
+            <div class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-3 sm:mb-4">
               <span class="text-2xl font-bold text-brand">2</span>
             </div>
             <h3 class="text-xl font-semibold text-text-primary mb-3">Auto-Provision Dedicated Virtual Accounts</h3>
@@ -356,7 +357,7 @@ onMounted(() => {
             </p>
           </div>
           <div class="text-center">
-            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-4">
+            <div class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-brand/10 mx-auto mb-3 sm:mb-4">
               <span class="text-2xl font-bold text-brand">3</span>
             </div>
             <h3 class="text-xl font-semibold text-text-primary mb-3">Watch Payments Reconcile in Real Time</h3>
@@ -371,14 +372,14 @@ onMounted(() => {
     </section>
 
     <!-- WHY SCHOOLS CHOOSE CAPFLUX SECTION -->
-    <section id="why-capflux" class="py-32 px-6 bg-surface/30">
+    <section id="why-capflux" class="py-16 md:py-32 px-4 sm:px-6 bg-surface/30">
       <div class="mx-auto max-w-4xl text-center">
-        <blockquote class="text-3xl md:text-4xl font-bold tracking-tight text-text-primary mb-8">
+        <blockquote class="text-xl sm:text-2xl md:text-4xl font-bold tracking-tight text-text-primary mb-6 sm:mb-8">
           We don't build school management software.<br>
           We build financial confidence.
         </blockquote>
-        
-        <p class="text-lg text-text-secondary mb-16">
+
+        <p class="text-lg text-text-secondary mb-12 sm:mb-16">
           Every feature answers one question: Does this help a school collect and understand its revenue more reliably?
         </p>
         
@@ -401,10 +402,10 @@ onMounted(() => {
     </section>
 
     <!-- OFFLINE-FIRST SECTION -->
-    <section id="offline-first" class="py-32 px-6 bg-surface/30">
-      <div class="mx-auto max-w-6xl grid md:grid-cols-2 gap-16 items-center">
+    <section id="offline-first" class="py-16 md:py-32 px-4 sm:px-6 bg-surface/30">
+      <div class="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 sm:gap-16 items-center">
         <div>
-          <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
+          <h2 class="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-text-primary mb-4 sm:mb-6">
             Works when infrastructure doesn't.
           </h2>
           <p class="text-lg text-text-secondary mb-6">
@@ -421,10 +422,10 @@ onMounted(() => {
     </section>
 
     <!-- BENTO GRID SECTION (What You Get With CAPFLUX) -->
-    <section id="features" class="py-32 px-6">
+    <section id="features" class="py-16 md:py-32 px-4 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
+        <div class="text-center mb-12 sm:mb-16">
+          <h2 class="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-text-primary mb-4 sm:mb-6">
             What you get with CAPFLUX.
           </h2>
           <p class="text-lg text-text-secondary max-w-3xl mx-auto">
@@ -432,7 +433,7 @@ onMounted(() => {
           </p>
         </div>
 
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <FeatureCard
             v-for="(capability, index) in capabilities"
             :key="capability.id"
@@ -446,15 +447,15 @@ onMounted(() => {
     </section>
 
     <!-- PRICING SECTION -->
-    <section id="pricing" class="py-32 px-6 bg-surface/30">
+    <section id="pricing" class="py-16 md:py-32 px-4 sm:px-6 bg-surface/30">
       <div class="mx-auto max-w-4xl text-center">
-        <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
+        <h2 class="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-text-primary mb-4 sm:mb-6">
           Start today without paying for software.
         </h2>
         
-        <div class="max-w-3xl mx-auto text-left space-y-10 mb-12">
+        <div class="max-w-3xl mx-auto text-left space-y-8 sm:space-y-10 mb-12 sm:mb-16">
           <div>
-            <p class="text-lg font-semibold text-text-primary mb-6">Schools pay:</p>
+            <p class="text-lg font-semibold text-text-primary mb-5 sm:mb-6">Schools pay:</p>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div
                 v-for="zero in zeroCostAnchors"
@@ -474,32 +475,32 @@ onMounted(() => {
           </div>
         </div>
 
-        <p class="text-2xl md:text-3xl font-extrabold tracking-tight text-text-primary mt-8">
+        <p class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-text-primary mt-6 sm:mt-8">
           Simple. Predictable. Risk-Free.
         </p>
       </div>
     </section>
 
     <!-- PILOT PROGRAM SECTION -->
-    <section id="pilot" class="py-32 px-6">
+    <section id="pilot" class="py-16 md:py-32 px-4 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="bg-zinc-950 rounded-card px-8 py-16 md:p-20 text-center shadow-elevated">
+        <div class="bg-zinc-950 rounded-card px-6 py-12 md:px-8 md:py-20 text-center shadow-elevated">
           <span class="inline-flex items-center text-xs font-mono uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
             Pilot Program • Limited Cohort
           </span>
 
-          <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mt-4">
+          <h2 class="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-white mt-3 sm:mt-4">
             Shape the Future of Fee Management. Join Our Pilot Program.
           </h2>
-          <p class="text-zinc-400 text-lg max-w-2xl mx-auto mt-3">
+          <p class="text-zinc-400 text-base sm:text-lg max-w-2xl mx-auto mt-3">
             We are partnering with a limited cohort of progressive private schools in Nigeria. Get white-glove setup support, direct access to our core engineering team, and early access to the CAPFLUX Financial OS.
           </p>
 
-          <div class="mt-12 grid gap-6 text-left md:grid-cols-3">
+          <div class="mt-10 sm:mt-12 grid gap-5 sm:gap-6 text-left md:grid-cols-3">
             <div
               v-for="perk in pilotPerks"
               :key="perk.title"
-              class="bg-zinc-900/60 border border-zinc-800 p-6 rounded-xl"
+              class="bg-zinc-900/60 border border-zinc-800 p-5 sm:p-6 rounded-xl"
             >
               <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-4">
                 <svg class="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -511,22 +512,22 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div class="mt-10 sm:mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               @click="navigateToAuth('signup')"
-              class="rounded-lg bg-emerald-500 px-6 py-3 font-bold text-zinc-950 transition-colors hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+              class="w-full sm:w-auto rounded-lg bg-emerald-500 px-6 py-3 font-bold text-zinc-950 transition-colors hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
             >
               Apply for Pilot Access
             </button>
             <button
               @click="navigateToAuth('signup')"
-              class="rounded-lg border border-zinc-700 px-6 py-3 font-medium text-white transition-colors hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+              class="w-full sm:w-auto mt-3 sm:mt-0 rounded-lg border border-zinc-700 px-6 py-3 font-medium text-white transition-colors hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
             >
               Book Founder Call
             </button>
           </div>
 
-          <p class="mt-6 text-sm text-zinc-400">
+          <p class="mt-5 sm:mt-6 text-sm text-zinc-400">
             🟢 Currently accepting 10 private schools for Term 1 rollout.
           </p>
         </div>
@@ -534,10 +535,10 @@ onMounted(() => {
     </section>
 
     <!-- FAQ SECTION -->
-    <section id="faq" class="py-32 px-6 bg-surface/30">
+    <section id="faq" class="py-16 md:py-32 px-4 sm:px-6 bg-surface/30">
       <div class="mx-auto max-w-4xl">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-6">
+        <div class="text-center mb-12 sm:mb-16">
+          <h2 class="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight text-text-primary mb-4 sm:mb-6">
             Frequently Asked Questions
           </h2>
         </div>
@@ -552,7 +553,7 @@ onMounted(() => {
               @click="toggleFaq(index)"
               :aria-expanded="item.open"
               :aria-controls="`faq-answer-${index}`"
-              class="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-surface transition-colors focus-ring"
+               class="w-full px-5 sm:px-6 py-4 text-left flex items-center justify-between hover:bg-surface transition-colors focus-ring"
             >
               <span class="font-semibold text-text-primary">{{ item.question }}</span>
               <svg
@@ -577,7 +578,7 @@ onMounted(() => {
               <div
                 v-show="item.open"
                 :id="`faq-answer-${index}`"
-                class="px-6 pb-4"
+                 class="px-5 sm:px-6 pb-4"
               >
                 <p class="text-text-secondary">{{ item.answer }}</p>
               </div>
@@ -588,19 +589,19 @@ onMounted(() => {
     </section>
 
     <!-- FINAL CTA SECTION -->
-    <section id="demo" class="py-32 px-6">
+    <section id="demo" class="py-16 md:py-32 px-4 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="bg-zinc-950 rounded-card px-8 py-16 md:p-20 text-center shadow-elevated">
-          <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-6">
+        <div class="bg-zinc-950 rounded-card px-6 py-12 md:px-8 md:py-20 text-center shadow-elevated">
+          <h2 class="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-4 sm:mb-6">
             Stop Chasing School Fees. Start Managing Them with Confidence.
           </h2>
 
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 sm:mt-12">
             <CmButton
               @click="navigateToAuth('signup')"
               variant="primary"
               size="lg"
-              class="px-8 shadow-lg hover:shadow-xl transition-all duration-300"
+              class="w-full sm:w-auto sm:px-8"
             >
               Get Started Free Today
             </CmButton>
@@ -608,13 +609,13 @@ onMounted(() => {
               @click="navigateToSandboxDemo"
               variant="secondary"
               size="lg"
-              class="px-8"
+              class="w-full sm:w-auto mt-3 sm:mt-0 sm:px-8"
             >
               Try CAPFLUX Demo
             </CmButton>
           </div>
 
-          <p class="text-sm md:text-base text-zinc-400 mt-10">
+          <p class="text-sm md:text-base text-zinc-400 mt-8 sm:mt-10">
             CAPFLUX by FHILZAB NIG LTD — The Financial Operating System for Private Schools in Africa.
           </p>
         </div>
@@ -622,9 +623,9 @@ onMounted(() => {
     </section>
 
     <!-- FOOTER SECTION -->
-    <footer class="border-t border-divider py-20 px-6">
+    <footer class="border-t border-divider py-12 md:py-20 px-4 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="grid md:grid-cols-4 gap-8 mb-16">
+        <div class="grid md:grid-cols-4 gap-6 sm:gap-8 mb-12 sm:mb-16">
           <div>
             <h3 class="text-sm font-semibold uppercase tracking-wider text-text-primary mb-4">Product</h3>
             <ul class="space-y-3">
@@ -673,7 +674,7 @@ onMounted(() => {
         </div>
 
         <!-- Closing statement -->
-        <div class="text-center pt-8 border-t border-divider">
+        <div class="text-center pt-6 sm:pt-8 border-t border-divider">
           <p class="text-text-muted text-sm">
             CAPFLUX — Africa's School Fee Collection Platform
           </p>
