@@ -20,6 +20,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
     "express": "^4.18.4",
+    "jose": "^6.2.12",
     "pg": "^8.22.0"
   },
   "devDependencies": {
