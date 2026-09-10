@@ -14,6 +14,7 @@ import { supabase } from '../supabaseClient.js';
 import WorkOSAuthService from '../services/WorkOSAuthService.js';
 import sessionService from '../services/SessionService.js';
 import requireAuth from '../middleware/requireAuth.js';
+import requireAuthHybrid from '../middleware/requireAuthHybrid.js';
 import { errorMessage } from '../types/http.js';
 import type { AuthUser } from '../types/http.js';
 import type { NormalizedSession } from '../services/SessionService.js';
@@ -70,10 +71,26 @@ const clearSessionCookie = (res: Response): void => {
 /**
  * Upsert the CAPFLUX `users` identity and `user_profiles` rows.
  * Authentication ONLY — no organizations, schools, or subscriptions.
+ *
+ * SAFETY: public.users.id and public.user_profiles.user_id are UUID columns.
+ * WorkOS user IDs ("user_...") are TEXT and must NEVER be written there —
+ * identity mapping belongs exclusively to public.user_identity_links (which
+ * these legacy routes do not manage). If the id is not a UUID, the write is
+ * skipped (authentication still succeeds; the session remains valid).
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const upsertUserRecords = async (user: AuthUser | WorkosFormattedUser | null): Promise<void> => {
   const u = user as AuthUser | null;
   if (!u?.id || !u?.email) return;
+
+  if (!UUID_RE.test(u.id)) {
+    // Legacy WorkOS identity (e.g. "user_...") — not a CAPFLUX canonical UUID.
+    // Skip the write rather than corrupt UUID columns. The authoritative
+    // mapping for such identities is public.user_identity_links via the
+    // atomic provision_workos_user RPC (webhook path).
+    console.warn('Skipping users upsert: id is not a CAPFLUX UUID (legacy WorkOS identity).');
+    return;
+  }
 
   try {
     await supabase.from('users').upsert({
@@ -191,24 +208,22 @@ router.get('/callback', async (req: Request, res: Response) => {
 /**
  * GET /api/auth/session
  * Returns SAFE session information for the frontend.
- * Requires the HttpOnly session cookie (validated server-side).
+ * Supports both WorkOS JWT Bearer token and HttpOnly session cookie.
  * NEVER returns refresh tokens, cookie values, or raw credentials.
  */
-router.get('/session', requireAuth, async (req: Request, res: Response) => {
+router.get('/session', requireAuthHybrid, async (req: Request, res: Response) => {
   return res.json({
     success: true,
     session: sessionService.safeSessionPayload({
-      // requireAuth guarantees both fields before this handler runs; the
-      // casts bridge the WorkOS-normalized shape to NormalizedSession.
       user: req.user as unknown as NormalizedSession['user'],
       sessionId: (req.sessionId ?? null) as string | null,
     }),
   });
 });
 
-router.get('/me', requireAuth, async (req: Request, res: Response) => {
-  // Identity comes from the verified WorkOS session cookie, not a client
-  // supplied user id. Upsert the identity records for the authenticated user.
+router.get('/me', requireAuthHybrid, async (req: Request, res: Response) => {
+  // Identity comes from the verified WorkOS session (Bearer token or cookie),
+  // not a client supplied user id. Upsert the identity records for the authenticated user.
   try {
     await upsertUserRecords(req.user);
     return res.json({ success: true, user: req.user });
@@ -217,8 +232,9 @@ router.get('/me', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post('/signout', requireAuth, async (req: Request, res: Response) => {
+router.post('/signout', requireAuthHybrid, async (req: Request, res: Response) => {
   try {
+    // Try to revoke session using sessionId from either auth method
     const sessionId = req.sessionId;
     if (sessionId) {
       await sessionService.revokeSession(sessionId);

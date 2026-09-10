@@ -48,6 +48,10 @@ const ALLOWED_FRONTEND_ENV_VARS = new Set([
   // Sandbox execution mode flag — a non-secret build-time selector
   // ('production' | 'sandbox'). Fail-closed: unknown values resolve to production.
   'VITE_CAPFLUX_MODE',
+
+  // Auth provider selection — a non-secret build-time config
+  // ('workos' | 'supabase'). Fail-closed: unknown values resolve to supabase.
+  'VITE_AUTH_PROVIDER',
 ]);
 
 describe('Frontend security: no WorkOS secrets exposed', () => {

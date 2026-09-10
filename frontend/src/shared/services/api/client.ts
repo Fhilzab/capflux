@@ -2,20 +2,23 @@
  * apiClient — reusable frontend API client for the CAPFLUX backend.
  *
  * All domain data now flows:
- *   Vue -> Pinia -> Axios /api/* -> Express requireAuth -> domain service
+ *   Vue -> Pinia -> Axios /api/* -> Express requireAuthWorkOS -> domain service
  *   -> Supabase service-role client
  *
- * Authentication: the Supabase access token is attached to each request as
- *   Authorization: Bearer <SUPABASE_ACCESS_TOKEN>
- * The backend validates it via supabase.auth.getUser(token).
+ * Authentication modes:
+ *   - WorkOS (primary): WorkOS access token attached as Authorization: Bearer <WORKOS_ACCESS_TOKEN>
+ *     The backend validates it via WorkOS JWKS and resolves CAPFLUX UUID via user_identity_links.
+ *   - Supabase Auth (fallback/legacy): Supabase access token attached as Authorization: Bearer <SUPABASE_ACCESS_TOKEN>
+ *     The backend validates it via supabase.auth.getUser(token).
  *
  * The frontend NEVER sends a user id or credential in request bodies or
  * custom headers. Identity is always derived from the validated JWT.
  */
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { supabase, hasSupabaseConfig } from '@/lib/supabase';
 import { runtimeEnvironment } from '@/shared/environment/runtimeEnvironment';
 import { sandboxAxiosAdapter } from '@/sandbox/api/axiosAdapter';
+import { getMemoryAccessToken, hasValidToken } from '@/shared/auth/tokenStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
@@ -32,17 +35,30 @@ if (runtimeEnvironment.isSandbox) {
   http.defaults.adapter = sandboxAxiosAdapter;
 }
 
-// Attach Supabase access token to every request.
-http.interceptors.request.use(async (config) => {
-  if (!hasSupabaseConfig) return config;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`;
+// Attach authentication token to every request.
+// Priority: WorkOS token (primary) > Supabase token (fallback)
+http.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  // 1. Try WorkOS token first (primary auth mode)
+  if (hasValidToken()) {
+    const workosToken = getMemoryAccessToken();
+    if (workosToken && config.headers) {
+      config.headers.Authorization = `Bearer ${workosToken}`;
+      return config;
     }
-  } catch {
-    // Session may be absent; requests will be rejected (401) by the backend.
   }
+
+  // 2. Fall back to Supabase token (legacy/fallback mode)
+  if (hasSupabaseConfig) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token && config.headers) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    } catch {
+      // Session may be absent; requests will be rejected (401) by the backend.
+    }
+  }
+
   return config;
 });
 

@@ -26,6 +26,7 @@
 import { supabase } from '../supabaseClient.js';
 import { WorkOS } from '@workos-inc/node';
 import { errorMessage } from '../types/http.js';
+import { revokeSessionId } from '../middleware/requireAuthHybrid.js';
 
 /**
  * Normalized WorkOS user data for internal use.
@@ -45,7 +46,7 @@ interface WorkOSUserData {
  * Normalized WorkOS webhook event.
  */
 interface WorkOSEvent {
-  id: string;                    // WorkOS event ID (e.g., "evt_...")
+  id: string;                    // WorkOS event ID (e.g., "event_...")
   event: string;                 // Event type (e.g., "user.created")
   data: Record<string, unknown>; // Event payload (contains WorkOS user ID)
   timestamp: string;
@@ -434,7 +435,7 @@ export class WorkOSWebhookService {
 
   /**
    * Handle session.revoked event.
-   * Invalidates the user's session in CAPFLUX.
+   * Invalidates the user's session by adding the session ID to the revocation cache.
    */
   async handleSessionRevoked(event: WorkOSEvent): Promise<EventProcessingResult> {
     const eventId = event.id;
@@ -448,11 +449,16 @@ export class WorkOSWebhookService {
         return { success: false, eventId, eventType, error: 'Missing user_id in session.revoked event' };
       }
 
+      // Revoke the session ID if present
+      if (sessionId) {
+        revokeSessionId(sessionId);
+        console.log(`[workos-webhook] Revoked session: session_id=${sessionId} for workos_user_id=${workosUserId}`);
+      } else {
+        console.log(`[workos-webhook] Received session.revoked without session ID: workos_user_id=${workosUserId}`);
+      }
+
       // Log the session revocation for audit purposes
       console.log(`[workos-webhook] received event=session.revoked id=${eventId} workos_user_id=${workosUserId} session_id=${sessionId || 'unknown'}`);
-
-      // In a full implementation, we would invalidate the user's session cookie
-      // by revoking the session in the SessionService. For now, we log the event.
 
       return { success: true, eventId, eventType };
     } catch (error) {

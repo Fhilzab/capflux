@@ -82,6 +82,9 @@ declare global {
       roles?: string[];
       schoolId?: string;
       staffRoles?: string[];
+      // WorkOS authentication
+      workosUserId?: string;
+      capfluxUserId?: string;
     }
   }
 }

@@ -5,18 +5,26 @@
  */
 
 import { SupabaseAuthProvider } from './SupabaseAuthProvider';
-import type { User, Session, AuthResult, AuthErrorData } from './types';
+import { AuthKitProvider } from './AuthKitProvider';
+import type { User, Session, AuthResult, AuthErrorData, AuthProvider } from './types';
 import { mapProviderError } from './AuthError';
 import { runtimeEnvironment } from '../environment/runtimeEnvironment';
 import { getSandboxAuthProvider, type SandboxAuthProvider } from '../../sandbox/session/sandboxAuth';
 
 /**
- * Execution-mode provider resolution: production builds use Supabase Auth;
- * sandbox builds use the demo persona provider. The rest of this module is
- * shared unchanged by both modes.
+ * Execution-mode provider resolution:
+ * - sandbox: demo persona provider
+ * - production: WorkOS AuthKit (primary) with Supabase Auth as fallback
  */
-function createAuthProvider(): SupabaseAuthProvider | SandboxAuthProvider {
-  return runtimeEnvironment.isSandbox ? getSandboxAuthProvider() : new SupabaseAuthProvider();
+function createAuthProvider(): AuthKitProvider | SupabaseAuthProvider | SandboxAuthProvider {
+  if (runtimeEnvironment.isSandbox) {
+    return getSandboxAuthProvider();
+  }
+
+  // Production: Use WorkOS AuthKit as primary auth provider
+  // SupabaseAuthProvider is kept as fallback/rollback infrastructure
+  const useWorkOS = import.meta.env.VITE_AUTH_PROVIDER === 'workos';
+  return useWorkOS ? new AuthKitProvider() : new SupabaseAuthProvider();
 }
 
 /**
@@ -26,7 +34,7 @@ function createAuthProvider(): SupabaseAuthProvider | SandboxAuthProvider {
  * - No provider-specific logic outside this file
  */
 export const AuthService = {
-  _provider: createAuthProvider() as SupabaseAuthProvider | SandboxAuthProvider,
+  _provider: createAuthProvider() as AuthKitProvider | SupabaseAuthProvider | SandboxAuthProvider,
 
   /**
    * Initiate provider auth flow. With Supabase Auth there is no hosted UI
