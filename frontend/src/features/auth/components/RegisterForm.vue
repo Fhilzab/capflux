@@ -7,6 +7,7 @@ import CmInput from '../../../components/ui/CmInput.vue';
 import CmCheckbox from '../../../components/ui/CmCheckbox.vue';
 import CmAlert from '../../../components/ui/CmAlert.vue';
 import GoogleIcon from '../../../components/ui/GoogleIcon.vue';
+import { Eye, EyeOff, ChevronRight } from '@lucide/vue';
 import type { AuthState } from '../useAuthState';
 
 interface Emits {
@@ -73,12 +74,14 @@ const switchToLogin = () => {
 </script>
 
 <template>
-  <div class="w-full space-y-5 sm:space-y-6">
+  <div class="w-full space-y-6">
+    <!-- Header -->
     <div class="text-center">
       <h2 class="text-headline mb-1">Create your CAPFLUX account</h2>
       <p class="text-subheadline text-text-secondary">Start managing your school's finances today</p>
     </div>
 
+    <!-- Error Alert -->
     <CmAlert
       v-if="authStore.error"
       variant="danger"
@@ -87,11 +90,11 @@ const switchToLogin = () => {
       class="mb-4"
     />
 
-    <form @submit.prevent="handleSignUp" data-testid="register-form" class="space-y-4">
+    <form @submit.prevent="handleSignUp" data-testid="register-form" class="space-y-5">
       <!-- First Name & Last Name — horizontal two-column layout -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label for="signup-first-name" class="block text-sm font-medium text-text-primary mb-1">
+          <label for="signup-first-name" class="block text-sm font-medium text-text-primary mb-1.5">
             First name
           </label>
           <CmInput
@@ -104,7 +107,7 @@ const switchToLogin = () => {
           />
         </div>
         <div>
-          <label for="signup-last-name" class="block text-sm font-medium text-text-primary mb-1">
+          <label for="signup-last-name" class="block text-sm font-medium text-text-primary mb-1.5">
             Last name
           </label>
           <CmInput
@@ -118,8 +121,9 @@ const switchToLogin = () => {
         </div>
       </div>
 
+      <!-- Email Field -->
       <div>
-        <label for="signup-email" class="block text-sm font-medium text-text-primary mb-1">
+        <label for="signup-email" class="block text-sm font-medium text-text-primary mb-1.5">
           Email address
         </label>
         <CmInput
@@ -132,8 +136,9 @@ const switchToLogin = () => {
         />
       </div>
 
+      <!-- Password Field -->
       <div>
-        <label for="signup-password" class="block text-sm font-medium text-text-primary mb-1">
+        <label for="signup-password" class="block text-sm font-medium text-text-primary mb-1.5">
           Password
         </label>
         <div class="relative">
@@ -143,56 +148,32 @@ const switchToLogin = () => {
             :error="submitted && !password ? 'Password is required' : undefined"
             placeholder="At least 8 characters"
             autocomplete="new-password"
-            class="pr-12"
+            class="pr-14"
           />
           <button
             type="button"
             @click="showPassword = !showPassword"
-            class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-l-none"
+            class="absolute inset-y-0 right-0 flex items-center justify-center w-12 text-text-muted hover:text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-r-button"
             :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            :aria-pressed="showPassword"
           >
-            <svg
-              v-if="!showPassword"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="h-5 w-5"
-            >
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <svg
-              v-else
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="h-5 w-5"
-            >
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-              <line x1="1" y1="1" x2="23" y2="23" />
-            </svg>
+            <Eye v-if="!showPassword" class="h-5 w-5" stroke-width="2" />
+            <EyeOff v-else class="h-5 w-5" stroke-width="2" />
           </button>
         </div>
-        <p class="mt-1 text-xs text-text-muted">
+        <p class="mt-1.5 text-xs text-text-muted">
           At least 8 characters. Your password must not appear in known data breaches.
         </p>
       </div>
 
-      <div class="flex items-start">
+      <!-- Terms Checkbox -->
+      <div class="flex items-start gap-2">
         <CmCheckbox
           id="signup-terms"
           v-model:checked="agreeToTerms"
           :error="submitted && !agreeToTerms ? 'You must accept the terms to continue' : undefined"
         />
-        <label for="signup-terms" class="ml-2 block text-sm text-text-secondary">
+        <label for="signup-terms" class="mt-0.5 text-sm text-text-secondary">
           I agree to the
           <a href="/terms" class="text-brand hover:underline">Terms of Service</a>
           and
@@ -200,50 +181,59 @@ const switchToLogin = () => {
         </label>
       </div>
 
+      <!-- Primary CTA -->
       <CmButton
         type="submit"
         variant="primary"
+        size="lg"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
         data-testid="signup-button"
-        class="w-full h-12"
+        class="w-full"
       >
-        Create Account
+        <span v-if="!authStore.loading">Create Account</span>
+        <span v-else>Creating account…</span>
+      </CmButton>
+
+      <!-- Secondary Action -->
+      <div class="text-center text-sm">
+        <span class="text-text-secondary">Already have an account?</span>
+        <button
+          type="button"
+          @click="switchToLogin"
+          data-testid="login-link"
+          class="ml-1 font-medium text-brand hover:underline min-h-[44px] inline-flex items-center"
+        >
+          Log In
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="relative">
+        <div class="absolute inset-0 flex items-center">
+          <div class="w-full border-t border-divider"></div>
+        </div>
+        <div class="relative flex justify-center">
+          <span class="px-3 text-xs text-text-muted bg-card">Or continue with</span>
+        </div>
+      </div>
+
+      <!-- Google Authentication -->
+      <CmButton
+        type="button"
+        variant="secondary"
+        size="lg"
+        :disabled="authStore.loading"
+        :loading="authStore.loading"
+        class="w-full"
+        data-testid="google-signup"
+        data-google-auth
+        @click="authStore.signInWithProvider('google')"
+      >
+        <GoogleIcon size="20" />
+        <span v-if="!authStore.loading">Continue with Google</span>
+        <span v-else>Connecting…</span>
       </CmButton>
     </form>
-
-    <div class="text-center text-sm">
-      <span class="text-text-secondary">Already have an account?</span>
-      <button
-        type="button"
-        @click="switchToLogin"
-        data-testid="login-link"
-        class="ml-1 font-medium text-brand hover:underline"
-      >
-        Log In
-      </button>
-    </div>
-
-    <div class="relative my-5 sm:my-6">
-      <div class="absolute inset-0 flex items-center">
-        <div class="w-full border-t border-divider"></div>
-      </div>
-      <div class="relative flex justify-center">
-        <span class="px-3 text-xs text-text-muted bg-card">Or continue with</span>
-      </div>
-    </div>
-
-    <CmButton
-      type="button"
-      variant="secondary"
-      :disabled="authStore.loading"
-      class="w-full h-12"
-      data-testid="google-signup"
-      data-google-auth
-      @click="authStore.signInWithProvider('google')"
-    >
-      <GoogleIcon size="20" />
-      <span>Continue with Google</span>
-    </CmButton>
   </div>
 </template>

@@ -13,7 +13,7 @@ const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/
     </div>
 
     <!-- Right Panel - Authentication (40-45%) -->
-    <div class="flex w-full flex-col items-center justify-center lg:w-[42%] lg:justify-center p-6 lg:p-12 overflow-y-auto">
+    <div class="flex w-full flex-col items-center justify-center lg:w-[42%] lg:justify-center p-4 lg:p-8 overflow-y-auto">
       <div class="w-full max-w-[480px]">
         <!-- Mobile Header (hidden on desktop) -->
         <div class="lg:hidden text-center mb-8">
@@ -35,7 +35,7 @@ const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/
         </div>
 
         <!-- Authentication Card -->
-        <div class="bg-card border border-divider rounded-card shadow-card p-6 lg:p-10 w-full">
+        <div class="bg-card border border-divider rounded-[16px] shadow-sm p-6 lg:p-8 w-full max-w-[480px] mx-auto">
           <slot name="form"></slot>
         </div>
 

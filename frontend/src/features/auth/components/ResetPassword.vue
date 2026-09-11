@@ -56,7 +56,7 @@ const switchToLogin = () => {
 </script>
 
 <template>
-  <div class="w-full text-center space-y-5 sm:space-y-6">
+  <div class="w-full text-center space-y-6">
     <div v-if="!isReset">
       <h2 class="text-headline mb-1">Set your new password</h2>
       <p class="text-sm sm:text-subheadline text-text-secondary">
@@ -78,11 +78,11 @@ const switchToLogin = () => {
       :description="authStore.error"
     />
 
-    <form v-if="!isReset" @submit.prevent="handleReset" class="space-y-4">
+    <form v-if="!isReset" @submit.prevent="handleReset" class="space-y-5">
       <input type="hidden" v-model="token" />
 
       <div>
-        <label for="reset-password" class="block text-sm font-medium text-text-primary mb-1">
+        <label for="reset-password" class="block text-sm font-medium text-text-primary mb-1.5">
           New password
         </label>
         <CmInput
@@ -96,7 +96,7 @@ const switchToLogin = () => {
       </div>
 
       <div>
-        <label for="reset-confirm" class="block text-sm font-medium text-text-primary mb-1">
+        <label for="reset-confirm" class="block text-sm font-medium text-text-primary mb-1.5">
           Confirm password
         </label>
         <CmInput
@@ -112,11 +112,13 @@ const switchToLogin = () => {
       <CmButton
         type="submit"
         variant="primary"
+        size="lg"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
-        class="w-full h-12"
+        class="w-full"
       >
-        Reset Password
+        <span v-if="!authStore.loading">Reset Password</span>
+        <span v-else>Resetting…</span>
       </CmButton>
     </form>
 
@@ -125,6 +127,7 @@ const switchToLogin = () => {
       type="button"
       variant="link"
       @click="switchToLogin"
+      class="min-h-[44px] inline-flex items-center justify-center"
     >
       Back to sign in
     </CmButton>

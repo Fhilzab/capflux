@@ -4,20 +4,24 @@
 
 **Phase 3 Status: NOT READY FOR PRODUCTION DEPLOYMENT**
 
-The Phase 2 WorkOS AuthKit migration source code is complete and tested (259 backend + 86 frontend tests pass). However, **sandbox verification cannot be completed** because both the sandbox and production Supabase projects are currently **paused**, preventing remote schema verification and end-to-end testing.
+The Phase 2 WorkOS AuthKit migration source code is complete and tested (259 backend + 86 frontend tests pass, typecheck passes, builds pass). However, **sandbox verification cannot be completed** due to missing sandbox environment configuration and the inability to deploy and test the end-to-end authentication flow.
 
-**Sandbox verification is BLOCKED** until both Supabase projects are unpaused by an admin via the Supabase dashboard.
+**Sandbox verification is BLOCKED** until:
+1. Sandbox Supabase service role key is configured
+2. Sandbox WorkOS AuthKit credentials and redirect URIs are configured
+3. Sandbox backend and frontend are deployed
+4. End-to-end authentication tests can be executed
 
 ## 2. Environment
 
-- **Git branch**: main (0799aa6)
-- **Sandbox frontend**: Not deployed (blocked on sandbox backend)
-- **Sandbox backend**: Not deployed (blocked on sandbox Supabase)
-- **Sandbox Supabase project**: `capflux-sandbox` (ref: `jwvwetwlexvgbtzamxvb`) — **PAUSED**
-- **Production Supabase project**: `Capflux` (ref: `ootrovtrpoztmooiirxo`) — **PAUSED**
-- **WorkOS environment**: Cannot verify (requires deployed sandbox)
-- **WorkOS AuthKit configuration**: Cannot verify (requires deployed sandbox)
-- **Local Supabase CLI**: Linked to production (paused); cannot link to sandbox (paused)
+- **Git branch**: main (bf5e2fe)
+- **Sandbox frontend**: Not deployed (blocked on configuration)
+- **Sandbox backend**: Not deployed (blocked on configuration)
+- **Sandbox Supabase project**: `capflux-sandbox` (ref: `jwvwetwlexvgbtzamxvb`) — **ACCESSIBLE** (returns 401, not paused)
+- **Production Supabase project**: `Capflux` (ref: `ootrovtrpoztmooiirxo`) — **ACCESSIBLE** (returns 401, not paused)
+- **WorkOS environment**: Cannot verify (requires sandbox configuration)
+- **WorkOS AuthKit configuration**: Cannot verify (requires sandbox redirect URIs)
+- **Local Supabase CLI**: Cannot link due to CLI v2.112.0 bug (schema validation error on `inserted_at` field)
 
 ## 3. Phase 2 Verification
 
@@ -41,7 +45,6 @@ The Phase 2 WorkOS AuthKit migration source code is complete and tested (259 bac
 - `shared/auth/AuthService.ts` — WorkOS primary, Supabase fallback
 - `shared/auth/AuthKitProvider.ts` — JWT Bearer flow, in-memory tokens, auto-refresh
 - `shared/services/api/client.ts` — WorkOS token priority, Supabase fallback
-- `shared/auth/tokenStore.ts` — In-memory token storage
 - `frontend/.env.example` — Added `VITE_AUTH_PROVIDER=workos`
 
 **Database Migrations:** No new migrations needed. All identity infrastructure already exists:
@@ -73,7 +76,9 @@ WorkOS JWT (sub: user_...)
 | `/api/context/*` | `requireAuthSupabase` | ⚠️ Supabase Auth fallback |
 | `/api/admin/*` | `requireAuthSupabase` | ⚠️ Supabase Auth fallback |
 | `/api/dva`, `/api/payment-accounts`, `/api/payments` | `requireAuthSupabase` | ⚠️ Supabase Auth fallback |
+| `/api/kyc`, `/api/onboarding`, `/api/financial-*` | `requireAuthSupabase` | ⚠️ Supabase Auth fallback |
 | `/api/webhooks/workos` | Signature verification | ✅ Webhook signature |
+| `/rpc` | `requireAuthSupabase` | ⚠️ Supabase Auth fallback |
 
 **Current Active Authority**: Supabase Auth (production) via `requireAuthSupabase`  
 **Migration Target**: WorkOS AuthKit via `requireAuthHybrid` (Bearer token primary)
@@ -109,9 +114,9 @@ WorkOS JWT (sub: user_...)
 
 ## 6. WorkOS Login Test
 
-**STATUS: CANNOT TEST — Sandbox Supabase paused**
+**STATUS: CANNOT TEST — Sandbox environment not configured**
 
-Cannot perform end-to-end login test until sandbox Supabase is unpaused and sandbox backend/frontend deployed.
+Cannot perform end-to-end login test until sandbox Supabase credentials, WorkOS credentials, and redirect URIs are configured and sandbox backend/frontend deployed.
 
 **Expected Flow (Verified from Code):**
 ```
@@ -216,7 +221,7 @@ Authorization/RLS
 - `AuthService` factory: `VITE_AUTH_PROVIDER=workos` → WorkOS primary, Supabase fallback
 - No automatic email-based linking — all mappings explicit
 
-## 12. RLS / Authorization
+## 13. RLS / Authorization
 
 ### Current State
 
@@ -252,6 +257,7 @@ Authorization/RLS
 - `/auth/callback` redirects to `/auth` with `code`/`state` query params
 - `AuthView.vue` watches route query for OAuth callback
 - Protected routes use `authorizeRoute` guard with `requiresAuth: true`
+- Vercel SPA rewrite configured (`vercel.json` rewrites all routes to `index.html`)
 
 ## 16. Negative Security Tests
 
@@ -274,7 +280,9 @@ Authorization/RLS
 |-------|-------|------|------|
 | Backend (all) | 259 | 259 | 0 |
 | Frontend (shared + auth) | 86 | 86 | 0 |
+| Frontend (auth unit tests) | 47 | 47 | 0 |
 | Typecheck (backend) | — | PASS | 0 |
+| Typecheck (frontend) | — | No script (build passes) |
 | Build (backend + frontend) | — | PASS | 0 |
 
 **No regressions detected.**
@@ -300,7 +308,8 @@ Authorization/RLS
 
 | Risk | Severity | Status |
 |------|----------|--------|
-| Sandbox/Production Supabase paused | **BLOCKER** | Cannot verify remote schema or deploy |
+| Sandbox environment not configured | **BLOCKER** | Cannot deploy or verify end-to-end |
+| Supabase CLI bug (v2.112.0) | High | Cannot verify remote migration state via CLI |
 | Session revocation not immediate (in-flight) | Medium | Documented SLA: expiry-based for in-flight |
 | 7 tables without RLS | Medium | COMP-009 backlog |
 | Supabase Auth fallback complexity | Low | Documented rollback |
@@ -321,10 +330,10 @@ Authorization/RLS
 ### PHASE 3 STATUS: FAIL (Sandbox Verification Blocked)
 
 **Sandbox Verification Status:**
-- Supabase: **BLOCKED** (paused)
-- Backend: **NOT DEPLOYED** (depends on Supabase)
-- Frontend: **NOT DEPLOYED** (depends on backend)
-- WorkOS: **NOT CONFIGURED** (requires deployed sandbox)
+- Supabase: **NOT VERIFIED REMOTELY** (CLI bug, no service role key)
+- Backend: **NOT DEPLOYED** (missing sandbox env vars)
+- Frontend: **NOT DEPLOYED** (missing sandbox env vars)
+- WorkOS: **NOT CONFIGURED** (requires sandbox redirect URIs)
 - Identity bridge: **NOT VERIFIED REMOTELY** (schema unverified)
 - JWT: **NOT TESTED END-TO-END**
 - Revocation: **NOT TESTED END-TO-END**
@@ -335,30 +344,45 @@ Authorization/RLS
 
 ### Test Results:
 - Backend: **259 PASS / 0 FAIL**
-- Frontend: **86 PASS / 0 FAIL**  
-- Typecheck: **PASS**
-- Build: **PASS**
+- Frontend: **86 PASS / 0 FAIL** (auth unit tests: 47 PASS)
+- Typecheck: **PASS** (backend)
+- Build: **PASS** (backend + frontend)
 - Compliance: **Same as Gate 1 (no regressions)**
 
 ### Critical Findings:
-1. **Sandbox Supabase paused** — Cannot deploy or verify
-2. **Production Supabase paused** — Cannot link CLI or verify
+1. **Sandbox environment not configured** — Missing sandbox Supabase service role key, WorkOS credentials, redirect URIs
+2. **Supabase CLI bug** — Cannot verify remote migration state via CLI (v2.112.0 schema validation error)
 3. **Cannot characterize session revocation SLA end-to-end** — Requires live test
 
 ### Production Deployment:
-**BLOCKED** — Sandbox verification incomplete due to paused Supabase projects.
+**BLOCKED** — Sandbox verification incomplete due to missing sandbox environment configuration.
 
 ---
 
 ### Required Actions to Unblock:
-1. **Unpause sandbox Supabase project** (`jwvwetwlexvgbtzamxvb`) via Supabase dashboard
-2. **Unpause production Supabase project** (`ootrovtrpoztmooiirxo`) via Supabase dashboard  
-3. Link local Supabase CLI to sandbox: `supabase link --project-ref jwvwetwlexvgbtzamxvb`
-4. Verify sandbox migrations applied: `supabase migration list`
-5. Deploy sandbox backend → sandbox frontend
-6. Configure WorkOS AuthKit sandbox redirect URIs
-7. Run full end-to-end test suite
-8. Document session revocation SLA
+1. **Obtain sandbox Supabase credentials** (service role key, anon key, project URL)
+2. **Configure sandbox WorkOS AuthKit** (client ID, API key, webhook secret, redirect URIs)
+3. **Create sandbox backend `.env`** with:
+   - `CAPFLUX_MODE=sandbox`
+   - `CAPFLUX_DATABASE_ENV=sandbox`
+   - `SUPABASE_URL=<sandbox-project-url>`
+   - `SUPABASE_SECRET_KEY=<sandbox-service-role-key>`
+   - `CORS_ORIGINS=https://<sandbox-frontend-domain>`
+   - `PAYMENTS_PROVIDER_MODE=sandbox`
+   - `IDENTITY_VERIFICATION_PROVIDER=mock`
+   - `SETTLEMENT_VERIFICATION_PROVIDER=mock`
+   - WorkOS sandbox credentials
+4. **Create sandbox frontend `.env`** with:
+   - `VITE_CAPFLUX_MODE=sandbox`
+   - `VITE_CAPFLUX_DATABASE_ENV=sandbox`
+   - `VITE_API_BASE_URL=https://<sandbox-render-app>.onrender.com/api`
+   - `VITE_SUPABASE_URL=<sandbox-project-url>`
+   - `VITE_SUPABASE_ANON_KEY=<sandbox-anon-key>`
+   - `VITE_AUTH_PROVIDER=workos`
+5. **Deploy sandbox backend** (Render) → **Deploy sandbox frontend** (Vercel)
+6. **Configure WorkOS AuthKit sandbox redirect URIs** to match deployed frontend
+7. **Run full end-to-end test suite**
+8. **Document session revocation SLA**
 9. Then and only then: proceed to production deployment
 
 ---
@@ -367,6 +391,7 @@ Authorization/RLS
 - VERIFIED FROM CODE: All middleware, services, providers traced
 - VERIFIED FROM TESTS: 259 backend + 86 frontend tests pass
 - VERIFIED FROM MIGRATIONS: All SQL valid, no new migrations needed
-- NOT VERIFIED: Remote sandbox/production database state (projects paused)
+- NOT VERIFIED: Remote sandbox database state (CLI bug, no credentials)
+- NOT VERIFIED: End-to-end authentication flow (no deployed sandbox)
 
 **Security > Convenience. Identity Integrity > Email Matching. Financial Integrity > Authentication Convenience.**

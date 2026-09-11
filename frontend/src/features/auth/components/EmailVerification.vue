@@ -50,7 +50,7 @@ const isCountdownReady = computed(() => countdown.value === 0);
 </script>
 
 <template>
-  <div class="w-full text-center space-y-5 sm:space-y-6">
+  <div class="w-full text-center space-y-6">
     <div>
       <h2 class="text-headline mb-1">Check your email</h2>
       <p class="text-sm sm:text-subheadline text-text-secondary">
@@ -76,18 +76,21 @@ const isCountdownReady = computed(() => countdown.value === 0);
       <CmButton
         type="button"
         variant="secondary"
+        size="lg"
         :loading="isResending"
         :disabled="!isCountdownReady || isResending"
-        class="w-full h-12"
+        class="w-full"
         @click="handleResend"
       >
-        Resend verification email
+        <span v-if="!isResending">Resend verification email</span>
+        <span v-else>Sending…</span>
       </CmButton>
 
       <CmButton
         type="button"
         variant="link"
         @click="emit('switch-state', 'login')"
+        class="min-h-[44px] inline-flex items-center justify-center"
       >
         Back to sign in
       </CmButton>

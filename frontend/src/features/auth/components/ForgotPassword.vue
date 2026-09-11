@@ -41,7 +41,7 @@ const switchToLogin = () => {
 </script>
 
 <template>
-  <div class="w-full text-center space-y-5 sm:space-y-6">
+  <div class="w-full text-center space-y-6">
     <div v-if="!isSubmitted">
       <h2 class="text-headline mb-1">Reset your password</h2>
       <p class="text-sm sm:text-subheadline text-text-secondary">
@@ -64,9 +64,9 @@ const switchToLogin = () => {
       :description="authStore.error"
     />
 
-    <form v-if="!isSubmitted" @submit.prevent="handleReset" class="space-y-4">
+    <form v-if="!isSubmitted" @submit.prevent="handleReset" class="space-y-5">
       <div>
-        <label for="forgot-email" class="block text-sm font-medium text-text-primary mb-1">
+        <label for="forgot-email" class="block text-sm font-medium text-text-primary mb-1.5">
           Email address
         </label>
         <CmInput
@@ -82,11 +82,13 @@ const switchToLogin = () => {
       <CmButton
         type="submit"
         variant="primary"
+        size="lg"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
-        class="w-full h-12"
+        class="w-full"
       >
-        Send Reset Link
+        <span v-if="!authStore.loading">Send Reset Link</span>
+        <span v-else>Sending…</span>
       </CmButton>
     </form>
 
@@ -95,6 +97,7 @@ const switchToLogin = () => {
       type="button"
       variant="link"
       @click="switchToLogin"
+      class="min-h-[44px] inline-flex items-center justify-center"
     >
       Back to sign in
     </CmButton>
