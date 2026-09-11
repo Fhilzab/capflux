@@ -10,7 +10,7 @@ interface Props {
   type?: 'button' | 'submit' | 'reset';
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   variant: 'primary',
   size: 'md',
   type: 'button',

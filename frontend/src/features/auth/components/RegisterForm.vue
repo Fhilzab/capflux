@@ -230,7 +230,7 @@ const switchToLogin = () => {
         data-google-auth
         @click="authStore.signInWithProvider('google')"
       >
-        <GoogleIcon size="20" />
+        <GoogleIcon :size="20" />
         <span v-if="!authStore.loading">Continue with Google</span>
         <span v-else>Connecting…</span>
       </CmButton>

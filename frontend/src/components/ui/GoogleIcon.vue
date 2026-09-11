@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import googleIcon from '@/assets/google-icon.svg';
+import googleIcon from '@/assets/google.png';
 import { computed } from 'vue';
 
 interface Props {

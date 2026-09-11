@@ -42,7 +42,7 @@ const handleInput = (event: Event) => {
       {{ label }}
       <span v-if="required" class="text-danger">*</span>
     </label>
-    <div class="relative">
+    <div class="relative w-full">
       <input
         ref="inputRef"
         :id="inputId"
@@ -56,8 +56,15 @@ const handleInput = (event: Event) => {
         class="w-full rounded-input border bg-surface px-4 py-3.5 text-sm transition-colors duration-150 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-ring disabled:cursor-not-allowed disabled:opacity-50 h-12"
         :class="[
           error ? 'border-danger focus:ring-danger focus:border-danger' : 'border-border',
+          $slots.append ? 'pr-12' : '',
         ]"
       />
+      <div
+        v-if="$slots.append"
+        class="absolute inset-y-0 right-0 flex items-center"
+      >
+        <slot name="append" />
+      </div>
     </div>
     <p v-if="error" class="text-xs text-danger">{{ error }}</p>
     <p v-else-if="helperText" class="text-xs text-text-muted">{{ helperText }}</p>
