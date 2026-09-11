@@ -52,6 +52,11 @@ const ALLOWED_FRONTEND_ENV_VARS = new Set([
   // Auth provider selection — a non-secret build-time config
   // ('workos' | 'supabase'). Fail-closed: unknown values resolve to supabase.
   'VITE_AUTH_PROVIDER',
+
+  // API transport selection — a non-secret build-time config
+  // ('remote' | 'simulator'). Fail-closed: unknown values fail startup.
+  // Simulator only valid when VITE_CAPFLUX_MODE=sandbox.
+  'VITE_API_TRANSPORT',
 ]);
 
 describe('Frontend security: no WorkOS secrets exposed', () => {

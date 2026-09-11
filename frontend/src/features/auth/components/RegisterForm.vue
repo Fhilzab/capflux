@@ -148,7 +148,7 @@ const switchToLogin = () => {
             :error="submitted && !password ? 'Password is required' : undefined"
             placeholder="At least 8 characters"
             autocomplete="new-password"
-            class="pr-14"
+            class="pr-12"
           />
           <button
             type="button"

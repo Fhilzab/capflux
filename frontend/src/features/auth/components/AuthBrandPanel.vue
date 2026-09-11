@@ -31,17 +31,17 @@ const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/
     </div>
 
     <!-- Illustration -->
-    <div class="flex justify-center my-6 lg:my-10">
+    <div class="flex justify-center my-8 lg:my-12">
       <img
         :src="authViewIllustration"
         alt="CAPFLUX infrastructure: School to CAPFLUX to student financial accounts to verification"
-        class="w-full max-w-[540px] h-auto"
-        style="max-width: 85%; max-height: 400px;"
+        class="w-full max-w-[560px] h-auto"
+        style="max-width: 90%; max-height: 440px;"
       />
     </div>
 
     <!-- Trust Message -->
-    <div class="text-center mt-6 lg:mt-8">
+    <div class="text-center mt-8 lg:mt-10">
       <p class="text-sm lg:text-base text-text-muted">
         Built for the realities of Nigerian private schools.
       </p>

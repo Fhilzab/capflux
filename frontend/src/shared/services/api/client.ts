@@ -13,6 +13,10 @@
  *
  * The frontend NEVER sends a user id or credential in request bodies or
  * custom headers. Identity is always derived from the validated JWT.
+ *
+ * Transport modes:
+ *   - remote (default): Normal network requests to VITE_API_BASE_URL
+ *   - simulator: In-browser SandboxApiServer (sandbox mode only)
  */
 import axios, { InternalAxiosRequestConfig } from 'axios';
 import { supabase, hasSupabaseConfig } from '@/lib/supabase';
@@ -28,10 +32,11 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Sandbox execution mode: requests are dispatched to the in-browser API
-// simulator instead of the network. No other code path changes — stores,
-// error handling and interceptors behave exactly as in production.
-if (runtimeEnvironment.isSandbox) {
+// Transport selection: remote (default) vs simulator (explicit opt-in).
+// The simulator is ONLY installed when VITE_API_TRANSPORT=simulator AND
+// VITE_CAPFLUX_MODE=sandbox. This allows a deployed sandbox to use the
+// remote Render backend while keeping the simulator available for development.
+if (runtimeEnvironment.transport === 'simulator') {
   http.defaults.adapter = sandboxAxiosAdapter;
 }
 

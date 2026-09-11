@@ -8,27 +8,40 @@ and swaps only external dependencies for deterministic, isolated simulators.
 
 ## 1. What it is
 
-| | Production mode | Sandbox mode |
-|---|---|---|
-| Selection | `VITE_CAPFLUX_MODE=production` (default) | `VITE_CAPFLUX_MODE=sandbox` |
-| Domain data | Dexie cache ⇄ Supabase (RLS) via Express API | Dexie **sandbox database** (`capflux_sandbox_db`) |
-| Backend API | Express on Render (`VITE_API_BASE_URL`) | In-browser `SandboxApiServer` (custom axios adapter) |
-| Auth | Supabase Auth JWT | `SandboxAuthProvider` — demo personas (authorization still enforced) |
-| Payments | Licensed PSPs → webhook → `record_verified_payment` RPC | `SandboxGateway` + simulator endpoint posting through the same ledger rules |
-| KYC | Encrypted BVN/NIN + mock/approved identity provider | State-machine simulation (`NOT_STARTED→UNDER_REVIEW→VERIFIED/REJECTED`) |
-| Notifications | SMS/email providers | Demo inbox provider (nothing leaves the browser) |
-| Sync | Outbox → Supabase engines | Outbox → `SandboxSyncEngine` (same table, same statuses) |
+### Environment vs Transport
+
+**Environment** (`VITE_CAPFLUX_MODE`): Which infrastructure stack the application targets.
+- `production` — Production Supabase, Production Render, Production WorkOS
+- `sandbox` — Sandbox Supabase, Sandbox Render, Sandbox WorkOS
+
+**Transport** (`VITE_API_TRANSPORT`): How API requests are dispatched.
+- `remote` — Network requests to `VITE_API_BASE_URL` (default, fail-closed)
+- `simulator` — In-browser `SandboxApiServer` (sandbox mode only, explicit opt-in)
+
+This separation allows a deployed sandbox to use the remote Render backend
+while keeping the simulator available for development/test/demo use.
+
+| | Production mode | Sandbox mode (remote) | Sandbox mode (simulator) |
+|---|---|---|---|
+| Selection | `VITE_CAPFLUX_MODE=production` | `VITE_CAPFLUX_MODE=sandbox` + `VITE_API_TRANSPORT=remote` | `VITE_CAPFLUX_MODE=sandbox` + `VITE_API_TRANSPORT=simulator` |
+| Domain data | Dexie cache ⇄ Supabase (RLS) via Express API | Dexie cache ⇄ Sandbox Supabase via Render | Dexie **sandbox database** (`capflux_sandbox_db`) |
+| Backend API | Express on Render (`VITE_API_BASE_URL`) | Express on Sandbox Render (`VITE_API_BASE_URL`) | In-browser `SandboxApiServer` (custom axios adapter) |
+| Auth | WorkOS AuthKit JWT | WorkOS AuthKit JWT (Sandbox) | `SandboxAuthProvider` — demo personas |
+| Payments | Licensed PSPs → webhook → `record_verified_payment` RPC | Sandbox PSPs → webhook → `record_verified_payment` RPC | `SandboxGateway` + simulator endpoint |
+| KYC | Encrypted BVN/NIN + approved identity provider | Mock/approved identity provider | State-machine simulation |
+| Notifications | SMS/email providers | SMS/email providers | Demo inbox provider |
+| Sync | Outbox → Supabase engines | Outbox → Supabase engines | Outbox → `SandboxSyncEngine` |
 
 Everything else is shared unchanged: Vue 3 SPA, Pinia stores, domain services,
 validators, offline-first repositories/outbox, RBAC + RouteGuard, module-lock
 gating (`useModuleLock` + overlay), UI kit.
 
-## 2. The five seams
+## 2. The six seams
 
-Only these places know the mode exists:
+Only these places know the mode/transport exists:
 
 1. **Runtime environment** — `frontend/src/shared/environment/runtimeEnvironment.ts`.
-   Reads `VITE_CAPFLUX_MODE`, fail-closed: unknown values ⇒ production.
+   Reads `VITE_CAPFLUX_MODE` and `VITE_API_TRANSPORT`, fail-closed: unknown values ⇒ production/remote.
    Provider factories (`src/sandbox/providers/providerFactories.ts`) resolve
    `Supabase*Provider` vs `Sandbox*Provider`; no component branches on the flag.
 2. **Local database instance** — `offline/localDb.ts` instantiates the SAME
@@ -36,18 +49,23 @@ Only these places know the mode exists:
    (see `src/sandbox/sandboxDb.ts`, schema shared via `offline/dbSchema.ts`).
    Every service/store/repository works unchanged against it.
 3. **HTTP client adapter** — `shared/services/api/client.ts` installs
-   `sandboxAxiosAdapter`, dispatching all `/api/*` traffic to the in-browser
+   `sandboxAxiosAdapter` ONLY when `runtimeEnvironment.transport === 'simulator'`,
+   dispatching all `/api/*` traffic to the in-browser
    `SandboxApiServer` (`src/sandbox/api/sandboxApiServer.ts`), which mirrors the
    backend contract: auth (401s), tenant checks (403 cross-school),
    `requirePaymentReady` gating, KYC/settlement/payment state machines,
    idempotency keys, masked egress (`******last4`), audit trail.
+   When `transport === 'remote'` (default), normal Axios network transport is used.
 4. **Sync engine** — `main.ts` starts the production Supabase sync engines only
-   in production; sandbox runs `SandboxSyncEngine`, draining the same
-   `sync_queue` outbox with server-side realism (append-only enforcement,
+   in production; sandbox runs `SandboxSyncEngine` when using simulator transport,
+   draining the same `sync_queue` outbox with server-side realism (append-only enforcement,
    duplicate admission-number rejection, transient failures, retry).
+   When using remote transport, the production sync engines connect to Sandbox Supabase.
 5. **Auth provider** — `shared/auth/AuthService.ts` resolves
-   `SandboxAuthProvider` in sandbox; `/context/org|rbac` handlers derive each
-   persona's role + permission codes so RouteGuard/rbacStore enforce real RBAC.
+   `SandboxAuthProvider` in sandbox (simulator transport); WorkOS AuthKit in sandbox (remote transport).
+   `/context/org|rbac` handlers derive each persona's role + permission codes so RouteGuard/rbacStore enforce real RBAC.
+6. **API Transport** — `shared/services/api/client.ts` reads `runtimeEnvironment.transport`
+   to select between network transport and simulator adapter.
 
 ## 3. Isolation & safety (fail-closed)
 
@@ -103,6 +121,7 @@ with confirmation + progress.
 | Variable | Class | Where | Notes |
 |---|---|---|---|
 | `VITE_CAPFLUX_MODE` | **Required · Publishable** | Frontend | `production` \| `sandbox`; invalid explicit values fail startup |
+| `VITE_API_TRANSPORT` | **Optional · Publishable** | Frontend | `remote` \| `simulator`; defaults to `remote`; `simulator` only valid in sandbox mode |
 | `VITE_CAPFLUX_DATABASE_ENV` | **Required (deployed) · Publishable** | Frontend | must agree with mode (`MODE_DATABASE_MISMATCH` otherwise) |
 | `VITE_API_BASE_URL` | **Required · Publishable** | Frontend | sandbox frontend → sandbox Render URL `/api` |
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Optional in sandbox · **Publishable** | Frontend | SANDBOX project values only; publishable by design |
@@ -125,6 +144,7 @@ Vercel  "CAPFLUX Sandbox Frontend"
   Build:   npm ci && npm run build      Output: dist
   Env:     VITE_CAPFLUX_MODE=sandbox
            VITE_CAPFLUX_DATABASE_ENV=sandbox
+           VITE_API_TRANSPORT=remote
            VITE_API_BASE_URL=https://<sandbox-render-app>.onrender.com/api
            VITE_SUPABASE_URL=<sandbox-project-url>            # optional in sandbox
            VITE_SUPABASE_ANON_KEY=<sandbox-anon-key>          # publishable
@@ -143,6 +163,21 @@ Render  "CAPFLUX Sandbox Backend"
 
 Supabase "CAPFLUX Sandbox" project — physically separate from production.
 ```
+
+### 6.2.1 Simulator stack (development/demo only)
+
+```
+Vercel/localhost  "CAPFLUX Sandbox Frontend"
+  Build:   npm ci && npm run build      Output: dist
+  Env:     VITE_CAPFLUX_MODE=sandbox
+           VITE_CAPFLUX_DATABASE_ENV=sandbox
+           VITE_API_TRANSPORT=simulator
+           VITE_API_BASE_URL=http://localhost:4000/api  # ignored when transport=simulator
+           VITE_SUPABASE_URL=<sandbox-project-url>      # optional
+           VITE_SUPABASE_ANON_KEY=<sandbox-anon-key>    # optional
+```
+
+The simulator stack runs entirely in the browser with no network dependencies.
 
 Startup validation (backend `services/RuntimeConfiguration.ts`, wired in `index.ts`
 before the server accepts traffic) enforces every rule above **fail-closed**
