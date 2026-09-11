@@ -20,7 +20,7 @@ const password = ref('');
 const showPassword = ref(false);
 const submitted = ref(false);
 
-// Basic client-side UX validation only — WorkOS is authoritative.
+// Basic client-side UX validation only — Supabase is authoritative.
 const isEmailValid = computed(() => {
   const e = email.value.trim();
   return e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
@@ -94,14 +94,42 @@ const switchToForgotPassword = () => {
             :error="submitted && !password ? 'Password is required' : undefined"
             placeholder="••••••••"
             autocomplete="current-password"
+            class="pr-12"
           />
           <button
             type="button"
             @click="showPassword = !showPassword"
-            class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary"
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-l-none"
             :aria-label="showPassword ? 'Hide password' : 'Show password'"
           >
-            {{ showPassword ? 'Hide' : 'Show' }}
+            <svg
+              v-if="!showPassword"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-5 w-5"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-5 w-5"
+            >
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg>
           </button>
         </div>
       </div>
@@ -112,7 +140,7 @@ const switchToForgotPassword = () => {
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
         data-testid="signin-button"
-        class="w-full"
+        class="w-full h-12"
       >
         Sign In
       </CmButton>
@@ -123,7 +151,7 @@ const switchToForgotPassword = () => {
         type="button"
         @click="switchToForgotPassword"
         data-testid="forgot-password-link"
-        class="text-sm text-text-secondary hover:text-text-primary"
+        class="text-text-secondary hover:text-text-primary transition-colors"
       >
         Forgot password?
       </button>
@@ -131,7 +159,7 @@ const switchToForgotPassword = () => {
         type="button"
         @click="switchToSignup"
         data-testid="create-account-link"
-        class="text-sm font-medium text-text-secondary hover:text-text-primary"
+        class="font-medium text-text-secondary hover:text-text-primary transition-colors"
       >
         Create Account
       </button>
@@ -142,7 +170,7 @@ const switchToForgotPassword = () => {
         <div class="w-full border-t border-divider"></div>
       </div>
       <div class="relative flex justify-center">
-        <span class="px-3 text-xs text-text-muted">Or continue with</span>
+        <span class="px-3 text-xs text-text-muted bg-card">Or continue with</span>
       </div>
     </div>
 
@@ -150,7 +178,7 @@ const switchToForgotPassword = () => {
       type="button"
       variant="secondary"
       :disabled="authStore.loading"
-      class="w-full"
+      class="w-full h-12"
       data-testid="google-signin"
       data-google-auth
       @click="authStore.signInWithProvider('google')"

@@ -17,7 +17,7 @@ const authStore = useAuthStore();
 
 const token = ref('');
 const newPassword = ref('');
-const confirmPassword = ref(false);
+const confirmPassword = ref('');
 const submitted = ref(false);
 const isReset = ref(false);
 
@@ -114,7 +114,7 @@ const switchToLogin = () => {
         variant="primary"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
-        class="w-full"
+        class="w-full h-12"
       >
         Reset Password
       </CmButton>

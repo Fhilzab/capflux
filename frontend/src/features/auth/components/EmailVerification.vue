@@ -78,7 +78,7 @@ const isCountdownReady = computed(() => countdown.value === 0);
         variant="secondary"
         :loading="isResending"
         :disabled="!isCountdownReady || isResending"
-        class="w-full"
+        class="w-full h-12"
         @click="handleResend"
       >
         Resend verification email

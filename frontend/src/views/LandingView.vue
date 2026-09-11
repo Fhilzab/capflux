@@ -160,7 +160,7 @@ onMounted(() => {
       <div class="mx-auto max-w-4xl text-center">
         <CmBadge
           variant="primary"
-          label="Financial Operating System for African Private Schools"
+          label="Financial Operating System for Nigerian Private Schools"
           size="sm"
           class="mb-5 sm:mb-6 mx-auto w-full sm:w-fit"
         />
@@ -616,7 +616,7 @@ onMounted(() => {
           </div>
 
           <p class="text-sm md:text-base text-zinc-400 mt-8 sm:mt-10">
-            CAPFLUX by FHILZAB NIG LTD — The Financial Operating System for Private Schools in Africa.
+            CAPFLUX by FHILZAB NIG LTD — The Financial Operating System for Nigerian Private Schools.
           </p>
         </div>
       </div>
@@ -676,7 +676,7 @@ onMounted(() => {
         <!-- Closing statement -->
         <div class="text-center pt-6 sm:pt-8 border-t border-divider">
           <p class="text-text-muted text-sm">
-            CAPFLUX — Africa's School Fee Collection Platform
+            CAPFLUX — Nigeria's School Fee Collection Platform
           </p>
           <p class="mt-2 text-text-muted text-sm">
             A Product by FHILZAB NIG LTD

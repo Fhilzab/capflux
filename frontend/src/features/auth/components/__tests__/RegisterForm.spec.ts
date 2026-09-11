@@ -129,14 +129,14 @@ describe('RegisterForm', () => {
 
   it('does not display password requirements checklist', () => {
     const wrapper = mount(RegisterForm);
-    expect(wrapper.text()).not.toContain('At least 8 characters');
     expect(wrapper.text()).not.toContain('One uppercase letter');
     expect(wrapper.text()).not.toContain('One digit');
   });
 
-  it('shows WorkOS password guidance text', () => {
+  it('shows CAPFLUX password guidance text', () => {
     const wrapper = mount(RegisterForm);
-    expect(wrapper.text()).toContain('WorkOS password requirements');
+    expect(wrapper.text()).toContain('At least 8 characters');
+    expect(wrapper.text()).toContain('known data breaches');
   });
 
   it('submits fullName (first + last), email, and password to authStore.signUp', async () => {

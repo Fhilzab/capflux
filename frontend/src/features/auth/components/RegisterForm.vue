@@ -24,12 +24,13 @@ const agreeToTerms = ref(false);
 const showPassword = ref(false);
 const submitted = ref(false);
 
-// Basic UX validation only — WorkOS is the authority on password policy.
-// The submit button is disabled only for obvious local requirements.
+// Basic UX validation only — Supabase is the authority on password policy.
 const isEmailValid = computed(() => {
   const e = email.value.trim();
   return e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 });
+
+const isPasswordValid = computed(() => password.value.length >= 8);
 
 const canSubmit = computed(() => {
   return (
@@ -141,35 +142,60 @@ const switchToLogin = () => {
             :error="submitted && !password ? 'Password is required' : undefined"
             placeholder="At least 8 characters"
             autocomplete="new-password"
+            class="pr-12"
           />
           <button
             type="button"
             @click="showPassword = !showPassword"
-            class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary"
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-l-none"
             :aria-label="showPassword ? 'Hide password' : 'Show password'"
           >
-            {{ showPassword ? 'Hide' : 'Show' }}
+            <svg
+              v-if="!showPassword"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-5 w-5"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-5 w-5"
+            >
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg>
           </button>
         </div>
         <p class="mt-1 text-xs text-text-muted">
-          CAPFLUX follows WorkOS password requirements. Your password must be at least 8
-          characters and not appear in known data breaches.
+          At least 8 characters. Your password must not appear in known data breaches.
         </p>
       </div>
 
       <div class="flex items-start">
-        <div class="flex items-start">
-          <CmCheckbox
-            id="signup-terms"
-            v-model:checked="agreeToTerms"
-            :error="submitted && !agreeToTerms ? 'You must accept the terms to continue' : undefined"
-          />
-        </div>
+        <CmCheckbox
+          id="signup-terms"
+          v-model:checked="agreeToTerms"
+          :error="submitted && !agreeToTerms ? 'You must accept the terms to continue' : undefined"
+        />
         <label for="signup-terms" class="ml-2 block text-sm text-text-secondary">
           I agree to the
-          <a href="/terms" class="text-primary hover:underline">Terms of Service</a>
+          <a href="/terms" class="text-brand hover:underline">Terms of Service</a>
           and
-          <a href="/privacy" class="text-primary hover:underline">Privacy Policy</a>
+          <a href="/privacy" class="text-brand hover:underline">Privacy Policy</a>
         </label>
       </div>
 
@@ -179,7 +205,7 @@ const switchToLogin = () => {
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
         data-testid="signup-button"
-        class="w-full"
+        class="w-full h-12"
       >
         Create Account
       </CmButton>
@@ -191,7 +217,7 @@ const switchToLogin = () => {
         type="button"
         @click="switchToLogin"
         data-testid="login-link"
-        class="ml-1 font-medium text-primary hover:underline"
+        class="ml-1 font-medium text-brand hover:underline"
       >
         Log In
       </button>
@@ -202,7 +228,7 @@ const switchToLogin = () => {
         <div class="w-full border-t border-divider"></div>
       </div>
       <div class="relative flex justify-center">
-        <span class="px-3 text-xs text-text-muted">Or continue with</span>
+        <span class="px-3 text-xs text-text-muted bg-card">Or continue with</span>
       </div>
     </div>
 
@@ -210,7 +236,7 @@ const switchToLogin = () => {
       type="button"
       variant="secondary"
       :disabled="authStore.loading"
-      class="w-full"
+      class="w-full h-12"
       data-testid="google-signup"
       data-google-auth
       @click="authStore.signInWithProvider('google')"

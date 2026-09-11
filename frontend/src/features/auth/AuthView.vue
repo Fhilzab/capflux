@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import type { AuthState } from './useAuthState';
 import AuthLayout from './components/AuthLayout.vue';
+import AuthBrandPanel from './components/AuthBrandPanel.vue';
 import AuthIllustration from './components/AuthIllustration.vue';
 import LoginForm from './components/LoginForm.vue';
 import RegisterForm from './components/RegisterForm.vue';
@@ -102,10 +103,10 @@ if (props.provider === 'google') {
 
 <template>
   <div class="min-h-screen flex flex-col">
-    <!-- CAPFLUX branded auth card: layout + illustration + dynamic form -->
+    <!-- CAPFLUX branded auth card: layout + brand panel + dynamic form -->
     <AuthLayout>
-      <template #illustration>
-        <AuthIllustration />
+      <template #brand>
+        <AuthBrandPanel />
       </template>
 
       <template #illustration-mobile>
@@ -113,7 +114,7 @@ if (props.provider === 'google') {
       </template>
 
       <template #form>
-        <div class="w-full max-w-md mx-auto">
+        <div class="w-full">
           <Transition name="auth" mode="out-in">
             <component
               :is="formComponents[currentMode]"

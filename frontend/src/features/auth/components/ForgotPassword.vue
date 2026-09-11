@@ -84,7 +84,7 @@ const switchToLogin = () => {
         variant="primary"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
-        class="w-full"
+        class="w-full h-12"
       >
         Send Reset Link
       </CmButton>
