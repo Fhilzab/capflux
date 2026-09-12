@@ -141,29 +141,27 @@ const switchToLogin = () => {
         <label for="signup-password" class="block text-sm font-medium text-text-primary mb-1.5">
           Password
         </label>
-        <div class="relative">
-          <CmInput
-            :type="showPassword ? 'text' : 'password'"
-            v-model="password"
-            :error="submitted && !password ? 'Password is required' : undefined"
-            placeholder="At least 8 characters"
-            autocomplete="new-password"
-            class="pr-12"
-          />
-          <button
-            type="button"
-            @click="showPassword = !showPassword"
-            class="absolute inset-y-0 right-0 flex items-center justify-center w-12 text-text-muted hover:text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-r-button"
-            :aria-label="showPassword ? 'Hide password' : 'Show password'"
-            :aria-pressed="showPassword"
-          >
-            <Eye v-if="!showPassword" class="h-5 w-5" stroke-width="2" />
-            <EyeOff v-else class="h-5 w-5" stroke-width="2" />
-          </button>
-        </div>
-        <p class="mt-1.5 text-xs text-text-muted">
-          At least 8 characters. Your password must not appear in known data breaches.
-        </p>
+        <CmInput
+          id="signup-password"
+          :type="showPassword ? 'text' : 'password'"
+          v-model="password"
+          :error="submitted && !password ? 'Password is required' : undefined"
+          placeholder="At least 8 characters"
+          autocomplete="new-password"
+        >
+          <template #append>
+            <button
+              type="button"
+              @click="showPassword = !showPassword"
+              class="flex h-10 w-10 items-center justify-center text-text-muted hover:text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-button"
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              :aria-pressed="showPassword"
+            >
+              <Eye v-if="!showPassword" class="h-5 w-5" stroke-width="2" />
+              <EyeOff v-else class="h-5 w-5" stroke-width="2" />
+            </button>
+          </template>
+        </CmInput>
       </div>
 
       <!-- Terms Checkbox -->
