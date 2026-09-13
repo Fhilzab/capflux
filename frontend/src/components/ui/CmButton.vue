@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, useAttrs } from 'vue';
 import { LoaderCircle } from '@lucide/vue';
 
 interface Props {
@@ -39,17 +39,26 @@ const sizeClasses = {
   lg: 'px-6 py-3 text-base h-12',
 };
 
-const baseClasses = computed(() => [
-  isLinkVariant(props.variant)
-    ? 'font-medium focus-ring disabled:cursor-not-allowed disabled:opacity-50'
-    : 'rounded-button font-medium inline-flex items-center justify-center gap-2 focus-ring disabled:cursor-not-allowed disabled:opacity-50',
-  variantClasses[props.variant],
-  isLinkVariant(props.variant) ? '' : sizeClasses[props.size],
-  props.variant === 'primary' ? 'shadow-button' : '',
-  props.variant === 'success' || props.variant === 'danger' || props.variant === 'warning' || props.variant === 'info'
-    ? 'shadow-sm'
-    : '',
-]);
+const attrs = useAttrs();
+
+const hasDisplayOverride = computed(() => {
+  const cls = (attrs.class as string) ?? '';
+  return /\b(hidden|block|inline|flex|inline-flex|inline-block|inline-grid)\b/.test(cls);
+});
+
+const baseClasses = computed(() => {
+  const base: string[] = isLinkVariant(props.variant)
+    ? ['font-medium focus-ring disabled:cursor-not-allowed disabled:opacity-50']
+    : ['rounded-button font-medium items-center justify-center gap-2 focus-ring disabled:cursor-not-allowed disabled:opacity-50'];
+  if (!hasDisplayOverride.value) {
+    base.push('inline-flex');
+  }
+  base.push(variantClasses[props.variant]);
+  if (!isLinkVariant(props.variant)) base.push(sizeClasses[props.size]);
+  if (props.variant === 'primary') base.push('shadow-button');
+  if (['success', 'danger', 'warning', 'info'].includes(props.variant)) base.push('shadow-sm');
+  return base;
+});
 </script>
 
 <template>
