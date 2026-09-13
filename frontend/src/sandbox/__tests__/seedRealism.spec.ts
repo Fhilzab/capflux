@@ -97,4 +97,16 @@ describe('sandbox data realism', () => {
     const issues = await rows(db, 'reconciliation_issues');
     expect(issues.some((i) => i.status === 'OPEN')).toBe(true);
   });
+
+  it('seed writes the current SEED_VERSION so the boot gate recognises it', async () => {
+    const { SEED_VERSION } = await import('../seed/seedSandbox');
+    const db = createFakeSandboxDb();
+    await seed(db);
+    const meta = await rows(db, 'sandbox_meta');
+    const version = meta.find((m) => String(m.key) === 'seed_version');
+    expect(Number(version?.value)).toBe(SEED_VERSION);
+    // A stale v3 dataset must read as outdated against the current version,
+    // otherwise returning visitors would never upgrade to the new seed.
+    expect(3).toBeLessThan(SEED_VERSION);
+  });
 });

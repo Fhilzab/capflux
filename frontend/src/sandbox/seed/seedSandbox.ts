@@ -46,7 +46,9 @@ import {
   buildDemoFeeCatalogue,
 } from './demoData';
 
-const SEED_VERSION = 4;
+/** Current sandbox dataset version. Bumped whenever the seed plan changes
+ *  incompatibly; the sandbox boot gate reseeds any older dataset in place. */
+export const SEED_VERSION = 4;
 const SEED_RANDOM_SEED = 0xcafe + 424242;
 
 export const SEED_COUNTS = Object.freeze({
