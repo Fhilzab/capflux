@@ -145,7 +145,7 @@ export interface DemoPersonaSpec {
 
 export const DEMO_PERSONAS: readonly DemoPersonaSpec[] = [
   {
-    id: 'demo-user-owner',
+    id: 'proprietor',
     email: 'owner@demo.capflux',
     password: 'demo1234',
     fullName: 'Amaka Obi',
@@ -154,7 +154,7 @@ export const DEMO_PERSONAS: readonly DemoPersonaSpec[] = [
     title: 'Proprietress / School Owner',
   },
   {
-    id: 'demo-user-admin',
+    id: 'administrator',
     email: 'admin@demo.capflux',
     password: 'demo1234',
     fullName: 'Chinedu Bello',
@@ -163,7 +163,7 @@ export const DEMO_PERSONAS: readonly DemoPersonaSpec[] = [
     title: 'School Administrator',
   },
   {
-    id: 'demo-user-bursar',
+    id: 'bursar',
     email: 'bursar@demo.capflux',
     password: 'demo1234',
     fullName: 'Ngozi Eze',
@@ -172,7 +172,7 @@ export const DEMO_PERSONAS: readonly DemoPersonaSpec[] = [
     title: 'Bursar',
   },
   {
-    id: 'demo-user-staff',
+    id: 'teacher',
     email: 'staff@demo.capflux',
     password: 'demo1234',
     fullName: 'Tunde Adebayo',
@@ -181,7 +181,7 @@ export const DEMO_PERSONAS: readonly DemoPersonaSpec[] = [
     title: 'Class Teacher',
   },
   {
-    id: 'demo-user-platform',
+    id: 'platform_ops',
     email: 'ops@capflux.demo',
     password: 'demo1234',
     fullName: 'CAPFLUX Platform Ops',

@@ -10,6 +10,8 @@
  *     The backend validates it via WorkOS JWKS and resolves CAPFLUX UUID via user_identity_links.
  *   - Supabase Auth (fallback/legacy): Supabase access token attached as Authorization: Bearer <SUPABASE_ACCESS_TOKEN>
  *     The backend validates it via supabase.auth.getUser(token).
+ *   - Demo (sandbox): Demo session token attached as Authorization: Bearer <DEMO_SESSION_TOKEN>
+ *     The backend validates it via DemoAuthService and resolves the demo persona.
  *
  * The frontend NEVER sends a user id or credential in request bodies or
  * custom headers. Identity is always derived from the validated JWT.
@@ -41,7 +43,7 @@ if (runtimeEnvironment.transport === 'simulator') {
 }
 
 // Attach authentication token to every request.
-// Priority: WorkOS token (primary) > Supabase token (fallback)
+// Priority: WorkOS token (primary) > Demo token (sandbox) > Supabase token (fallback)
 http.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // 1. Try WorkOS token first (primary auth mode)
   if (hasValidToken()) {
@@ -52,7 +54,23 @@ http.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     }
   }
 
-  // 2. Fall back to Supabase token (legacy/fallback mode)
+  // 2. Try demo session token (sandbox mode)
+  if (runtimeEnvironment.isSandbox) {
+    try {
+      const raw = localStorage.getItem('capflux_demo_session');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { token?: string; expiresAt?: number };
+        if (parsed.token && parsed.expiresAt && parsed.expiresAt * 1000 > Date.now()) {
+          config.headers.Authorization = `Bearer ${parsed.token}`;
+          return config;
+        }
+      }
+    } catch {
+      // Session storage unavailable or invalid; continue to next auth method.
+    }
+  }
+
+  // 3. Fall back to Supabase token (legacy/fallback mode)
   if (hasSupabaseConfig) {
     try {
       const { data: { session } } = await supabase.auth.getSession();

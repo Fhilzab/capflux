@@ -13,6 +13,7 @@ import { Router, Request, Response, CookieOptions } from 'express';
 import { supabase } from '../supabaseClient.js';
 import WorkOSAuthService from '../services/WorkOSAuthService.js';
 import sessionService from '../services/SessionService.js';
+import { DemoAuthService, type DemoPersona, type DemoSessionPayload } from '../services/DemoAuthService.js';
 import requireAuth from '../middleware/requireAuth.js';
 import requireAuthHybrid from '../middleware/requireAuthHybrid.js';
 import { errorMessage } from '../types/http.js';
@@ -436,6 +437,106 @@ router.post('/claim-account', async (req: Request, res: Response) => {
     // Always return generic — never reveal failure reasons to the caller.
     return res.json({ success: true, message: GENERIC });
   }
+});
+
+/**
+ * POST /api/auth/demo-login
+ * Sandbox-only endpoint for demo persona authentication.
+ *
+ * Accepts a known persona ID from the server-side allowlist and returns
+ * a signed demo session token. The browser must NEVER be able to specify
+ * roles, permissions, or arbitrary user IDs — the server is authoritative.
+ *
+ * This endpoint is ONLY available when CAPFLUX_MODE=sandbox.
+ * Production deployments must reject requests to this endpoint.
+ */
+router.post('/demo-login', async (req: Request, res: Response) => {
+  const mode = process.env.CAPFLUX_MODE?.toLowerCase();
+  if (mode !== 'sandbox') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const { personaId } = body;
+
+  if (!personaId || typeof personaId !== 'string') {
+    return res.status(400).json({ error: 'personaId is required' });
+  }
+
+  try {
+    const persona = DemoAuthService.validatePersona(personaId);
+    const token = await DemoAuthService.createDemoSession(persona);
+
+    return res.json({
+      success: true,
+      token,
+      persona: {
+        id: persona.id,
+        email: persona.email,
+        fullName: persona.fullName,
+        role: persona.role,
+        systemRole: persona.systemRole,
+        title: persona.title,
+        platformStaff: persona.platformStaff ?? false,
+      },
+      expiresIn: 4 * 60 * 60, // 4 hours in seconds
+    });
+  } catch (error) {
+    return handleError(res, error, 401);
+  }
+});
+
+/**
+ * GET /api/auth/demo-session
+ * Validate a demo session token and return the session payload.
+ *
+ * Sandbox-only endpoint. Production returns 404.
+ */
+router.get('/demo-session', async (req: Request, res: Response) => {
+  const mode = process.env.CAPFLUX_MODE?.toLowerCase();
+  if (mode !== 'sandbox') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Bearer token required' });
+  }
+
+  const token = authHeader.substring(7).trim();
+  if (!token) {
+    return res.status(401).json({ error: 'Bearer token required' });
+  }
+
+  try {
+    const payload = await DemoAuthService.verifyDemoSession(token);
+    return res.json({ success: true, session: payload });
+  } catch (error) {
+    return handleError(res, error, 401);
+  }
+});
+
+/**
+ * GET /api/auth/demo-personas
+ * List available demo personas (sandbox only).
+ */
+router.get('/demo-personas', async (_req: Request, res: Response) => {
+  const mode = process.env.CAPFLUX_MODE?.toLowerCase();
+  if (mode !== 'sandbox') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const personas = DemoAuthService.getPersonas().map((p) => ({
+    id: p.id,
+    email: p.email,
+    fullName: p.fullName,
+    role: p.role,
+    systemRole: p.systemRole,
+    title: p.title,
+    platformStaff: p.platformStaff ?? false,
+  }));
+
+  return res.json({ success: true, personas });
 });
 
 export { STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS };

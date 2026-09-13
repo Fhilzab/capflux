@@ -91,14 +91,16 @@ onMounted(async () => {
 
 // If the URL contains ?provider=google (Google OAuth redirect), auto-click
 // the Google button so the flow completes seamlessly.
-if (props.provider === 'google') {
-  setTimeout(() => {
-    const googleButton = document.querySelector('[data-google-auth]');
-    if (googleButton) {
-      (googleButton as HTMLElement).click();
-    }
-  }, 100);
-}
+onMounted(() => {
+  if (props.provider === 'google') {
+    setTimeout(() => {
+      const googleButton = document.querySelector('[data-google-auth]');
+      if (googleButton) {
+        (googleButton as HTMLElement).click();
+      }
+    }, 100);
+  }
+});
 </script>
 
 <template>
