@@ -56,7 +56,7 @@ const handleInput = (event: Event) => {
         class="w-full rounded-input border bg-surface px-4 py-3.5 text-sm transition-colors duration-150 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-ring disabled:cursor-not-allowed disabled:opacity-50 h-12"
         :class="[
           error ? 'border-danger focus:ring-danger focus:border-danger' : 'border-border',
-          $slots.append ? 'pr-12' : '',
+          $slots.append ? 'pr-[52px]' : '',
         ]"
       />
       <div

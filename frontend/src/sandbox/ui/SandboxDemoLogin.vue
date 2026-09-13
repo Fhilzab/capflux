@@ -6,9 +6,8 @@
  */
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import CmButton from '../../components/ui/CmButton.vue';
 import { useAuthStore } from '../../stores/authStore';
-import { listDemoPersonas, getSandboxAuthProvider } from '../session/sandboxAuth';
+import { listDemoPersonas } from '../session/sandboxAuth';
 import { DEMO_PASSWORD_HINT } from '../seed/demoData';
 import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment';
 
@@ -39,42 +38,41 @@ async function signInAs(email: string): Promise<void> {
 <template>
   <div
     v-if="runtimeEnvironment.isSandbox"
-    class="rounded-lg border border-divider bg-surface p-4"
+    class="border-t border-divider pt-4 mt-6"
     data-testid="sandbox-demo-login"
   >
-    <p class="text-xs font-semibold uppercase tracking-wide text-text-tertiary">CAPFLUX Demo</p>
-    <h2 class="mt-0.5 font-semibold">Explore with a demo role</h2>
-    <p class="mt-1 text-xs text-text-secondary">
-      No real accounts involved. Authorization (routes &amp; API permissions) is enforced per persona.
-      Password for manual sign-in: <code>demo1234</code>
+    <p class="text-xs text-text-tertiary mb-3">
+      Sandbox demo access — no real accounts. Password: <code class="text-text-muted">demo1234</code>
     </p>
-    <div class="mt-3 space-y-2">
+    <div class="flex flex-wrap gap-2">
       <button
         v-for="persona in personas"
         :key="persona.id"
-        class="flex w-full items-center justify-between rounded-md border border-divider px-3 py-2.5 text-left text-sm transition-colors hover:bg-background-hover"
+        class="inline-flex items-center gap-1.5 rounded-md border border-divider px-2.5 py-1.5 text-xs transition-colors hover:bg-background-hover disabled:opacity-50"
+        :title="`${persona.fullName} — ${persona.email}`"
         :data-testid="`demo-login-${persona.id}`"
         :disabled="busy !== null"
         @click="signInAs(persona.email)"
       >
-        <span>
-          <span class="block font-medium">{{ persona.fullName }} — {{ persona.title }}</span>
-          <span class="text-xs text-text-tertiary">{{ persona.email }}</span>
-        </span>
-        <CmButton variant="secondary" size="sm" :loading="busy === persona.email">Sign in</CmButton>
+        <span class="font-medium text-text-secondary">{{ persona.title }}</span>
+        <span
+          v-if="busy === persona.email"
+          class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-border border-t-transparent"
+        />
       </button>
       <button
         v-if="platformStaff"
-        class="flex w-full items-center justify-between rounded-md border border-dashed border-divider px-3 py-2 text-left text-sm transition-colors hover:bg-background-hover"
+        class="inline-flex items-center gap-1.5 rounded-md border border-dashed border-divider px-2.5 py-1.5 text-xs transition-colors hover:bg-background-hover disabled:opacity-50"
+        :title="`${platformStaff.fullName} — ${platformStaff.email}`"
         data-testid="demo-login-platform"
         :disabled="busy !== null"
         @click="signInAs(platformStaff.email)"
       >
-        <span>
-          <span class="block font-medium">{{ platformStaff.fullName }} — {{ platformStaff.title }}</span>
-          <span class="text-xs text-text-tertiary">{{ platformStaff.email }} · reviews KYC/settlements</span>
-        </span>
-        <CmButton variant="secondary" size="sm" :loading="busy === platformStaff.email">Sign in</CmButton>
+        <span class="font-medium text-text-secondary">{{ platformStaff.title }}</span>
+        <span
+          v-if="busy === platformStaff.email"
+          class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-border border-t-transparent"
+        />
       </button>
     </div>
     <p v-if="error" class="mt-2 text-xs text-danger" role="alert">{{ error }}</p>

@@ -104,7 +104,7 @@ const switchToForgotPassword = () => {
             <button
               type="button"
               @click="showPassword = !showPassword"
-              class="flex h-10 w-10 items-center justify-center text-text-muted hover:text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-button"
+              class="flex h-[44px] w-[44px] items-center justify-center text-text-muted hover:text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-button"
               :aria-label="showPassword ? 'Hide password' : 'Show password'"
               :aria-pressed="showPassword"
             >

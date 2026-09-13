@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, useAttrs } from 'vue';
+
 interface Props {
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'muted' | 'brand';
   size?: 'sm' | 'md';
@@ -11,6 +13,8 @@ withDefaults(defineProps<Props>(), {
   variant: 'primary',
   size: 'md',
 });
+
+const attrs = useAttrs();
 
 const variantClasses = {
   primary: 'bg-brand/10 text-brand border border-brand/20',
@@ -27,12 +31,19 @@ const sizeClasses = {
   sm: 'px-2 py-0.5 text-xs',
   md: 'px-3 py-1.5 text-xs',
 };
+
+// Only apply inline-flex display if parent hasn't passed a display-related class
+const parentHasDisplayClass = computed(() => {
+  const cls = (attrs.class as string) || '';
+  return /\b(hidden|inline-flex|flex|block|inline|inline-block|grid|inline-grid)\b/.test(cls);
+});
 </script>
 
 <template>
   <span
-    class="inline-flex items-center gap-1.5 font-medium transition-all duration-150"
     :class="[
+      parentHasDisplayClass ? '' : 'inline-flex',
+      'items-center gap-1.5 font-medium transition-all duration-150',
       variantClasses[variant],
       sizeClasses[size],
       pill ? 'rounded-full' : 'rounded-card',
