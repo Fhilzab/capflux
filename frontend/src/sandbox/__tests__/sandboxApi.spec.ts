@@ -50,7 +50,7 @@ describe('sandbox api — authentication & tenant isolation', () => {
   });
 
   it('rejects cross-school ids from the client with 403', async () => {
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
     seedReadySchool(f.db);
     // Caller is pinned to demo-school; a foreign school_id must never pass.
     const result = await call('GET', '/payments?school_id=other-school');
@@ -82,7 +82,7 @@ describe('sandbox api — KYC state machine & readiness gating', () => {
 
   it('walks NOT_STARTED → UNDER_REVIEW → VERIFIED via the real endpoints', async () => {
     resetAccess();
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
 
     expect((await call('GET', '/kyc/status')).body!.data).toMatchObject({ status: 'NOT_STARTED' });
 
@@ -95,7 +95,7 @@ describe('sandbox api — KYC state machine & readiness gating', () => {
 
     // Staff review through the platform-staff surface.
     signOut();
-    signInAs('demo-user-platform');
+    signInAs('platform_ops');
     const list = await call('GET', '/admin/kyc');
     const record = (list.body!.data as Array<Record<string, unknown>>)[0]!;
     const verify = await call('POST', `/admin/kyc/${record.id}/verify`, {});
@@ -103,7 +103,7 @@ describe('sandbox api — KYC state machine & readiness gating', () => {
     expect((verify.body!.data as Record<string, unknown>).status).toBe('VERIFIED');
 
     signOut();
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
     const status = await call('GET', '/kyc/status');
     expect((status.body!.data as Record<string, unknown>).status).toBe('VERIFIED');
     // Masked identifiers only.
@@ -112,7 +112,7 @@ describe('sandbox api — KYC state machine & readiness gating', () => {
 
   it('rejects invalid BVN/NIN at submission (11-digit discipline)', async () => {
     resetAccess();
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
     const result = await call('POST', '/kyc/submit', {
       principalName: 'X', principalPhone: '+2348000000000',
       bvn: '12345', nin: '11112222333',
@@ -122,7 +122,7 @@ describe('sandbox api — KYC state machine & readiness gating', () => {
 
   it('money routes refuse unactivated tenants (PAYMENT_ACTIVATION_REQUIRED)', async () => {
     resetAccess();
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
     f.db.students.put(studentRow('stu-1') as never);
 
     const result = await call('POST', '/dva/provision', { student_id: 'stu-1' });
@@ -132,7 +132,7 @@ describe('sandbox api — KYC state machine & readiness gating', () => {
 
   it('readiness reports the unmet conditions', async () => {
     resetAccess();
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
     const activation = await call('GET', '/kyc/activation');
     const payload = activation.body!.data as Record<string, unknown>;
     expect(payload.ready).toBe(false);
@@ -174,7 +174,7 @@ describe('sandbox api — simulated payments, ledger posting & masking', () => {
 
   it('simulated SUCCESS posts transaction + CREDIT ledger entry + notification', async () => {
     readyFixture();
-    signInAs('demo-user-owner');
+    signInAs('bursar');
 
     const result = await call('POST', '/sandbox/gateway/simulate-payment', {
       studentId: 'stu-sim-1', amountMinor: 15000000, outcome: 'SUCCESS',
@@ -205,7 +205,7 @@ describe('sandbox api — simulated payments, ledger posting & masking', () => {
 
   it('duplicate references are rejected (idempotency)', async () => {
     readyFixture();
-    signInAs('demo-user-owner');
+    signInAs('bursar');
     await call('POST', '/sandbox/gateway/simulate-payment', {
       studentId: 'stu-sim-1', amountMinor: 100000, outcome: 'SUCCESS', reference: 'DEMO-PAY-000042',
     });
@@ -217,7 +217,7 @@ describe('sandbox api — simulated payments, ledger posting & masking', () => {
 
   it('FAILED payments post NO ledger entry; REVERSED requires an existing SUCCESS', async () => {
     readyFixture();
-    signInAs('demo-user-owner');
+    signInAs('bursar');
 
     await call('POST', '/sandbox/gateway/simulate-payment', {
       studentId: 'stu-sim-1', amountMinor: 500000, outcome: 'FAILED',
@@ -234,7 +234,7 @@ describe('sandbox api — simulated payments, ledger posting & masking', () => {
 
   it('full lifecycle: SUCCESS then REVERSED leaves a compensating DEBIT reversal', async () => {
     readyFixture();
-    signInAs('demo-user-owner');
+    signInAs('bursar');
 
     const ok = await call('POST', '/sandbox/gateway/simulate-payment', {
       studentId: 'stu-sim-1', amountMinor: 250000, outcome: 'SUCCESS', reference: 'DEMO-PAY-000077',
@@ -261,7 +261,7 @@ describe('sandbox api — simulated payments, ledger posting & masking', () => {
 
   it('DVA egress is masked to ****last4', async () => {
     readyFixture();
-    signInAs('demo-user-owner');
+    signInAs('bursar');
     await call('POST', '/dva/provision', { student_id: 'stu-sim-1' });
     const list = await call('GET', '/dva');
     const rows = list.body!.data as Array<Record<string, unknown>>;
@@ -272,7 +272,7 @@ describe('sandbox api — simulated payments, ledger posting & masking', () => {
 
   it('offline toggle fails requests without a response (network-error shape)', async () => {
     readyFixture();
-    signInAs('demo-user-owner');
+    signInAs('bursar');
     const runtimeMod = await import('../runtime/sandboxRuntime');
     runtimeMod.sandboxRuntime.setOnline(false);
     try {
@@ -286,7 +286,7 @@ describe('sandbox api — simulated payments, ledger posting & masking', () => {
 
   it('non-integer kobo amounts are rejected (financial integrity guard)', async () => {
     readyFixture();
-    signInAs('demo-user-owner');
+    signInAs('bursar');
     const bad = await call('POST', '/sandbox/gateway/simulate-payment', {
       studentId: 'stu-sim-1', amountMinor: 1500.55, outcome: 'SUCCESS',
     });

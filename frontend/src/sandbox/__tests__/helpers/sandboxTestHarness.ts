@@ -67,7 +67,7 @@ export function restoreProductionMode(): void {
   __setSandboxDbForTest(null);
 }
 
-export function signInAs(personaId = 'demo-user-owner'): void {
+export function signInAs(personaId = 'proprietor'): void {
   window.localStorage.setItem('capflux_sandbox_session', JSON.stringify({ personaId }));
 }
 

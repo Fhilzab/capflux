@@ -109,7 +109,7 @@ describe('cross-environment data isolation (§15)', () => {
     await seedSandboxDatabase(f.db as never);
     expect(await countAll(f.db, ['students'])).toBeGreaterThan(100);
 
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
     seedReadySchool(f.db);
     f.db.students.put({
       id: 'stu-iso-1', school_id: 'demo-school', first_name: 'Isola', last_name: 'Check',
@@ -191,7 +191,7 @@ describe('cross-environment data isolation (§15)', () => {
       admission_number: 'CAP-AUD-1', status: 'ACTIVE', guardian_id: null, guardian_phone: null,
       created_at: '', updated_at: '',
     } as never);
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
     const { handleSandboxRequest } = await import('../api/sandboxApiServer');
     await handleSandboxRequest({
       method: 'post', url: '/sandbox/gateway/simulate-payment', baseURL: 'http://x/api',
@@ -217,7 +217,7 @@ describe('cross-environment data isolation (§15)', () => {
     const baselineMeta = await f.db.sandbox_meta.get('dataset_hash');
     expect(String(baselineMeta!.value)).toBe(initial.datasetHash);
 
-    signInAs('demo-user-owner');
+    signInAs('proprietor');
     seedReadySchool(f.db);
     const { handleSandboxRequest } = await import('../api/sandboxApiServer');
     const sim = (n: number): Promise<unknown> =>
