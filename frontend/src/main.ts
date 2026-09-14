@@ -125,13 +125,19 @@ async function bootstrap(): Promise<void> {
   } else {
     await bootstrapProduction();
   }
-
-  app.mount('#app');
 }
+
+// Mount the app immediately so the landing page (and all public routes)
+// render their structural shell without waiting for async initialization.
+// Non-critical startup work — backend mode-consistency check, auth session
+// resolution, sync store — runs in the background below.
+//
+// The route guard (authorizeRoute) already defers authStore.initialize()
+// until a navigation requires it, so deferring it here is safe.
+app.mount('#app');
 
 bootstrap().catch((error: Error) => {
   console.error('App bootstrap failed:', error);
   // Reset flag on failure to allow retry
   setAuthInitialized(false);
-  app.mount('#app');
 });

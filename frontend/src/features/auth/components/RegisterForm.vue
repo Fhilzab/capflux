@@ -104,6 +104,7 @@ const switchToLogin = () => {
             :error="submitted && !firstName.trim() ? 'First name is required' : undefined"
             placeholder="Jane"
             autocomplete="given-name"
+            input-class="h-[44px]"
           />
         </div>
         <div>
@@ -117,6 +118,7 @@ const switchToLogin = () => {
             :error="submitted && !lastName.trim() ? 'Last name is required' : undefined"
             placeholder="Doe"
             autocomplete="family-name"
+            input-class="h-[44px]"
           />
         </div>
       </div>
@@ -133,6 +135,7 @@ const switchToLogin = () => {
           :error="submitted && !isEmailValid ? 'Enter a valid email address' : undefined"
           placeholder="you@school.edu.ng"
           autocomplete="email"
+          input-class="h-[44px]"
         />
       </div>
 
@@ -148,6 +151,7 @@ const switchToLogin = () => {
           :error="submitted && !password ? 'Password is required' : undefined"
           placeholder="At least 8 characters"
           autocomplete="new-password"
+          input-class="h-[44px]"
         >
           <template #append>
             <button
@@ -183,7 +187,7 @@ const switchToLogin = () => {
       <CmButton
         type="submit"
         variant="primary"
-        size="lg"
+        size="tall"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
         data-testid="signup-button"
@@ -220,7 +224,7 @@ const switchToLogin = () => {
       <CmButton
         type="button"
         variant="secondary"
-        size="lg"
+        size="tall"
         :disabled="authStore.loading"
         :loading="authStore.loading"
         class="w-full"

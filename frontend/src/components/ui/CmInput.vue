@@ -12,6 +12,7 @@ interface Props {
   required?: boolean;
   id?: string;
   autofocus?: boolean;
+  inputClass?: string;
 }
 
 const props = defineProps<Props>();
@@ -53,10 +54,11 @@ const handleInput = (event: Event) => {
         @input="handleInput"
         @blur="emit('blur', $event)"
         @focus="emit('focus', $event)"
-        class="w-full rounded-input border bg-surface px-4 py-3.5 text-sm transition-colors duration-150 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-ring disabled:cursor-not-allowed disabled:opacity-50 h-12"
+        class="w-full rounded-input border bg-surface px-4 py-3.5 text-sm transition-colors duration-150 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-ring disabled:cursor-not-allowed disabled:opacity-50"
         :class="[
           error ? 'border-danger focus:ring-danger focus:border-danger' : 'border-border',
           $slots.append ? 'pr-[52px]' : '',
+          props.inputClass ?? 'h-12',
         ]"
       />
       <div
