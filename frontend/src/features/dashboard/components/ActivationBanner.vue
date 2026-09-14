@@ -1,13 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../../stores/authStore';
+import { useOnboardingStore } from '../../../stores/onboardingStore';
+import { useSchoolStore } from '../../../stores/schoolStore';
 import CmButton from '../../../components/ui/CmButton.vue';
 
-const authStore = useAuthStore();
+const onboardingStore = useOnboardingStore();
+const schoolStore = useSchoolStore();
 const router = useRouter();
 
-const visible = computed(() => !authStore.isSchoolSetupComplete);
+/**
+ * Banner is visible only when setup genuinely requires action.
+ * Uses authoritative onboarding/school state — not the legacy authStore
+ * field which was never hydrated. While stores are still loading we
+ * hide the banner to avoid flash-of-banner for the seeded sandbox
+ * where school is ACTIVE / payment READY.
+ */
+const visible = computed(() => {
+  // Still loading initial state — do not flash banner.
+  if (!onboardingStore.statusLoaded && !schoolStore.initialized) return false;
+  // Explicit pending-setup status from either canonical source
+  if (onboardingStore.requiresSetup || schoolStore.requiresSetup) return true;
+  // No school at all (fresh user) — needs setup
+  if (!onboardingStore.hasSchool && !schoolStore.school) return true;
+  return false;
+});
 
 const handleCompleteSetup = () => {
   router.push({ name: 'KycSubmission' });

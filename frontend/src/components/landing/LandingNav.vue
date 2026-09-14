@@ -5,6 +5,7 @@ import { useThemeStore } from '../../stores/themeStore';
 import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment';
 import CmButton from '../../components/ui/CmButton.vue';
 import CmBadge from '../../components/ui/CmBadge.vue';
+import CapfluxMark from '../branding/CapfluxMark.vue';
 
 const router = useRouter();
 const themeStore = useThemeStore();
@@ -63,7 +64,7 @@ onUnmounted(() => {
         <!-- Logo -->
         <div class="flex items-center">
           <a :href="homeUrl" class="flex items-center space-x-2">
-            <img src="/icons.svg" alt="" class="h-10 w-auto" />
+            <CapfluxMark :size="36" aria-label="CAPFLUX Home" />
             <span class="text-xl font-bold tracking-tight text-text-primary">CAPFLUX</span>
             <CmBadge
               variant="brand"
@@ -151,7 +152,7 @@ onUnmounted(() => {
           >
             <div class="flex h-14 items-center justify-between px-6 border-b border-divider flex-shrink-0">
               <a :href="homeUrl" class="flex items-center space-x-2">
-                <img src="/icons.svg" alt="" class="h-10 w-auto" />
+                <CapfluxMark :size="28" aria-label="CAPFLUX Home" />
                 <span class="text-xl font-bold tracking-tight text-text-primary">CAPFLUX</span>
                 <CmBadge variant="brand" label="Financial OS" size="sm" pill />
               </a>

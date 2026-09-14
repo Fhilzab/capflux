@@ -20,10 +20,11 @@ describe('AuthLayout branded home link', () => {
     const homeLink = wrapper.find('a[aria-label="Go to CAPFLUX home"]');
 
     expect(homeLink.exists()).toBe(true);
-    // Icon asset immediately followed by the CAPFLUX wordmark
-    const icon = homeLink.find('img[src="/icons.svg"]');
-    expect(icon.exists()).toBe(true);
+    // Canonical mark — no longer a raw <img src="/icons.svg"> placeholder
     expect(homeLink.text()).toContain('CAPFLUX');
+    expect(homeLink.text()).toContain('C');
+    // Should not contain legacy Inkscape placeholder reference
+    expect(wrapper.html()).not.toContain('/icons.svg');
   });
 
   it('points to the live landing page in sandbox mode', () => {
