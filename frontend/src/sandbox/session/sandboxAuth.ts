@@ -26,6 +26,10 @@ import { assertSandboxMode } from '../runtime/sandboxGuard';
 import { DEMO_PERSONAS, type DemoPersonaSpec } from '../seed/demoData';
 import { apiClient } from '../../shared/services/api/client';
 
+export function listDemoPersonas(): readonly DemoPersonaSpec[] {
+  return DEMO_PERSONAS;
+}
+
 const DEMO_SESSION_STORAGE_KEY = 'capflux_demo_session';
 
 interface DemoSessionData {
