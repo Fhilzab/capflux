@@ -158,28 +158,28 @@ onMounted(() => {
       <FinancialNetwork class="absolute inset-0 -z-10" />
 
       <div class="mx-auto max-w-[1400px] w-full">
-        <div class="grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-8 lg:gap-12 items-center">
+        <div class="grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-8 lg:gap-12 items-center">
           <!-- LEFT: Hero Copy -->
           <div class="order-1 text-center lg:text-left min-w-0">
-            <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand mb-4 sm:mb-5">
+            <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand mb-3 sm:mb-4">
               Built for Nigerian Private Schools
             </p>
 
-            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-[56px] xl:text-[64px] font-extrabold tracking-tight text-text-primary mb-4 sm:mb-5 leading-[1.1] lg:leading-[1.03]">
+            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-[clamp(44px,4vw,58px)] font-extrabold tracking-tight text-text-primary mb-4 sm:mb-5 leading-[1.06] lg:leading-[1.0]">
               School Fee Collection,<br class="hidden sm:block" />Finally Without the Stress.
             </h1>
 
-            <div class="text-sm sm:text-base text-text-secondary max-w-xl mx-auto lg:mx-0 mb-6 sm:mb-8 space-y-1">
+            <div class="text-[15px] sm:text-[16px] lg:text-[19px] leading-[1.5] text-text-secondary max-w-[560px] mx-auto lg:mx-0 mb-6 sm:mb-7 space-y-1">
               <p>Every student gets a dedicated bank account.</p>
               <p>Every payment is verified automatically.</p>
               <p>Every kobo is accounted for.</p>
             </div>
 
-            <div class="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div class="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-3 sm:gap-4 mb-5 sm:mb-7">
               <CmButton
                 @click="navigateToAuth('signup')"
                 variant="primary"
-                size="lg"
+                size="tall"
                 class="w-full sm:w-auto sm:px-8"
               >
                 Get Started Free
@@ -187,7 +187,7 @@ onMounted(() => {
               <CmButton
                 @click="navigateToSandboxDemo"
                 variant="secondary"
-                size="lg"
+                size="tall"
                 class="w-full sm:w-auto sm:px-8"
               >
                 Book a Live Demo
