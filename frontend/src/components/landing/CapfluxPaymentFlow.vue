@@ -731,8 +731,9 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 /* Mobile legibility: hide decorative micro-captions that would render at ~5px
-   and enlarge the essential labels so they stay readable when the graphic scales down */
-@media (max-width: 640px) {
+   and enlarge the essential labels so they stay readable when the graphic scales
+   down on phones. Rendered size ≈ css font-size * (rendered width / 760). */
+@media (max-width: 1024px) {
   .text-muted,
   .text-muted-small,
   .section-sublabel,
@@ -745,23 +746,38 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
   .capflux-subtext,
   .recon-text,
   .recon-subtext,
-  .stat-subtitle {
+  .panel-header,
+  .summary-title,
+  .stat-card {
     display: none;
   }
+}
 
-  .verification-text { font-size: 13px; }
-  .text-amount { font-size: 28px; }
-  .label-school { font-size: 20px; }
-  .capflux-label-text { font-size: 18px; }
-  .section-label { font-size: 16px; }
+/* Values below target ~9-13px rendered at 360px. */
+@media (max-width: 640px) {
+
+  .verification-text {
+    font-size: 20px;
+    text-anchor: middle;
+    x: 372px;
+  }
+
+  .verification-badge rect {
+    x: 280px;
+    width: 184px;
+  }
+
+  .text-amount { font-size: 24px; }
+  .label-school { font-size: 22px; }
+  .capflux-label-text { font-size: 26px; }
+  .section-label { font-size: 22px; }
   .student-name { font-size: 20px; }
   .student-amount { font-size: 20px; }
-  .tx-name { font-size: 13px; }
-  .tx-amount { font-size: 13px; }
+  .avatar-text { font-size: 18px; }
+  .tx-name { font-size: 18px; }
+  .tx-amount { font-size: 18px; }
   .panel-header { font-size: 14px; }
-  .summary-title { font-size: 18px; }
-  .summary-stat { font-size: 22px; }
-  .recon-text { font-size: 12px; }
-  .stat-title { font-size: 13px; }
+  .summary-title { font-size: 14px; }
+  .summary-stat { font-size: 20px; }
 }
 </style>

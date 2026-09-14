@@ -154,19 +154,19 @@ onMounted(() => {
     <LandingNav />
 
     <!-- HERO SECTION -->
-    <section class="relative min-h-[50vh] sm:min-h-[85vh] flex items-center px-4 sm:px-6 pt-8 sm:pt-12 pb-8 sm:pb-12 overflow-hidden">
+    <section class="relative min-h-[50vh] sm:min-h-[85vh] flex items-center pt-[96px] lg:pt-12 pb-8 sm:pb-12 overflow-hidden">
       <FinancialNetwork class="absolute inset-0 -z-10" />
 
-      <div class="mx-auto max-w-[1400px] w-full">
+      <div class="mx-auto max-w-7xl w-full px-6 lg:px-8">
         <div class="grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-8 lg:gap-12 items-center">
           <!-- LEFT: Hero Copy -->
           <div class="order-1 text-center lg:text-left min-w-0">
-            <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand mb-3 sm:mb-4">
+            <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand-hover mb-3 sm:mb-4">
               Built for Nigerian Private Schools
             </p>
 
-            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-[clamp(44px,4vw,58px)] font-extrabold tracking-tight text-text-primary mb-4 sm:mb-5 leading-[1.06] lg:leading-[1.0]">
-              School Fee Collection,<br class="hidden sm:block" />Finally Without the Stress.
+            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-[clamp(40px,3.4vw,46px)] font-extrabold tracking-tight text-text-primary mb-4 sm:mb-5 leading-[1.05] lg:leading-[1.0] text-balance">
+              School Fee Collection,<br class="hidden sm:block" /> Finally Without&nbsp;the&nbsp;Stress.
             </h1>
 
             <div class="text-[15px] sm:text-[16px] lg:text-[19px] leading-[1.5] text-text-secondary max-w-[560px] mx-auto lg:mx-0 mb-6 sm:mb-7 space-y-1">
@@ -180,7 +180,7 @@ onMounted(() => {
                 @click="navigateToAuth('signup')"
                 variant="primary"
                 size="tall"
-                class="w-full sm:w-auto sm:px-8"
+                class="hero-cta-primary w-full sm:w-auto sm:px-8"
               >
                 Get Started Free
               </CmButton>
@@ -188,23 +188,23 @@ onMounted(() => {
                 @click="navigateToSandboxDemo"
                 variant="secondary"
                 size="tall"
-                class="w-full sm:w-auto sm:px-8"
+                class="hero-cta-secondary w-full sm:w-auto sm:px-8"
               >
                 Book a Live Demo
               </CmButton>
             </div>
 
             <!-- Product benefit indicators -->
-            <div class="flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-2 text-xs text-text-muted">
-              <span class="flex items-center gap-1.5">
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-text-muted sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-4 sm:gap-y-2">
+              <span class="flex items-center justify-center gap-1.5">
                 <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
                 Automated Reconciliation
               </span>
-              <span class="flex items-center gap-1.5">
+              <span class="flex items-center justify-center gap-1.5">
                 <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
                 Bank-Grade Security
               </span>
-              <span class="flex items-center gap-1.5">
+              <span class="col-span-2 flex items-center justify-center gap-1.5">
                 <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
                 Real-Time Visibility
               </span>
@@ -265,7 +265,7 @@ onMounted(() => {
 
           <!-- The CAPFLUX Way -->
           <div class="premium-card bg-card p-6 sm:p-8 border-brand/30">
-            <h3 class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand mb-4 sm:mb-6">The CAPFLUX Way</h3>
+            <h3 class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand-hover mb-4 sm:mb-6">The CAPFLUX Way</h3>
             <ul class="space-y-4">
               <li
                 v-for="point in capfluxWayPoints"
@@ -610,7 +610,7 @@ onMounted(() => {
               @click="navigateToAuth('signup')"
               variant="primary"
               size="lg"
-              class="w-full sm:w-auto sm:px-8"
+              class="w-full sm:w-auto sm:px-8 hero-cta-primary"
             >
               Get Started Free Today
             </CmButton>
@@ -700,6 +700,26 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.hero-cta-primary {
+  background-color: var(--color-brand-hover) !important;
+}
+.hero-cta-primary:hover {
+  background-color: var(--color-brand) !important;
+}
+.hero-cta-primary:active {
+  background-color: var(--color-brand-hover) !important;
+}
+
+.hero-cta-secondary {
+  background-color: var(--color-background) !important;
+  border-color: color-mix(in srgb, var(--color-brand) 45%, transparent) !important;
+  border-width: 1.5px !important;
+}
+.hero-cta-secondary:hover {
+  background-color: var(--color-brand-subtle) !important;
+  border-color: var(--color-brand) !important;
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
 }
