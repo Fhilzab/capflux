@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useOnboardingStore } from '../../../stores/onboardingStore';
 import { useSchoolStore } from '../../../stores/schoolStore';
+import { runtimeEnvironment } from '../../../shared/environment/runtimeEnvironment';
 import CmButton from '../../../components/ui/CmButton.vue';
 
 const onboardingStore = useOnboardingStore();
@@ -17,6 +18,7 @@ const router = useRouter();
  * where school is ACTIVE / payment READY.
  */
 const visible = computed(() => {
+  if (runtimeEnvironment.isSandbox) return false;
   // Still loading initial state — do not flash banner.
   if (!onboardingStore.statusLoaded && !schoolStore.initialized) return false;
   // Explicit pending-setup status from either canonical source

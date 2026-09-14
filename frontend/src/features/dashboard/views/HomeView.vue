@@ -15,6 +15,7 @@ import ActivationBanner from '../components/ActivationBanner.vue';
 import MetricCard from '../../../components/ui/MetricCard.vue';
 import ErrorState from '../../../components/ui/ErrorState.vue';
 import SkeletonLoader from '../../../components/ui/SkeletonLoader.vue';
+import { runtimeEnvironment } from '../../../shared/environment/runtimeEnvironment';
 import { WalletCards, Clock3, TriangleAlert, ChartColumn } from '@lucide/vue';
 
 const dashboardStore = useDashboardStore();
@@ -22,6 +23,7 @@ const onboardingStore = useOnboardingStore();
 const schoolStore = useSchoolStore();
 
 const showActivationBanner = computed(() => {
+  if (runtimeEnvironment.isSandbox) return false;
   if (!onboardingStore.statusLoaded && !schoolStore.initialized) return false;
   if (onboardingStore.requiresSetup || schoolStore.requiresSetup) return true;
   if (!onboardingStore.hasSchool && !schoolStore.school) return true;
