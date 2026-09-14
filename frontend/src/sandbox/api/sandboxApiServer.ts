@@ -28,7 +28,7 @@ import { getSandboxDb } from '../sandboxDb';
 import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment';
 import { assertSandboxMode } from '../runtime/sandboxGuard';
 import { SandboxOfflineError, sandboxRuntime } from '../runtime/sandboxRuntime';
-import { getSimulatorPersona, requireSimulatorAuth } from './simulatorAuth';
+import { getSimulatorPersona } from './simulatorAuth';
 import {
   DEMO_ORG_ID,
   DEMO_SCHOOL_ID,
@@ -87,8 +87,12 @@ function getSessionPersona() {
   return getSimulatorPersona();
 }
 
-function requireAuth(): NonNullable<ReturnType<typeof getSimulatorPersona>> {
-  return requireSimulatorAuth();
+function requireAuth(): NonNullable<ReturnType<typeof getSessionPersona>> {
+  // Fail closed with an HTTP 401 (the simulator allowlist itself returns
+  // null; the status mapping stays here so the HTTP contract is unchanged).
+  const persona = getSessionPersona();
+  if (!persona) throw new HttpError(401, 'Authentication required');
+  return persona;
 }
 
 /** Tenant guard: platform staff operate cross-school; others are pinned to the demo school. */

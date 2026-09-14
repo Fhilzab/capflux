@@ -166,4 +166,20 @@ describe('AuthView', () => {
 
     expect(handleOAuthCallbackMock).not.toHaveBeenCalled();
   });
+
+  it('renders only the sandbox demo login (no credential forms) in sandbox mode', async () => {
+    const { __resolveRuntimeEnvironmentForTests } = await import(
+      '../../../shared/environment/runtimeEnvironment'
+    );
+    __resolveRuntimeEnvironmentForTests('sandbox');
+    try {
+      mockRouteQuery.mode = 'login';
+      const wrapper = mount(AuthView);
+      await nextTick();
+      expect(wrapper.find('[data-testid="sandbox-demo-login"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="login-form"]').exists()).toBe(false);
+    } finally {
+      __resolveRuntimeEnvironmentForTests('production');
+    }
+  });
 });

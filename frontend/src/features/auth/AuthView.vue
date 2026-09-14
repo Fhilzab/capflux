@@ -77,7 +77,10 @@ watch(
 // Supabase Auth: no hosted UI redirect. When entering login or signup mode
 // (and no OAuth callback code is present), we render the inline form
 // components directly instead of redirecting to a provider-hosted page.
+// Skipped entirely in sandbox mode: sandbox auth is persona-first and must
+// never initiate credential or OAuth flows.
 onMounted(async () => {
+  if (runtimeEnvironment.isSandbox) return;
   const mode = currentMode.value;
   if (mode !== 'login' && mode !== 'signup') return;
 
@@ -91,7 +94,9 @@ onMounted(async () => {
 
 // If the URL contains ?provider=google (Google OAuth redirect), auto-click
 // the Google button so the flow completes seamlessly.
+// Never in sandbox mode: sandbox renders no Google surface at all.
 onMounted(() => {
+  if (runtimeEnvironment.isSandbox) return;
   if (props.provider === 'google') {
     setTimeout(() => {
       const googleButton = document.querySelector('[data-google-auth]');
@@ -116,7 +121,9 @@ onMounted(() => {
       </template>
 
       <template #form>
-        <div class="w-full">
+        <!-- Sandbox mode is persona-first: no credential forms, no OAuth. -->
+        <SandboxDemoLogin v-if="runtimeEnvironment.isSandbox" />
+        <div v-else class="w-full">
           <Transition name="auth" mode="out-in">
             <component
               :is="formComponents[currentMode]"
@@ -124,7 +131,6 @@ onMounted(() => {
               @switch-state="transition"
             />
           </Transition>
-          <SandboxDemoLogin v-if="runtimeEnvironment.isSandbox && currentMode === 'login'" class="mt-4" />
         </div>
       </template>
     </AuthLayout>

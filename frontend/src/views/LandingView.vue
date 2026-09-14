@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import LandingNav from '../components/landing/LandingNav.vue';
 import FinancialNetwork from '../components/landing/FinancialNetwork.vue';
-import PaymentPipeline from '../components/landing/PaymentPipeline.vue';
+import CapfluxPaymentFlow from '../components/landing/CapfluxPaymentFlow.vue';
 import OfflineDemo from '../components/landing/OfflineDemo.vue';
 import FeatureCard from '../components/landing/FeatureCard.vue';
 import CapfluxPaymentFlow from '../components/landing/CapfluxPaymentFlow.vue';
