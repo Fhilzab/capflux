@@ -154,7 +154,7 @@ onMounted(() => {
     <LandingNav />
 
     <!-- HERO SECTION -->
-    <section class="relative min-h-[50vh] sm:min-h-screen flex items-center px-4 sm:px-6 pt-12 sm:pt-14 overflow-hidden">
+    <section class="relative min-h-[50vh] sm:min-h-[85vh] flex items-center px-4 sm:px-6 pt-8 sm:pt-12 pb-8 sm:pb-12 overflow-hidden">
       <FinancialNetwork class="absolute inset-0 -z-10" />
 
       <div class="mx-auto max-w-7xl w-full">
@@ -165,7 +165,7 @@ onMounted(() => {
               Built for Nigerian Private Schools
             </p>
 
-            <h1 class="text-2xl sm:text-3xl md:text-5xl lg:text-[68px] font-extrabold tracking-tight text-text-primary mb-4 sm:mb-6 leading-[1.08] lg:leading-[1.02]">
+            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-[56px] xl:text-[64px] font-extrabold tracking-tight text-text-primary mb-4 sm:mb-5 leading-[1.1] lg:leading-[1.03]">
               School Fee Collection,<br class="hidden sm:block" />Finally Without the Stress.
             </h1>
 
@@ -212,7 +212,7 @@ onMounted(() => {
           </div>
 
           <!-- RIGHT: Animated Payment Flow Visualization -->
-          <div class="order-1 lg:order-2 flex justify-center lg:justify-end">
+          <div class="order-1 lg:order-2 flex justify-center lg:justify-end w-full">
             <CapfluxPaymentFlow />
           </div>
         </div>
