@@ -164,7 +164,7 @@ export class SandboxAuthProvider extends AuthProvider {
 
   private async signInAsPersona(persona: DemoPersonaSpec): Promise<AuthResult<{ session: Session; user: User }>> {
     try {
-      const response = await apiClient.post('/auth/demo-login', { personaId: persona.id });
+      const response = await apiClient.http.post('/auth/demo-login', { personaId: persona.id });
       const data = response.data as {
         success: boolean;
         token: string;
@@ -233,7 +233,7 @@ export class SandboxAuthProvider extends AuthProvider {
     }
     // Validate session with backend
     try {
-      await apiClient.get('/auth/demo-session', {
+      await apiClient.http.get('/auth/demo-session', {
         headers: { Authorization: `Bearer ${session.accessToken}` },
       });
       return ok({ session });
