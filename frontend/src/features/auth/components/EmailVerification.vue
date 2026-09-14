@@ -76,7 +76,7 @@ const isCountdownReady = computed(() => countdown.value === 0);
       <CmButton
         type="button"
         variant="secondary"
-        size="lg"
+        size="tall"
         :loading="isResending"
         :disabled="!isCountdownReady || isResending"
         class="w-full"

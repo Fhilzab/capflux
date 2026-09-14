@@ -55,6 +55,12 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     async initialize() {
+      // Guard against concurrent initialization: the app now mounts before
+      // the background bootstrap completes, so the route guard and bootstrap
+      // may both attempt to call initialize(). The first caller owns it.
+      if (this.initialized) {
+        return;
+      }
       const { session, error } = await AuthService.initialize();
       if (error) {
         this.error = error.message;

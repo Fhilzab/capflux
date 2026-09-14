@@ -4,7 +4,7 @@ import { LoaderCircle } from '@lucide/vue';
 
 interface Props {
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'black' | 'link';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'tall';
   disabled?: boolean;
   loading?: boolean;
   type?: 'button' | 'submit' | 'reset';
@@ -37,6 +37,7 @@ const sizeClasses = {
   sm: 'px-3 py-1.5 text-xs h-8',
   md: 'px-4 py-2.5 text-sm h-10',
   lg: 'px-6 py-3 text-base h-12',
+  tall: 'px-6 py-2.5 text-base h-[44px]',
 };
 
 const attrs = useAttrs();

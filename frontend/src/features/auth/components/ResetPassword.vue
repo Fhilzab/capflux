@@ -92,6 +92,7 @@ const switchToLogin = () => {
           :error="submitted && !isPasswordValid ? 'Password must be at least 8 characters' : undefined"
           placeholder="••••••••"
           autocomplete="new-password"
+          input-class="h-[44px]"
         />
       </div>
 
@@ -106,13 +107,14 @@ const switchToLogin = () => {
           :error="submitted && !passwordsMatch ? 'Passwords do not match' : undefined"
           placeholder="••••••••"
           autocomplete="new-password"
+          input-class="h-[44px]"
         />
       </div>
 
       <CmButton
         type="submit"
         variant="primary"
-        size="lg"
+        size="tall"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
         class="w-full"

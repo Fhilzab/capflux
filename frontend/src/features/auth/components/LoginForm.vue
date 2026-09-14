@@ -85,6 +85,7 @@ const switchToForgotPassword = () => {
           :error="submitted && !isEmailValid ? 'Enter a valid email address' : undefined"
           placeholder="you@school.edu.ng"
           autocomplete="email"
+          input-class="h-[44px]"
         />
       </div>
 
@@ -99,6 +100,7 @@ const switchToForgotPassword = () => {
           :error="submitted && !password ? 'Password is required' : undefined"
           placeholder="••••••••"
           autocomplete="current-password"
+          input-class="h-[44px]"
         >
           <template #append>
             <button
@@ -119,7 +121,7 @@ const switchToForgotPassword = () => {
       <CmButton
         type="submit"
         variant="primary"
-        size="lg"
+        size="tall"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
         data-testid="signin-button"
@@ -164,7 +166,7 @@ const switchToForgotPassword = () => {
       <CmButton
         type="button"
         variant="secondary"
-        size="lg"
+        size="tall"
         :disabled="authStore.loading"
         :loading="authStore.loading"
         class="w-full"

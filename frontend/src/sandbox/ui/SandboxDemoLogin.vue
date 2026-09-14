@@ -38,17 +38,17 @@ async function signInAs(email: string): Promise<void> {
 <template>
   <div
     v-if="runtimeEnvironment.isSandbox"
-    class="border-t border-divider pt-4 mt-6"
+    class="border-t border-divider pt-3 mt-4"
     data-testid="sandbox-demo-login"
   >
-    <p class="text-xs text-text-tertiary mb-3">
-      Sandbox demo access — no real accounts. Password: <code class="text-text-muted">demo1234</code>
+    <p class="text-xs font-medium text-text-muted mb-2.5">
+      Sandbox demo access — no real accounts. Password: <code class="text-text-secondary">demo1234</code>
     </p>
     <div class="flex flex-wrap gap-2">
       <button
         v-for="persona in personas"
         :key="persona.id"
-        class="inline-flex items-center gap-1.5 rounded-md border border-divider px-2.5 py-1.5 text-xs transition-colors hover:bg-background-hover disabled:opacity-50"
+        class="inline-flex items-center gap-1.5 rounded-md border border-divider px-3 py-2 text-xs transition-colors hover:bg-background-hover disabled:opacity-50 min-h-[40px]"
         :title="`${persona.fullName} — ${persona.email}`"
         :data-testid="`demo-login-${persona.id}`"
         :disabled="busy !== null"
@@ -62,7 +62,7 @@ async function signInAs(email: string): Promise<void> {
       </button>
       <button
         v-if="platformStaff"
-        class="inline-flex items-center gap-1.5 rounded-md border border-dashed border-divider px-2.5 py-1.5 text-xs transition-colors hover:bg-background-hover disabled:opacity-50"
+        class="inline-flex items-center gap-1.5 rounded-md border border-dashed border-divider px-3 py-2 text-xs transition-colors hover:bg-background-hover disabled:opacity-50 min-h-[40px]"
         :title="`${platformStaff.fullName} — ${platformStaff.email}`"
         data-testid="demo-login-platform"
         :disabled="busy !== null"

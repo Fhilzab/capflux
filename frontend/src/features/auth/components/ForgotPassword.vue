@@ -76,13 +76,14 @@ const switchToLogin = () => {
           :error="submitted && !isEmailValid ? 'Enter a valid email address' : undefined"
           placeholder="you@school.edu.ng"
           autocomplete="email"
+          input-class="h-[44px]"
         />
       </div>
 
       <CmButton
         type="submit"
         variant="primary"
-        size="lg"
+        size="tall"
         :loading="authStore.loading"
         :disabled="!canSubmit || authStore.loading"
         class="w-full"
