@@ -157,10 +157,10 @@ onMounted(() => {
     <section class="relative min-h-[50vh] sm:min-h-[85vh] flex items-center px-4 sm:px-6 pt-8 sm:pt-12 pb-8 sm:pb-12 overflow-hidden">
       <FinancialNetwork class="absolute inset-0 -z-10" />
 
-      <div class="mx-auto max-w-7xl w-full">
-        <div class="grid lg:grid-cols-[0.45fr_0.55fr] gap-8 lg:gap-12 items-center">
+      <div class="mx-auto max-w-[1400px] w-full">
+        <div class="grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-8 lg:gap-12 items-center">
           <!-- LEFT: Hero Copy -->
-          <div class="order-2 lg:order-1 text-center lg:text-left">
+          <div class="order-1 text-center lg:text-left min-w-0">
             <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand mb-4 sm:mb-5">
               Built for Nigerian Private Schools
             </p>
@@ -212,7 +212,7 @@ onMounted(() => {
           </div>
 
           <!-- RIGHT: Animated Payment Flow Visualization -->
-          <div class="order-1 lg:order-2 flex justify-center lg:justify-end w-full">
+          <div class="order-2 w-full min-w-0">
             <CapfluxPaymentFlow />
           </div>
         </div>
