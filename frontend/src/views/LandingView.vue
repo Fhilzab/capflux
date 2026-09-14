@@ -8,7 +8,6 @@ import FinancialNetwork from '../components/landing/FinancialNetwork.vue';
 import CapfluxPaymentFlow from '../components/landing/CapfluxPaymentFlow.vue';
 import OfflineDemo from '../components/landing/OfflineDemo.vue';
 import FeatureCard from '../components/landing/FeatureCard.vue';
-import CapfluxPaymentFlow from '../components/landing/CapfluxPaymentFlow.vue';
 import CmBadge from '../components/ui/CmBadge.vue';
 import CmButton from '../components/ui/CmButton.vue';
 
