@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, computed, onUnmounted } from 'vue';
 import { useDashboardStore } from '../stores/dashboardStore';
-import { useAuthStore } from '../../../stores/authStore';
+import { useOnboardingStore } from '../../../stores/onboardingStore';
+import { useSchoolStore } from '../../../stores/schoolStore';
 import type { TrendRange } from '../stores/dashboardStore';
 
 import DashboardHeader from '../components/DashboardHeader.vue';
@@ -14,31 +15,29 @@ import ActivationBanner from '../components/ActivationBanner.vue';
 import MetricCard from '../../../components/ui/MetricCard.vue';
 import ErrorState from '../../../components/ui/ErrorState.vue';
 import SkeletonLoader from '../../../components/ui/SkeletonLoader.vue';
+import { WalletCards, Clock3, TriangleAlert, ChartColumn } from '@lucide/vue';
 
 const dashboardStore = useDashboardStore();
-const authStore = useAuthStore();
+const onboardingStore = useOnboardingStore();
+const schoolStore = useSchoolStore();
+
+const showActivationBanner = computed(() => {
+  if (!onboardingStore.statusLoaded && !schoolStore.initialized) return false;
+  if (onboardingStore.requiresSetup || schoolStore.requiresSetup) return true;
+  if (!onboardingStore.hasSchool && !schoolStore.school) return true;
+  return false;
+});
 
 // Real trend indicator for "This Month" metric (month-over-month from actual entries)
 const monthlyTrend = computed(() => dashboardStore.monthlyTrend);
 
-// Icon path strings for metric cards (Heroicons outline, single-path)
-const icons = {
-  receipt:
-    'M16.862 4.487l-.707.707M16.862 4.487a2.25 2.25 0 00-3.182 0L6.75 15.75m10.5-10.5l.707.707M16.862 4.487L6.75 15.75M16.862 4.487l.707.707M6.75 15.75l.707-.707M15 6.75h3.375c.621 0 1.125.504 1.125 1.125v3.375c0 .621-.504 1.125-1.125 1.125H15V6.75z',
-  clock: 'M12 6v6l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-  'exclamation-circle':
-    'M12 9v3.75m0 0h.008v-.008H12V15zm0 0h.008v-.008H12V15zm0 0h-.008v.008H12V15zm0 0v-.008H12V12zM8.25 9V5.625c0-.621.504-1.125 1.125-1.125h3.375c.621 0 1.125.504 1.125 1.125V9',
-  'chart-bar':
-    'M3 13.5v-6A2.25 2.25 0 015.25 5.25h13.5A2.25 2.25 0 0121 7.5v6m-3 3v3.75a.75.75 0 01-.75.75h-1.5A.75.75 0 0115 15.75V15m-3 3v3.75a.75.75 0 01-.75.75h-1.5A.75.75 0 019 15.75V15m-3 3v3.75a.75.75 0 01-.75.75H3.75a.75.75 0 01-.75-.75V12',
-};
-
-// Real metric data derived from the dashboard store — no fabricated values
+// Real metric data derived from the dashboard store — Lucide icons for UI (brand C remains canonical)
 const metricCards = computed(() => [
   {
     label: 'Total Collected',
     value: dashboardStore.totalPayments,
     currency: true,
-    icon: icons.receipt,
+    lucideIcon: WalletCards,
     variant: 'revenue' as const,
     description: `${dashboardStore.totalStudents} students • ${dashboardStore.totalPayments > 0 ? 'All accounts' : 'No payments recorded'}`,
   },
@@ -46,7 +45,7 @@ const metricCards = computed(() => [
     label: 'Collected This Month',
     value: dashboardStore.thisMonthsCollections,
     currency: true,
-    icon: icons.clock,
+    lucideIcon: Clock3,
     variant: 'collection' as const,
     trend: monthlyTrend.value?.trend,
     trendValue: monthlyTrend.value?.value,
@@ -55,7 +54,7 @@ const metricCards = computed(() => [
     label: 'Outstanding Balance',
     value: dashboardStore.netBalance,
     currency: true,
-    icon: icons['exclamation-circle'],
+    lucideIcon: TriangleAlert,
     variant: 'outstanding' as const,
     description: `${dashboardStore.outstandingStudentCount} student${dashboardStore.outstandingStudentCount !== 1 ? 's' : ''} with balances`,
   },
@@ -63,7 +62,7 @@ const metricCards = computed(() => [
     label: 'Collection Rate',
     value: `${dashboardStore.collectionRate.toFixed(1)}%`,
     currency: false,
-    icon: icons['chart-bar'],
+    lucideIcon: ChartColumn,
     variant: 'collection' as const,
     description:
       dashboardStore.totalCharges > 0
@@ -80,12 +79,21 @@ const refresh = async () => {
   await dashboardStore.fetchDashboardData();
 };
 
+const ensureOnboardingState = async () => {
+  if (!onboardingStore.statusLoaded && !onboardingStore.statusLoading) {
+    onboardingStore.loadStatus().catch(() => {});
+  }
+  if (!schoolStore.initialized && !schoolStore.loading) {
+    schoolStore.initialize().catch(() => {});
+  }
+};
+
 const handleOnline = () => {
   refresh();
 };
 
 onMounted(async () => {
-  await refresh();
+  await Promise.all([refresh(), ensureOnboardingState()]);
 
   window.addEventListener('online', handleOnline);
 });
@@ -98,8 +106,8 @@ onUnmounted(() => {
 <template>
   <div class="flex-1 overflow-y-auto">
     <div class="max-w-7xl mx-auto px-6 py-6 space-y-6">
-      <!-- Activation Banner (when school setup incomplete) -->
-      <ActivationBanner v-if="!authStore.isSchoolSetupComplete" />
+      <!-- Activation Banner (when school setup incomplete — canonical onboarding/school state) -->
+      <ActivationBanner v-if="showActivationBanner" />
 
       <!-- Page Introduction -->
       <DashboardHeader />
@@ -128,7 +136,7 @@ onUnmounted(() => {
             :label="metric.label"
             :value="metric.value"
             :currency="metric.currency"
-            :icon="metric.icon"
+            :lucide-icon="metric.lucideIcon"
             :variant="metric.variant"
             :trend="metric.trend"
             :trend-value="metric.trendValue"

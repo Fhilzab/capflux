@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Component } from 'vue';
+
 interface Props {
   label: string;
   value: string | number;
@@ -7,6 +9,7 @@ interface Props {
   description?: string;
   currency?: boolean;
   icon?: string;
+  lucideIcon?: Component;
   variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'ai' | 'collection' | 'outstanding' | 'pending' | 'revenue';
 }
 
@@ -56,8 +59,9 @@ const accentVariant = {
   <div class="bg-card border border-border shadow-card rounded-card p-6 transition-all duration-300 hover:shadow-elevated">
     <div class="flex items-start justify-between mb-4">
       <p class="text-xs uppercase tracking-wider font-semibold text-text-muted">{{ label }}</p>
-      <div v-if="icon" class="flex h-9 w-9 items-center justify-center rounded-card border border-border" :class="variantBg[variant || 'default']">
-        <svg class="h-4.5 w-4.5" :class="variantClasses[variant || 'default']" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <div v-if="icon || lucideIcon" class="flex h-9 w-9 items-center justify-center rounded-card border border-border" :class="variantBg[variant || 'default']">
+        <component v-if="lucideIcon" :is="lucideIcon" class="h-4.5 w-4.5" :class="variantClasses[variant || 'default']" :stroke-width="1.8" />
+        <svg v-else class="h-4.5 w-4.5" :class="variantClasses[variant || 'default']" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" :d="icon" />
         </svg>
       </div>
