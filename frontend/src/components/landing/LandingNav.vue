@@ -84,6 +84,7 @@ onUnmounted(() => {
             :key="item.id"
             @click="navigateTo(item.id)"
             variant="link"
+            class="nav-link"
           >
             {{ item.label }}
           </CmButton>
@@ -114,7 +115,7 @@ onUnmounted(() => {
           <CmButton
             @click="navigateToAuth('signup')"
             variant="primary"
-            class="hidden md:inline-flex"
+            class="hidden md:inline-flex nav-cta"
           >
             Get Started Free
           </CmButton>
@@ -166,7 +167,7 @@ onUnmounted(() => {
                 :key="item.id"
                 @click="navigateTo(item.id)"
                 variant="link"
-                class="w-full block py-4 text-left"
+                class="nav-link w-full block py-4 text-left"
               >
                 {{ item.label }}
               </CmButton>
@@ -182,7 +183,7 @@ onUnmounted(() => {
               <CmButton
                 @click="navigateToAuth('signup')"
                 variant="primary"
-                class="w-full"
+                class="w-full nav-cta"
               >
                 Get Started Free
               </CmButton>
@@ -195,6 +196,17 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.nav-link {
+  color: var(--color-brand-hover) !important;
+}
+
+.nav-cta {
+  background-color: var(--color-brand-hover) !important;
+}
+.nav-cta:hover {
+  background-color: var(--color-brand) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-slide-in-right {
     animation: none;
