@@ -6,6 +6,7 @@ import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment'
 import CmButton from '../../components/ui/CmButton.vue';
 import CmBadge from '../../components/ui/CmBadge.vue';
 import CapfluxMark from '../branding/CapfluxMark.vue';
+import { Sun, Moon, Menu, X } from '@lucide/vue';
 
 const router = useRouter();
 const themeStore = useThemeStore();
@@ -96,12 +97,8 @@ onUnmounted(() => {
             class="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-text-secondary hover:text-text-primary transition-colors focus-ring"
             :aria-label="themeStore.mode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
           >
-            <svg v-if="themeStore.mode === 'dark'" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-9.66l-.71.71M4.05 4.05l.71.71M21 12h-1M4 12H3m15.364 6.364l-.71-.71M6.34 17.66l.71.71M16.95 7.05a5.95 5.95 0 11-8.49 0 5.95 5.95 0 118.49 0z" />
-            </svg>
-            <svg v-else class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-            </svg>
+            <Sun v-if="themeStore.mode === 'dark'" class="h-5 w-5" :stroke-width="2" />
+            <Moon v-else class="h-5 w-5" :stroke-width="2" />
           </button>
 
           <!-- Log In Button -->
@@ -129,10 +126,8 @@ onUnmounted(() => {
             :aria-label="isMobileMenuOpen ? 'Close menu' : 'Open menu'"
             :aria-expanded="isMobileMenuOpen"
           >
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path v-if="!isMobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <Menu v-if="!isMobileMenuOpen" class="h-5 w-5" :stroke-width="2" />
+            <X v-else class="h-5 w-5" :stroke-width="2" />
           </button>
         </div>
       </div>
@@ -162,9 +157,7 @@ onUnmounted(() => {
                 class="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-text-secondary hover:text-text-primary transition-colors focus-ring"
                 aria-label="Close menu"
               >
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X class="h-5 w-5" :stroke-width="2" />
               </button>
             </div>
             <nav class="flex-1 overflow-y-auto py-3">
