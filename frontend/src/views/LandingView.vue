@@ -8,6 +8,7 @@ import FinancialNetwork from '../components/landing/FinancialNetwork.vue';
 import PaymentPipeline from '../components/landing/PaymentPipeline.vue';
 import OfflineDemo from '../components/landing/OfflineDemo.vue';
 import FeatureCard from '../components/landing/FeatureCard.vue';
+import CapfluxPaymentFlow from '../components/landing/CapfluxPaymentFlow.vue';
 import CmBadge from '../components/ui/CmBadge.vue';
 import CmButton from '../components/ui/CmButton.vue';
 
@@ -154,57 +155,66 @@ onMounted(() => {
     <LandingNav />
 
     <!-- HERO SECTION -->
-    <section class="relative min-h-[50vh] sm:min-h-screen flex items-center justify-center px-4 sm:px-6 pt-14 sm:pt-16">
+    <section class="relative min-h-[50vh] sm:min-h-screen flex items-center px-4 sm:px-6 pt-14 sm:pt-16 overflow-hidden">
       <FinancialNetwork class="absolute inset-0 -z-10" />
 
-      <div class="mx-auto max-w-4xl text-center">
-        <CmBadge
-          variant="primary"
-          label="Financial Operating System for Nigerian Private Schools"
-          size="sm"
-          class="mb-5 sm:mb-6 mx-auto w-full sm:w-fit"
-        />
+      <div class="mx-auto max-w-6xl w-full">
+        <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          <!-- LEFT: Hero Copy -->
+          <div class="order-2 lg:order-1 text-center lg:text-left">
+            <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand mb-4 sm:mb-5">
+              Built for Nigerian Private Schools
+            </p>
 
-        <h1 class="text-2xl sm:text-3xl md:text-7xl lg:text-8xl font-extrabold tracking-tight text-text-primary mb-4 sm:mb-6">
-          School Fee Collection,<br>Finally Without the Stress.
-        </h1>
+            <h1 class="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-text-primary mb-4 sm:mb-6 leading-tight">
+              School Fee Collection,<br class="hidden sm:block" />Finally Without the Stress.
+            </h1>
 
-        <p class="text-sm sm:text-base md:text-lg text-text-secondary max-w-3xl mx-auto mb-6 sm:mb-8">
-          Every student receives a Dedicated Virtual Account. Payments verified automatically. Every kobo tracked in real time—even offline.
-        </p>
+            <div class="text-sm sm:text-base text-text-secondary max-w-xl mx-auto lg:mx-0 mb-6 sm:mb-8 space-y-1">
+              <p>Every student gets a dedicated bank account.</p>
+              <p>Every payment is verified automatically.</p>
+              <p>Every kobo is accounted for.</p>
+            </div>
 
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-10">
-          <CmButton
-            @click="navigateToAuth('signup')"
-            variant="primary"
-            size="lg"
-            class="w-full sm:w-auto sm:px-8 shadow-lg hover:shadow-xl transition-all duration-300"
-          >
-            Get Started Free
-          </CmButton>
-          <CmButton
-            @click="navigateToSandboxDemo"
-            variant="secondary"
-            size="lg"
-            class="w-full sm:w-auto sm:px-8"
-          >
-            Try CAPFLUX Demo
-          </CmButton>
-        </div>
+            <div class="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-3 sm:gap-4 mb-6 sm:mb-8">
+              <CmButton
+                @click="navigateToAuth('signup')"
+                variant="primary"
+                size="lg"
+                class="w-full sm:w-auto sm:px-8"
+              >
+                Get Started Free
+              </CmButton>
+              <CmButton
+                @click="navigateToSandboxDemo"
+                variant="secondary"
+                size="lg"
+                class="w-full sm:w-auto sm:px-8"
+              >
+                Book a Live Demo
+              </CmButton>
+            </div>
 
-        <div class="mb-4 sm:mb-6">
-          <span class="text-xs sm:text-sm text-text-secondary">Built by FHILZAB NIG LTD (RC-1656168)</span>
-        </div>
+            <!-- Product benefit indicators -->
+            <div class="flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-2 text-xs text-text-muted">
+              <span class="flex items-center gap-1.5">
+                <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
+                Automated Reconciliation
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
+                Bank-Grade Security
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
+                Real-Time Visibility
+              </span>
+            </div>
+          </div>
 
-        <!-- Hero Bullet Points - Clean badges -->
-        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 pt-4 sm:gap-x-6 sm:gap-y-3 sm:pt-12 border-t border-divider">
-          <div
-            v-for="feature in trustFeatures"
-            :key="feature.id"
-            class="flex items-center gap-2 text-xs sm:text-sm text-text-muted"
-          >
-            <div class="h-2 w-2 rounded-full bg-success"></div>
-            <span class="font-mono">{{ feature.title }}</span>
+          <!-- RIGHT: Animated Payment Flow Visualization -->
+          <div class="order-1 lg:order-2 flex justify-center lg:justify-end">
+            <CapfluxPaymentFlow />
           </div>
         </div>
       </div>

@@ -135,17 +135,37 @@ Created **`supabase/bootstrap/fresh-replay.cjs`** - a governed replay adapter th
 
 The database migration release gate is **CLOSED**. All criteria met:
 
-- ✅ Complete fresh migration replay passes (001–038 + 0822–0828)
-- ✅ Migration 028 passes (native UUID RLS convergence)
-- ✅ Schema/RLS/integrity verification passes
-- ✅ Deterministic reset passes
-- ✅ Release-gate tests pass (241 backend, 54 frontend sandbox)
-- ✅ Frontend/backend builds pass
-- ✅ Production remains untouched (verified read-only)
+- ✅ Complete fresh migration replay passes (001–038 + 0822–0828) — **40 migrations applied from clean DB**
+- ✅ Migration 028 passes (native UUID RLS convergence) — **39 RLS policies, zero `auth.uid()::text` residuals**
+- ✅ Schema/RLS/integrity verification passes — **46 tables, 39 RLS, 99 funcs, 15 enums, 4 views, 86 FKs, 212 indexes**
+- ✅ Deterministic reset passes — **17 sandbox seed/integrity/sync tests pass**
+- ✅ Release-gate tests pass — **241 backend tests, 54 frontend sandbox tests**
+- ✅ Frontend/backend builds pass — **frontend 12.21s, backend typecheck/build success**
+- ✅ Compliance audit PASS on financial controls — **payment idempotency 11/11, CORS**
+- ✅ Production remains untouched — **verified read-only, 0 schools in production**
+
+### Verified Fresh Replay (2026-08-27)
+
+```
+$ node fresh-replay.cjs jwvwetwlexvgbtzamxvb <token> ../migrations
+apply  202607100001_foundation.sql
+apply  202607100002_tables.sql
+...
+apply  202607100018_owner_admin_role.sql  [5 identity comparison(s) normalized] [4 comment-only residual]
+apply  202607100020_rbac_tables.sql  [10 identity comparison(s) normalized] [2 comment-only residual]
+apply  202607100021_workos_auth.sql  [6 identity comparison(s) normalized]
+apply  202607100022_onboarding.sql  [18 identity comparison(s) normalized]
+apply  202607100027_supabase_auth_uuid.sql  [25 identity comparison(s) normalized]
+apply  202607100028_supabase_rls_migration.sql
+...
+apply  202608280002_atomic_workos_user_provisioning.sql
+
+DONE: 40 applied this run; chain complete through 202608280002.
+```
 
 ### Remaining Operator Actions (Not Part of This Release Gate)
 
-1. **Render**: Create web service `capflux-sandbox-api` with sandbox env vars (requires RENDER_API_KEY or dashboard access)
+1. **Render**: Create web service `capflux-sandbox-api` with sandbox env vars (requires `RENDER_API_KEY` or dashboard access)
 2. **Vercel**: Create project `capflux-sandbox` once Render URL exists
 3. **Deploy & Smoke Test**: Per `docs/sandbox/SANDBOX_MODE.md` §6.5
 

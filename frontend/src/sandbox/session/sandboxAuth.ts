@@ -20,6 +20,7 @@ import type {
   AuthResult,
   Session,
   User,
+  AuthErrorCode,
 } from '../../shared/auth/types';
 import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment';
 import { assertSandboxMode } from '../runtime/sandboxGuard';
@@ -69,7 +70,7 @@ function ok<T>(data: T): AuthResult<T> {
   return { data, error: null };
 }
 
-function fail<T>(code: string, message: string): AuthResult<T> {
+function fail<T>(code: AuthErrorCode, message: string): AuthResult<T> {
   return { data: null, error: { code, message, raw: undefined } };
 }
 
@@ -164,7 +165,7 @@ export class SandboxAuthProvider extends AuthProvider {
 
   private async signInAsPersona(persona: DemoPersonaSpec): Promise<AuthResult<{ session: Session; user: User }>> {
     try {
-      const response = await apiClient.post('/auth/demo-login', { personaId: persona.id });
+      const response = await apiClient.http.post('/auth/demo-login', { personaId: persona.id });
       const data = response.data as {
         success: boolean;
         token: string;
@@ -173,7 +174,7 @@ export class SandboxAuthProvider extends AuthProvider {
       };
 
       if (!data.success || !data.token) {
-        return fail('AUTH_ERROR', 'Demo login failed.');
+        return fail('SERVER_ERROR', 'Demo login failed.');
       }
 
       const expiresAt = Math.floor(Date.now() / 1000) + data.expiresIn;
@@ -186,7 +187,7 @@ export class SandboxAuthProvider extends AuthProvider {
       return ok({ session, user: session.user! });
     } catch (error) {
       console.error('Demo sign-in failed:', error);
-      return fail('AUTH_ERROR', 'Failed to establish demo session. Please try again.');
+      return fail('SERVER_ERROR', 'Failed to establish demo session. Please try again.');
     }
   }
 
@@ -233,7 +234,7 @@ export class SandboxAuthProvider extends AuthProvider {
     }
     // Validate session with backend
     try {
-      await apiClient.get('/auth/demo-session', {
+      await apiClient.http.get('/auth/demo-session', {
         headers: { Authorization: `Bearer ${session.accessToken}` },
       });
       return ok({ session });

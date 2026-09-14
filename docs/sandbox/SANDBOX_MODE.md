@@ -26,7 +26,7 @@ while keeping the simulator available for development/test/demo use.
 | Selection | `VITE_CAPFLUX_MODE=production` | `VITE_CAPFLUX_MODE=sandbox` + `VITE_API_TRANSPORT=remote` | `VITE_CAPFLUX_MODE=sandbox` + `VITE_API_TRANSPORT=simulator` |
 | Domain data | Dexie cache ⇄ Supabase (RLS) via Express API | Dexie cache ⇄ Sandbox Supabase via Render | Dexie **sandbox database** (`capflux_sandbox_db`) |
 | Backend API | Express on Render (`VITE_API_BASE_URL`) | Express on Sandbox Render (`VITE_API_BASE_URL`) | In-browser `SandboxApiServer` (custom axios adapter) |
-| Auth | WorkOS AuthKit JWT | WorkOS AuthKit JWT (Sandbox) | `SandboxAuthProvider` — demo personas |
+| Auth | WorkOS AuthKit JWT | **Demo Persona Authentication** (server-validated) | `SandboxAuthProvider` — demo personas |
 | Payments | Licensed PSPs → webhook → `record_verified_payment` RPC | Sandbox PSPs → webhook → `record_verified_payment` RPC | `SandboxGateway` + simulator endpoint |
 | KYC | Encrypted BVN/NIN + approved identity provider | Mock/approved identity provider | State-machine simulation |
 | Notifications | SMS/email providers | SMS/email providers | Demo inbox provider |
@@ -62,8 +62,12 @@ Only these places know the mode/transport exists:
    duplicate admission-number rejection, transient failures, retry).
    When using remote transport, the production sync engines connect to Sandbox Supabase.
 5. **Auth provider** — `shared/auth/AuthService.ts` resolves
-   `SandboxAuthProvider` in sandbox (simulator transport); WorkOS AuthKit in sandbox (remote transport).
-   `/context/org|rbac` handlers derive each persona's role + permission codes so RouteGuard/rbacStore enforce real RBAC.
+   `SandboxAuthProvider` in sandbox (both remote and simulator transport); WorkOS AuthKit in production.
+   The `SandboxAuthProvider` authenticates against the sandbox backend `/api/auth/demo-login`
+   endpoint, which validates the persona against a server-side allowlist and
+   issues a signed demo session token. `/context/org|rbac` handlers derive each
+   persona's role + permission codes so RouteGuard/rbacStore enforce real RBAC.
+   The browser NEVER determines roles/permissions — the server is authoritative.
 6. **API Transport** — `shared/services/api/client.ts` reads `runtimeEnvironment.transport`
    to select between network transport and simulator adapter.
 
@@ -99,7 +103,13 @@ Reset Sandbox restores this exact dataset (content digest verified by tests).
 
 ## 5. Demo walkthrough
 
-Login (persona buttons on the auth screen, password `demo1234`)
+Login (persona buttons on the auth screen — no password required for normal demo experience):
+- **Amaka Obi** — Proprietress / School Owner (`proprietor`)
+- **Chinedu Bello** — School Administrator (`administrator`)
+- **Ngozi Eze** — Bursar (`bursar`)
+- **Tunde Adebayo** — Class Teacher (`teacher`)
+- **CAPFLUX Platform Ops** — Platform Compliance Staff (`platform_ops`)
+
 → dashboard metrics derived from sandbox data
 → students CRUD/import/export · academic structure · enrollment/promotion
 → billing · virtual accounts · simulate parent payment (control panel)
@@ -135,6 +145,7 @@ with confirmation + progress.
 | `IDENTITY_VERIFICATION_PROVIDER` / `SETTLEMENT_VERIFICATION_PROVIDER` | Config | Backend | sandbox requires `mock` (`approved` ⇒ rejected); deployed production refuses `mock` |
 | `KYC_ENCRYPTION_KEY`, `CAPFLUX_STORAGE_SIGNING_SECRET`, `WORKOS_CLIENT_SECRET`, `WORKOS_COOKIE_PASSWORD`, `WORKOS_WEBHOOK_SECRET` | Production-only · Secret | Backend | never set on the sandbox service unless that flow is intentionally exercised there |
 | `SANDBOX_DATABASE_URL`, `SANDBOX_API_BASE_URL` | **Sandbox-only** | Backend | their presence on a production process ⇒ startup REJECTED |
+| `DEMO_SESSION_SECRET` | **Sandbox-only · Secret** | Backend | signing secret for demo session tokens (>= 32 chars); never set on production |
 | Development-only: `CORS_ALLOW_ALL`, `COOKIE_SECURE=false` | Dev-only | Backend | `CORS_ALLOW_ALL=true` forbidden on a deployed sandbox |
 
 ### 6.2 Sandbox stack
@@ -228,16 +239,17 @@ included.
 
 | Check | Result |
 |---|---|
-| Complete fresh migration replay (001–latest) | **PASS** — 13 migrations applied in governed replay; all 38+ migrations recorded |
-| Migration 028 native UUID RLS convergence | **PASS** — all policies use `auth.uid() = <uuid>`; zero `auth.uid()::text` residuals |
-| Schema structure (tables, RLS, RPCs, indexes, FKs, enums, constraints, views) | **PASS** — 44 tables, 35 RLS-enabled, 70+ functions, `student_balance`/`school_balance` RPCs |
-| Financial integrity (ledger idempotency, balance RPCs, payment schema) | **PASS** — 7 idempotency indexes, `unique_transaction_idempotency_key`, kobo integers |
-| Deterministic reset test | **PASS** — sandbox seed/state verified; reset restores exact dataset |
-| Frontend build | **PASS** |
+| Complete fresh migration replay (001–038+0822–0828) | **PASS** — 40 migrations applied from clean DB via governed bootstrap replay (`supabase/bootstrap/fresh-replay.cjs`) |
+| Migration 028 native UUID RLS convergence | **PASS** — all 39 RLS policies use `auth.uid() = <uuid>`; **zero `auth.uid()::text` residuals** |
+| Schema structure (tables, RLS, RPCs, indexes, FKs, enums, constraints, views) | **PASS** — 46 tables, 39 RLS-enabled, 99 functions, 15 enums, 4 views, 86 FKs, 212 indexes |
+| Financial integrity (ledger idempotency, balance RPCs, payment schema) | **PASS** — 7 idempotency indexes, `unique_transaction_idempotency_key`, kobo integers, `student_balance`/`school_balance` RPCs |
+| Deterministic reset test | **PASS** — 17 sandbox seed/integrity/sync tests pass; reset restores exact dataset |
+| Frontend build | **PASS** — 12.21s |
 | Backend typecheck | **PASS** |
-| Backend tests (241 tests) | **PASS** |
-| Frontend sandbox tests (54 tests) | **PASS** |
-| Production untouched | **VERIFIED** — read-only checks only; 0 mutations |
+| Backend build | **PASS** |
+| Backend tests (241 tests) | **PASS** — 241/241 pass, 0 fail |
+| Frontend sandbox tests (54 tests) | **PASS** — 54/54 pass |
+| Production untouched | **VERIFIED** — read-only checks only; production has 0 schools |
 
 ### 6.5 Deployment smoke tests
 
