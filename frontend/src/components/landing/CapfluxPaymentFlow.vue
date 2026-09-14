@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import capfluxLogo from '../../assets/capflux-logo.png';
 
 /**
  * CapfluxPaymentFlow — Payment infrastructure visualization.
+ * Matches the approved visual concept exactly.
  *
- * Illustrative data only — not real customer data.
- *
- * Animation cycle:
- * 1. Payment particle travels school → CAPFLUX
- * 2. CAPFLUX core activates
- * 3. Verification badge appears
- * 4. Student card highlights sequentially
- * 5. Transaction row highlights
- * 6. Pause, then repeat
+ * Animation cycle (6s total):
+ * 0.0s  Complete static system visible
+ * 0.8s  Payment particle appears at School Payment
+ * 1.0s  Particle travels along payment route
+ * 2.0s  Particle reaches CAPFLUX
+ * 2.0s  CAPFLUX core pulses
+ * 2.2s  Payment Verified activates
+ * 2.4s  Student account highlights
+ * 2.6s  Transaction highlights
+ * 3.0s  System remains visible
+ * 4.0s  Pause, then repeat
  */
 
 const isReducedMotion = ref(false);
@@ -36,28 +40,32 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 <template>
   <div class="capflux-payment-flow" :class="{ 'reduced-motion': isReducedMotion }" aria-hidden="true">
     <svg
-      viewBox="0 0 880 400"
+      viewBox="0 0 720 480"
       class="payment-flow-svg"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
     >
       <defs>
         <filter id="core-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feGaussianBlur stdDeviation="6" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
 
+        <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="130%">
+          <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.08)" />
+        </filter>
+
         <linearGradient id="path-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="var(--color-brand)" stop-opacity="0.25" />
-          <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="0.55" />
+          <stop offset="0%" stop-color="var(--color-brand)" stop-opacity="0.3" />
+          <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="0.6" />
         </linearGradient>
 
         <radialGradient id="particle-gradient">
           <stop offset="0%" stop-color="var(--color-brand)" stop-opacity="1" />
-          <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="0.4" />
+          <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="0.3" />
         </radialGradient>
 
         <linearGradient id="card-bg" x1="0" y1="0" x2="0" y2="1">
@@ -66,217 +74,208 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
         </linearGradient>
       </defs>
 
-      <!-- ====== LAYER 1: SCHOOL PAYMENT ORIGIN ====== -->
-      <g class="payment-origin" transform="translate(0, -20)">
-        <!-- Payment card -->
-        <rect x="20" y="120" width="130" height="80" rx="12" fill="url(#card-bg)" stroke="var(--color-border)" stroke-width="1.5" />
-        <rect x="20" y="120" width="130" height="28" rx="12" fill="var(--color-brand-soft)" />
-        <rect x="20" y="36" width="130" height="28" rx="12" fill="var(--color-brand-soft)" />
-        <!-- School building icon -->
-        <g transform="translate(35, 52)">
-          <rect x="10" y="20" width="30" height="22" rx="2" fill="var(--color-brand)" opacity="0.12" stroke="var(--color-brand)" stroke-width="1" />
-          <path d="M25 2 L45 20 L5 20 Z" fill="var(--color-brand)" opacity="0.5" />
-          <rect x="20" y="30" width="10" height="12" rx="1" fill="var(--color-brand)" opacity="0.35" />
+      <!-- ====== SCHOOL PAYMENT ====== -->
+      <g class="school-payment" filter="url(#card-shadow)">
+        <rect x="0" y="50" width="180" height="140" rx="14" fill="url(#card-bg)" stroke="var(--color-border)" stroke-width="1.5" />
+        <rect x="0" y="50" width="180" height="36" rx="14" fill="var(--color-brand-soft)" />
+        <rect x="0" y="72" width="180" height="14" fill="var(--color-brand-soft)" />
+
+        <!-- School building illustration -->
+        <g transform="translate(55, 92)">
+          <rect x="15" y="28" width="40" height="30" rx="3" fill="var(--color-brand)" opacity="0.15" stroke="var(--color-brand)" stroke-width="1.2" />
+          <path d="M35 4 L60 28 L10 28 Z" fill="var(--color-brand)" opacity="0.5" />
+          <rect x="28" y="40" width="14" height="18" rx="2" fill="var(--color-brand)" opacity="0.3" />
+          <rect x="18" y="34" width="8" height="8" rx="1" fill="var(--color-brand)" opacity="0.25" />
+          <rect x="44" y="34" width="8" height="8" rx="1" fill="var(--color-brand)" opacity="0.25" />
         </g>
-        <text x="85" y="148" text-anchor="middle" class="label-school">School Payment</text>
-        <text x="85" y="166" text-anchor="middle" class="text-amount">₦120,000</text>
-        <text x="85" y="182" text-anchor="middle" class="text-muted-small">Parents pay school fees</text>
+
+        <text x="90" y="152" text-anchor="middle" class="label-school">School Payment</text>
+        <text x="90" y="172" text-anchor="middle" class="text-amount">₦120,000</text>
       </g>
 
-      <!-- ====== LAYER 2: PAYMENT PATH ====== -->
-      <g class="payment-path">
-        <!-- Path: school → CAPFLUX -->
+      <text x="90" y="210" text-anchor="middle" class="text-muted">Parents pay school fees</text>
+      <text x="90" y="226" text-anchor="middle" class="text-muted-small">Via bank transfer, card or USSD</text>
+
+      <!-- ====== PAYMENT ROUTE ====== -->
+      <g class="payment-route">
         <path
-          d="M 150 160 C 220 160, 270 155, 340 155"
+          d="M 180 120 C 220 120, 240 120, 270 120"
           stroke="url(#path-gradient)"
-          stroke-width="1.5"
-          stroke-dasharray="5 4"
+          stroke-width="2"
+          stroke-dasharray="6 4"
           class="connection-path"
         />
-        <!-- Small connection node at school end -->
-        <circle cx="150" cy="160" r="3" fill="var(--color-brand)" opacity="0.6" />
-        <!-- Small connection node at CAPFLUX end -->
-        <circle cx="340" cy="155" r="3" fill="var(--color-brand)" opacity="0.6" />
+        <circle cx="180" cy="120" r="4" fill="var(--color-brand)" opacity="0.5" />
+        <circle cx="270" cy="120" r="4" fill="var(--color-brand)" opacity="0.5" />
 
         <!-- Animated payment particle -->
-        <circle r="5" fill="url(#particle-gradient)" class="payment-particle" filter="url(#core-glow)">
+        <circle r="6" fill="url(#particle-gradient)" class="payment-particle" filter="url(#core-glow)">
           <animateMotion
-            dur="1.8s"
+            dur="1.2s"
             repeatCount="indefinite"
-            begin="0.6s"
+            begin="0.8s"
             calcMode="spline"
             keySplines="0.22 1 0.36 1"
             keyPoints="0;0;1;1;0;0"
-            keyTimes="0;0.1;0.5;0.55;0.9;1"
-            path="M 150 160 C 220 160, 270 155, 340 155"
+            keyTimes="0;0.05;0.5;0.55;0.95;1"
+            path="M 180 120 C 220 120, 240 120, 270 120"
           />
           <animate
             attributeName="opacity"
             values="0;1;1;1;0;0"
             keyTimes="0;0.08;0.45;0.55;0.85;1"
-            dur="1.8s"
+            dur="1.2s"
             repeatCount="indefinite"
-            begin="0.6s"
+            begin="0.8s"
           />
         </circle>
       </g>
 
-      <!-- ====== LAYER 3: CAPFLUX CORE ====== -->
-      <g class="capflux-core" transform="translate(355, 60)">
-        <!-- Outer pulse ring -->
-        <circle cx="65" cy="65" r="58" fill="none" stroke="var(--color-brand)" stroke-width="1.5" opacity="0.15" class="capflux-core-ring" />
-        <!-- Inner ring -->
-        <circle cx="65" cy="65" r="48" fill="none" stroke="var(--color-brand)" stroke-width="1" opacity="0.1" class="capflux-core-ring-inner" />
+      <!-- ====== CAPFLUX CORE ====== -->
+      <g class="capflux-core">
+        <!-- Outer pulse rings -->
+        <circle cx="330" cy="120" r="72" fill="none" stroke="var(--color-brand)" stroke-width="1.5" opacity="0.12" class="core-ring-outer" />
+        <circle cx="330" cy="120" r="62" fill="none" stroke="var(--color-brand)" stroke-width="1" opacity="0.08" class="core-ring-inner" />
 
         <!-- Core background -->
-        <circle cx="65" cy="65" r="40" fill="var(--color-card)" stroke="var(--color-brand)" stroke-width="2" class="capflux-core-bg" />
+        <circle cx="330" cy="120" r="52" fill="var(--color-card)" stroke="var(--color-brand)" stroke-width="2.5" class="core-bg" />
 
-        <!-- CAPFLUX logo text -->
-        <text x="65" y="56" text-anchor="middle" class="capflux-mark">cf</text>
-        <text x="65" y="74" text-anchor="middle" class="capflux-label">CAPFLUX</text>
+        <!-- CAPFLUX geometric logo -->
+        <image :href="capfluxLogo" x="298" y="88" width="64" height="64" class="core-logo" />
 
-        <!-- Pulse burst on activation -->
-        <circle cx="65" cy="65" r="40" fill="none" stroke="var(--color-brand)" stroke-width="2" class="capflux-pulse" opacity="0" />
+        <!-- Pulse burst -->
+        <circle cx="330" cy="120" r="52" fill="none" stroke="var(--color-brand)" stroke-width="2" class="capflux-pulse" opacity="0" />
       </g>
 
-      <!-- Verification badge near CAPFLUX -->
-      <g class="verification-badge" transform="translate(420, 10)">
-        <rect x="-8" y="-14" width="100" height="28" rx="8" fill="var(--color-card)" stroke="var(--color-success)" stroke-width="1.5" />
-        <circle cx="6" cy="0" r="5" fill="var(--color-success-soft)" class="check-bg" />
-        <path d="M3.5 0 L6.5 3 L10.5 -3" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="verification-check" />
-        <text x="18" y="4" class="verification-text">Payment Verified</text>
-        <text x="18" y="14" class="verification-subtext">in seconds</text>
+      <!-- ====== VERIFICATION BADGE ====== -->
+      <g class="verification-badge">
+        <rect x="270" y="18" width="150" height="40" rx="20" fill="var(--color-card)" stroke="var(--color-success)" stroke-width="1.5" />
+        <circle cx="296" cy="38" r="12" fill="var(--color-success-soft)" />
+        <path d="M291 38 L294.5 41.5 L302 34" stroke="var(--color-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="verification-check" />
+        <text x="314" y="35" class="verification-text">Payment Verified</text>
+        <text x="314" y="50" class="verification-subtext">in seconds</text>
       </g>
 
-      <!-- Processing label under CAPFLUX -->
-      <g class="processing-label" transform="translate(355, 125)">
-        <text x="65" y="0" text-anchor="middle" class="processing-title">CAPFLUX</text>
-        <text x="65" y="14" text-anchor="middle" class="processing-subtitle">Verifies, allocates and reconciles automatically</text>
-        <text x="65" y="28" text-anchor="middle" class="processing-arrow">↓</text>
-      </g>
+      <!-- CAPFLUX label -->
+      <text x="330" y="208" text-anchor="middle" class="capflux-label-text">CAPFLUX</text>
+      <text x="330" y="226" text-anchor="middle" class="capflux-subtext">Verifies, allocates and</text>
+      <text x="330" y="240" text-anchor="middle" class="capflux-subtext">reconciles automatically</text>
 
-      <!-- ====== LAYER 4: STUDENT ACCOUNT CARDS ====== -->
+      <!-- Down arrow from CAPFLUX -->
+      <path d="M330 250 L330 270" stroke="var(--color-brand)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4" />
+      <path d="M325 266 L330 274 L335 266" fill="var(--color-brand)" opacity="0.4" />
+
+      <!-- ====== STUDENT ACCOUNTS ====== -->
       <g class="student-accounts">
+        <text x="490" y="22" text-anchor="middle" class="section-label">Individual Student Accounts</text>
+        <text x="490" y="38" text-anchor="middle" class="section-sublabel">Each student gets a dedicated bank account</text>
+
         <!-- Card 1: Tunde A. -->
-        <g class="student-card active-card-1" transform="translate(540, 40)">
-          <rect width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-brand)" stroke-width="1.5" class="card-border" />
-          <circle cx="22" cy="22" r="10" fill="var(--color-brand-soft)" />
-          <text x="22" y="26" text-anchor="middle" class="avatar-text">T</text>
-          <text x="40" y="18" class="student-name">Tunde A.</text>
-          <text x="40" y="30" class="student-class">10A · JSS 1</text>
-          <text x="40" y="42" class="student-amount">₦120,000</text>
-          <circle cx="142" cy="22" r="7" fill="var(--color-success-soft)" class="check-bg" />
-          <path d="M139 22 L141 24.5 L145.5 19" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="check-mark" />
+        <g class="student-card active-card-1" filter="url(#card-shadow)">
+          <rect x="405" y="52" width="175" height="58" rx="12" fill="var(--color-card)" stroke="var(--color-brand)" stroke-width="1.5" class="card-border" />
+          <circle cx="432" cy="81" r="16" fill="var(--color-brand-soft)" />
+          <text x="432" y="86" text-anchor="middle" class="avatar-text">T</text>
+          <text x="456" y="72" class="student-name">Tunde A.</text>
+          <text x="456" y="86" class="student-class">10A · JSS 1</text>
+          <text x="456" y="100" class="student-amount">₦120,000</text>
+          <circle cx="562" cy="81" r="10" fill="var(--color-success-soft)" />
+          <path d="M558 81 L561 84 L567 77" stroke="var(--color-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="check-mark" />
         </g>
 
         <!-- Card 2: Amina B. -->
-        <g class="student-card active-card-2" transform="translate(540, 100)">
-          <rect width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
-          <circle cx="22" cy="22" r="10" fill="var(--color-brand-soft)" />
-          <text x="22" y="26" text-anchor="middle" class="avatar-text">A</text>
-          <text x="40" y="18" class="student-name">Amina B.</text>
-          <text x="40" y="30" class="student-class">8B · JSS 2</text>
-          <text x="40" y="42" class="student-amount">₦95,000</text>
-          <circle cx="142" cy="22" r="7" fill="var(--color-success-soft)" class="check-bg" />
-          <path d="M139 22 L141 24.5 L145.5 19" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="check-mark" />
+        <g class="student-card active-card-2" filter="url(#card-shadow)">
+          <rect x="405" y="120" width="175" height="58" rx="12" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
+          <circle cx="432" cy="149" r="16" fill="var(--color-brand-soft)" />
+          <text x="432" y="154" text-anchor="middle" class="avatar-text">A</text>
+          <text x="456" y="140" class="student-name">Amina B.</text>
+          <text x="456" y="154" class="student-class">8B · JSS 2</text>
+          <text x="456" y="168" class="student-amount">₦95,000</text>
+          <circle cx="562" cy="149" r="10" fill="var(--color-success-soft)" />
+          <path d="M558 149 L561 152 L567 145" stroke="var(--color-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="check-mark" />
         </g>
 
         <!-- Card 3: Chidi K. -->
-        <g class="student-card active-card-3" transform="translate(540, 160)">
-          <rect width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
-          <circle cx="22" cy="22" r="10" fill="var(--color-brand-soft)" />
-          <text x="22" y="26" text-anchor="middle" class="avatar-text">C</text>
-          <text x="40" y="18" class="student-name">Chidi K.</text>
-          <text x="40" y="30" class="student-class">11C · SS 1</text>
-          <text x="40" y="42" class="student-amount">₦120,000</text>
-          <circle cx="142" cy="22" r="7" fill="var(--color-success-soft)" class="check-bg" />
-          <path d="M139 22 L141 24.5 L145.5 19" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="check-mark" />
+        <g class="student-card active-card-3" filter="url(#card-shadow)">
+          <rect x="405" y="188" width="175" height="58" rx="12" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
+          <circle cx="432" cy="217" r="16" fill="var(--color-brand-soft)" />
+          <text x="432" y="222" text-anchor="middle" class="avatar-text">C</text>
+          <text x="456" y="208" class="student-name">Chidi K.</text>
+          <text x="456" y="222" class="student-class">11C · SS 1</text>
+          <text x="456" y="236" class="student-amount">₦120,000</text>
+          <circle cx="562" cy="217" r="10" fill="var(--color-success-soft)" />
+          <path d="M558 217 L561 220 L567 213" stroke="var(--color-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="check-mark" />
         </g>
 
         <!-- Card 4: Zainab S. -->
-        <g class="student-card active-card-4" transform="translate(540, 220)">
-          <rect width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
-          <circle cx="22" cy="22" r="10" fill="var(--color-brand-soft)" />
-          <text x="22" y="26" text-anchor="middle" class="avatar-text">Z</text>
-          <text x="40" y="18" class="student-name">Zainab S.</text>
-          <text x="40" y="30" class="student-class">9A · JSS 3</text>
-          <text x="40" y="42" class="student-amount">₦75,000</text>
-          <circle cx="142" cy="22" r="7" fill="var(--color-success-soft)" class="check-bg" />
-          <path d="M139 22 L141 24.5 L145.5 19" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="check-mark" />
+        <g class="student-card active-card-4" filter="url(#card-shadow)">
+          <rect x="405" y="256" width="175" height="58" rx="12" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
+          <circle cx="432" cy="285" r="16" fill="var(--color-brand-soft)" />
+          <text x="432" y="290" text-anchor="middle" class="avatar-text">Z</text>
+          <text x="456" y="276" class="student-name">Zainab S.</text>
+          <text x="456" y="290" class="student-class">9A · JSS 3</text>
+          <text x="456" y="304" class="student-amount">₦75,000</text>
+          <circle cx="562" cy="285" r="10" fill="var(--color-success-soft)" />
+          <path d="M558 285 L561 288 L567 281" stroke="var(--color-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="check-mark" />
         </g>
       </g>
 
-      <!-- ====== LAYER 5: CONNECTIONS TO STUDENT ACCOUNTS ====== -->
-      <g class="account-connections">
-        <path d="M 440 100 C 480 100, 520 80, 540 66" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
-        <path d="M 440 100 C 480 100, 520 120, 540 126" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
-        <path d="M 440 100 C 480 100, 520 170, 540 186" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
-        <path d="M 440 100 C 480 100, 520 230, 540 246" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
+      <!-- ====== CONNECTIONS TO STUDENTS ====== -->
+      <g class="student-connections" opacity="0.35">
+        <path d="M 382 120 C 400 120, 405 81, 405 81" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" class="account-path" />
+        <path d="M 382 120 C 400 120, 405 149, 405 149" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" class="account-path" />
+        <path d="M 382 120 C 400 120, 405 217, 405 217" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" class="account-path" />
+        <path d="M 382 120 C 400 120, 405 285, 405 285" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" class="account-path" />
       </g>
 
-      <!-- ====== LAYER 6: RECENT TRANSACTIONS PANEL ====== -->
-      <g class="transaction-panel">
-        <rect x="710" y="40" width="170" height="340" rx="12" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1.5" />
+      <!-- ====== RECENT TRANSACTIONS PANEL ====== -->
+      <g class="transaction-panel" filter="url(#card-shadow)">
+        <rect x="600" y="10" width="115" height="310" rx="12" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" />
+        <text x="657" y="34" text-anchor="middle" class="panel-header">Recent Transactions</text>
+        <line x1="612" y1="42" x2="702" y2="42" stroke="var(--color-divider)" stroke-width="0.5" />
 
-        <!-- Panel header -->
-        <text x="795" y="68" text-anchor="middle" class="panel-header">Recent Transactions</text>
-        <text x="865" y="68" class="panel-link">View all →</text>
-
-        <!-- Header underline -->
-        <line x1="725" y1="76" x2="865" y2="76" stroke="var(--color-divider)" stroke-width="1" />
-
-        <!-- Column headers -->
-        <text x="730" y="92" class="tx-col-header">Student</text>
-        <text x="800" y="92" class="tx-col-header">Fee Type</text>
-        <text x="860" y="92" class="tx-col-header">Amount</text>
-
-        <!-- Row 1: Tunde A. -->
+        <!-- Row 1 -->
         <g class="transaction-row row-1">
-          <circle cx="732" cy="112" r="5" fill="var(--color-brand-soft)" />
-          <text x="744" y="115" class="tx-name">Tunde A.</text>
-          <text x="800" y="115" class="tx-fee">School Fees · Term 1</text>
-          <text x="860" y="115" class="tx-amount">₦120,000</text>
-          <text x="860" y="130" class="tx-time">Just now</text>
+          <circle cx="618" cy="62" r="6" fill="var(--color-brand-soft)" />
+          <text x="630" y="65" class="tx-name">Tunde A.</text>
+          <text x="695" y="65" text-anchor="end" class="tx-amount">₦120k</text>
+          <text x="695" y="77" text-anchor="end" class="tx-time">Just now</text>
         </g>
 
-        <!-- Row 2: Amina B. -->
+        <!-- Row 2 -->
         <g class="transaction-row row-2">
-          <circle cx="732" cy="142" r="5" fill="var(--color-brand-soft)" />
-          <text x="744" y="145" class="tx-name">Amina B.</text>
-          <text x="800" y="145" class="tx-fee">School Fees · Term 1</text>
-          <text x="860" y="145" class="tx-amount">₦95,000</text>
-          <text x="860" y="160" class="tx-time">12 mins ago</text>
+          <circle cx="618" cy="100" r="6" fill="var(--color-brand-soft)" />
+          <text x="630" y="103" class="tx-name">Amina B.</text>
+          <text x="695" y="103" text-anchor="end" class="tx-amount">₦95k</text>
+          <text x="695" y="115" text-anchor="end" class="tx-time">12 mins ago</text>
         </g>
 
-        <!-- Row 3: Chidi K. -->
+        <!-- Row 3 -->
         <g class="transaction-row row-3">
-          <circle cx="732" cy="172" r="5" fill="var(--color-brand-soft)" />
-          <text x="744" y="175" class="tx-name">Chidi K.</text>
-          <text x="800" y="175" class="tx-fee">School Fees · Term 1</text>
-          <text x="860" y="175" class="tx-amount">₦120,000</text>
-          <text x="860" y="190" class="tx-time">1 hour ago</text>
+          <circle cx="618" cy="138" r="6" fill="var(--color-brand-soft)" />
+          <text x="630" y="141" class="tx-name">Chidi K.</text>
+          <text x="695" y="141" text-anchor="end" class="tx-amount">₦120k</text>
+          <text x="695" y="153" text-anchor="end" class="tx-time">1 hour ago</text>
         </g>
 
-        <!-- Row 4: Zainab S. -->
+        <!-- Row 4 -->
         <g class="transaction-row row-4">
-          <circle cx="732" cy="202" r="5" fill="var(--color-brand-soft)" />
-          <text x="744" y="205" class="tx-name">Zainab S.</text>
-          <text x="800" y="205" class="tx-fee">School Fees · Term 1</text>
-          <text x="860" y="205" class="tx-amount">₦75,000</text>
-          <text x="860" y="220" class="tx-time">2 hours ago</text>
+          <circle cx="618" cy="176" r="6" fill="var(--color-brand-soft)" />
+          <text x="630" y="179" class="tx-name">Zainab S.</text>
+          <text x="695" y="179" text-anchor="end" class="tx-amount">₦75k</text>
+          <text x="695" y="191" text-anchor="end" class="tx-time">2 hours ago</text>
         </g>
 
-        <!-- Divider -->
-        <line x1="725" y1="240" x2="865" y2="240" stroke="var(--color-divider)" stroke-width="1" />
+        <line x1="612" y1="205" x2="702" y2="205" stroke="var(--color-divider)" stroke-width="0.5" />
 
         <!-- Reconciliation state -->
         <g class="reconciliation-state">
-          <circle cx="735" cy="258" r="6" fill="var(--color-success-soft)" />
-          <path d="M732.5 258 L735 261 L737.5 257" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="recon-check" />
-          <text x="748" y="261" class="recon-text">All payments verified</text>
-          <text x="748" y="274" class="recon-subtext">No manual checks. No missing payments.</text>
+          <circle cx="620" cy="228" r="8" fill="var(--color-success-soft)" />
+          <path d="M617 228 L619.5 231 L624 225" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="recon-check" />
+          <text x="634" y="231" class="recon-text">All payments verified</text>
+          <text x="634" y="245" class="recon-subtext">No manual checks. No missing payments.</text>
         </g>
       </g>
+
     </svg>
   </div>
 </template>
@@ -284,9 +283,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 <style scoped>
 .capflux-payment-flow {
   --cycle-duration: 6s;
-  --payment-duration: 1.8s;
-  --verification-duration: 0.25s;
-  --card-highlight-duration: 0.3s;
+  --payment-duration: 1.2s;
   --easing: cubic-bezier(0.22, 1, 0.36, 1);
   --brand: var(--color-brand);
   --brand-soft: var(--color-brand-soft);
@@ -303,144 +300,120 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 .payment-flow-svg {
   width: 100%;
   height: auto;
-  max-width: 900px;
+  max-width: 720px;
   display: block;
 }
 
 /* ====== TYPOGRAPHY ====== */
 .label-school {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
 .text-amount {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   fill: var(--brand);
   font-family: var(--font-family-mono);
+}
+
+.text-muted {
+  font-size: 10px;
+  fill: var(--text-muted);
+  font-family: var(--font-family-sans);
 }
 
 .text-muted-small {
-  font-size: 8px;
-  fill: var(--text-muted);
-  font-family: var(--font-family-sans);
-}
-
-.capflux-mark {
-  font-size: 22px;
-  font-weight: 800;
-  fill: var(--brand);
-  font-family: var(--font-family-sans);
-  letter-spacing: -0.5px;
-}
-
-.capflux-label {
-  font-size: 8px;
-  font-weight: 600;
-  fill: var(--text-secondary);
-  font-family: var(--font-family-sans);
-  letter-spacing: 0.5px;
-}
-
-.student-name {
   font-size: 9px;
-  font-weight: 600;
-  fill: var(--text-primary);
-  font-family: var(--font-family-sans);
-}
-
-.student-class {
-  font-size: 7px;
   fill: var(--text-muted);
-  font-family: var(--font-family-sans);
-}
-
-.student-amount {
-  font-size: 9px;
-  font-weight: 700;
-  fill: var(--text-primary);
-  font-family: var(--font-family-mono);
-}
-
-.avatar-text {
-  font-size: 8px;
-  font-weight: 700;
-  fill: var(--brand);
   font-family: var(--font-family-sans);
 }
 
 .verification-text {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   fill: var(--success);
   font-family: var(--font-family-sans);
 }
 
 .verification-subtext {
-  font-size: 7px;
+  font-size: 9px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
-.processing-title {
-  font-size: 9px;
+.capflux-label-text {
+  font-size: 13px;
   font-weight: 700;
   fill: var(--text-secondary);
   font-family: var(--font-family-sans);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
-.processing-subtitle {
-  font-size: 7px;
+.capflux-subtext {
+  font-size: 9px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
-.processing-arrow {
-  font-size: 10px;
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text-secondary);
+  font-family: var(--font-family-sans);
+}
+
+.section-sublabel {
+  font-size: 9px;
+  fill: var(--text-muted);
+  font-family: var(--font-family-sans);
+}
+
+.student-name {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text-primary);
+  font-family: var(--font-family-sans);
+}
+
+.student-class {
+  font-size: 9px;
+  fill: var(--text-muted);
+  font-family: var(--font-family-sans);
+}
+
+.student-amount {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--text-primary);
+  font-family: var(--font-family-mono);
+}
+
+.avatar-text {
+  font-size: 11px;
+  font-weight: 700;
   fill: var(--brand);
   font-family: var(--font-family-sans);
 }
 
 .panel-header {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
-.panel-link {
-  font-size: 8px;
-  fill: var(--brand);
-  font-family: var(--font-family-sans);
-}
-
-.tx-col-header {
-  font-size: 7px;
-  font-weight: 600;
-  fill: var(--text-muted);
-  font-family: var(--font-family-sans);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .tx-name {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 600;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
-.tx-fee {
-  font-size: 7px;
-  fill: var(--text-muted);
-  font-family: var(--font-family-sans);
-}
-
 .tx-amount {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
   fill: var(--text-primary);
   font-family: var(--font-family-mono);
@@ -453,7 +426,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 .recon-text {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 600;
   fill: var(--success);
   font-family: var(--font-family-sans);
@@ -468,36 +441,36 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 /* ====== ANIMATIONS ====== */
 
 /* CAPFLUX core ring pulse */
-.capflux-core-ring {
+.core-ring-outer {
   animation: ring-pulse var(--cycle-duration) var(--easing) infinite;
-  transform-origin: 65px 65px;
+  transform-origin: 330px 120px;
 }
 
-.capflux-core-ring-inner {
+.core-ring-inner {
   animation: ring-pulse-inner var(--cycle-duration) var(--easing) infinite;
-  transform-origin: 65px 65px;
+  transform-origin: 330px 120px;
 }
 
 @keyframes ring-pulse {
-  0%, 40%, 100% { opacity: 0.15; transform: scale(1); }
-  50%, 60% { opacity: 0.35; transform: scale(1.04); }
+  0%, 40%, 100% { opacity: 0.12; transform: scale(1); }
+  50%, 60% { opacity: 0.25; transform: scale(1.04); }
 }
 
 @keyframes ring-pulse-inner {
-  0%, 40%, 100% { opacity: 0.1; transform: scale(1); }
-  50%, 60% { opacity: 0.2; transform: scale(1.03); }
+  0%, 40%, 100% { opacity: 0.08; transform: scale(1); }
+  50%, 60% { opacity: 0.15; transform: scale(1.03); }
 }
 
 /* CAPFLUX pulse burst */
 .capflux-pulse {
   animation: core-activate var(--cycle-duration) var(--easing) infinite;
-  transform-origin: 65px 65px;
+  transform-origin: 330px 120px;
 }
 
 @keyframes core-activate {
-  0%, 42%, 100% { opacity: 0; r: 40; }
-  48% { opacity: 0.4; r: 44; }
-  55% { opacity: 0; r: 48; }
+  0%, 42%, 100% { opacity: 0; r: 52; }
+  48% { opacity: 0.35; r: 58; }
+  55% { opacity: 0; r: 68; }
 }
 
 /* Verification badge */
@@ -506,19 +479,19 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 @keyframes verification-in {
-  0%, 48%, 100% { opacity: 0; transform: translate(420px, 10px) scale(0.85); }
-  52%, 90% { opacity: 1; transform: translate(420px, 10px) scale(1); }
+  0%, 48%, 100% { opacity: 0; transform: translateY(6px); }
+  54%, 92% { opacity: 1; transform: translateY(0); }
 }
 
 .verification-check {
   animation: check-draw var(--cycle-duration) var(--easing) infinite;
-  stroke-dasharray: 10;
-  stroke-dashoffset: 10;
+  stroke-dasharray: 14;
+  stroke-dashoffset: 14;
 }
 
 @keyframes check-draw {
-  0%, 50%, 100% { stroke-dashoffset: 10; }
-  54%, 88% { stroke-dashoffset: 0; }
+  0%, 52%, 100% { stroke-dashoffset: 14; }
+  58%, 90% { stroke-dashoffset: 0; }
 }
 
 /* Connection path flow */
@@ -528,18 +501,18 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 @keyframes path-flow {
   0% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -18; }
+  100% { stroke-dashoffset: -20; }
 }
 
-/* Account paths subtle animation */
+/* Account paths */
 .account-path {
   animation: account-flow var(--cycle-duration) linear infinite;
 }
 
 @keyframes account-flow {
-  0% { stroke-dashoffset: 0; opacity: 0.3; }
-  50% { opacity: 0.5; }
-  100% { stroke-dashoffset: -14; opacity: 0.3; }
+  0% { stroke-dashoffset: 0; opacity: 0.35; }
+  50% { opacity: 0.55; }
+  100% { stroke-dashoffset: -14; opacity: 0.35; }
 }
 
 /* Student card highlight sequence */
@@ -579,7 +552,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 @keyframes tx-highlight {
   0%, 55%, 100% { opacity: 1; }
-  60%, 70% { opacity: 1; }
+  60%, 70% { opacity: 0.7; }
 }
 
 /* Reconciliation state */
@@ -589,24 +562,24 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 .recon-check {
   animation: recon-check-draw var(--cycle-duration) var(--easing) infinite;
-  stroke-dasharray: 8;
-  stroke-dashoffset: 8;
+  stroke-dasharray: 10;
+  stroke-dashoffset: 10;
 }
 
 @keyframes recon-in {
-  0%, 52%, 100% { opacity: 0; }
-  56%, 90% { opacity: 1; }
+  0%, 54%, 100% { opacity: 0; }
+  58%, 92% { opacity: 1; }
 }
 
 @keyframes recon-check-draw {
-  0%, 54%, 100% { stroke-dashoffset: 8; }
-  58%, 88% { stroke-dashoffset: 0; }
+  0%, 56%, 100% { stroke-dashoffset: 10; }
+  60%, 90% { stroke-dashoffset: 0; }
 }
 
 /* ====== REDUCED MOTION ====== */
 .reduced-motion .payment-particle,
-.reduced-motion .capflux-core-ring,
-.reduced-motion .capflux-core-ring-inner,
+.reduced-motion .core-ring-outer,
+.reduced-motion .core-ring-inner,
 .reduced-motion .capflux-pulse,
 .reduced-motion .verification-badge,
 .reduced-motion .verification-check,
@@ -637,10 +610,18 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
   stroke-width: 1 !important;
 }
 
+.reduced-motion .reconciliation-state {
+  opacity: 1;
+}
+
+.reduced-motion .recon-check {
+  stroke-dashoffset: 0;
+}
+
 /* ====== RESPONSIVE ====== */
 @media (max-width: 1024px) {
   .payment-flow-svg {
-    max-width: 700px;
+    max-width: 600px;
   }
 }
 
@@ -654,29 +635,26 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
     max-width: 420px;
   }
 
-  /* Hide last student card on mobile */
   .student-card:nth-child(4) {
     display: none;
   }
 
-  /* Hide transaction panel on mobile */
   .transaction-panel {
     display: none;
   }
 
-  /* Hide account connections on mobile */
-  .account-connections {
+  .student-connections {
     display: none;
   }
 }
 
 @media (max-width: 430px) {
   .capflux-payment-flow {
-    max-width: 350px;
+    max-width: 340px;
   }
 
   .payment-flow-svg {
-    max-width: 350px;
+    max-width: 340px;
   }
 
   .student-card:nth-child(3) {

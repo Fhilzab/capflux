@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import capfluxLogo from '../../assets/capflux-logo.png'
+
 /**
- * CapfluxMark — canonical CAPFLUX C-monogram.
+ * CapfluxMark — canonical CAPFLUX geometric interlocking logo.
  * Single source of truth for branding across AppHeader, LandingNav, Auth, favicon.
- * Simple circle + C, no raster, no Inkscape payload.
+ * Uses the official raster asset extracted from the approved visual concept.
  */
 withDefaults(
   defineProps<{
@@ -19,26 +21,13 @@ withDefaults(
 </script>
 
 <template>
-  <span
-    v-if="variant === 'circle'"
-    class="inline-flex items-center justify-center rounded-full bg-brand text-white font-bold shadow-card select-none"
-    :style="{ width: `${size}px`, height: `${size}px`, fontSize: `${Math.round(size * 0.52)}px` }"
-    :aria-label="ariaLabel"
-    role="img"
-  >
-    C
-  </span>
-  <svg
-    v-else
+  <img
+    :src="capfluxLogo"
     :width="size"
     :height="size"
-    viewBox="0 0 28 28"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    :aria-label="ariaLabel"
+    :alt="ariaLabel"
+    class="inline-block select-none"
+    :class="variant === 'circle' ? 'rounded-full' : ''"
     role="img"
-  >
-    <circle cx="14" cy="14" r="14" fill="var(--color-brand, #0F766E)" />
-    <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="15" font-weight="700" font-family="Inter, system-ui, sans-serif">C</text>
-  </svg>
+  />
 </template>
