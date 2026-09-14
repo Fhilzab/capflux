@@ -14,7 +14,7 @@
 import { runtimeEnvironment } from '../shared/environment/runtimeEnvironment';
 import { assertSandboxMode } from './runtime/sandboxGuard';
 import { getSandboxDb, deleteSandboxDatabase, type SandboxCapfluxDB } from './sandboxDb';
-import { seedSandboxDatabase, type SeedResult } from './seed/seedSandbox';
+import { seedSandboxDatabase, SEED_VERSION, type SeedResult } from './seed/seedSandbox';
 import { SandboxAuditProvider } from './providers/sandboxProviders';
 import { auditService } from '../shared/audit/AuditService';
 import { notificationService } from '../shared/notifications/NotificationService';
@@ -61,11 +61,11 @@ class DemoInboxDeliveryProvider implements DomainNotificationProvider {
 
 let seedPromise: Promise<void> | null = null;
 
-/** Seed on first run; subsequent boots verify the seed version only. */
+/** Seed on first run; subsequent boots reseed only when the seed version moved. */
 async function ensureSandboxSeeded(): Promise<SeedResult | null> {
   const db = getSandboxDb();
   const meta = await db.sandbox_meta.get('seed_version');
-  if (meta && Number(meta.value) >= 3) return null;
+  if (meta && Number(meta.value) >= SEED_VERSION) return null;
   const result = await seedSandboxDatabase(db);
   return result;
 }

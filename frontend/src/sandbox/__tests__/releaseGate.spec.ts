@@ -206,7 +206,9 @@ describe('cross-environment data isolation (§15)', () => {
     }
   });
 
-  it('reset restores the deterministic dataset after 25+ mutations and still touches no production resource (§16)', async () => {
+  // Seed v4 carries ~480 students (≈4x the old fixture); allow time for two
+  // full reseeds plus 30 mutations.
+  it('reset restores the deterministic dataset after 25+ mutations and still touches no production resource (§16)', { timeout: 120000 }, async () => {
     const prodDb = productionProbeDb();
 
     // Deterministic starting point.

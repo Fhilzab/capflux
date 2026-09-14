@@ -21,32 +21,39 @@ import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment'
 import { computeEntryHash } from '../../shared/core/IdGenerator';
 import { createDeterministicRandom, stableHash } from './random';
 import {
+  AGE_RANGES,
+  CLASS_POPULATIONS,
   CURRENT_SESSION,
   DEMO_ORG_ID,
   DEMO_SCHOOL_ID,
   DEMO_SCHOOL_NAME,
   DEMO_LEVELS,
   DEMO_PERSONAS,
+  GUARDIAN_OCCUPATIONS,
   GUARDIAN_RELATIONSHIPS,
-  NIGERIAN_FIRST_NAMES_F,
-  NIGERIAN_FIRST_NAMES_M,
-  NIGERIAN_LAST_NAMES,
+  NIGERIAN_FIRST_NAMES_F_EXTENDED,
+  NIGERIAN_FIRST_NAMES_M_EXTENDED,
+  NIGERIAN_LAST_NAMES_EXTENDED,
   PAYMENT_FAILURE_REASONS,
   PREVIOUS_SESSION,
   SANDBOX_BANK_CODE,
   SANDBOX_BANK_NAME,
   SANDBOX_GATEWAY_PROVIDER,
   STREETS,
+  TARGET_GUARDIANS,
+  TOTAL_STUDENTS,
   TOWNS,
   buildDemoFeeCatalogue,
 } from './demoData';
 
-const SEED_VERSION = 3;
+/** Current sandbox dataset version. Bumped whenever the seed plan changes
+ *  incompatibly; the sandbox boot gate reseeds any older dataset in place. */
+export const SEED_VERSION = 4;
 const SEED_RANDOM_SEED = 0xcafe + 424242;
 
 export const SEED_COUNTS = Object.freeze({
-  guardians: 64,
-  students: 120,
+  guardians: TARGET_GUARDIANS,
+  students: TOTAL_STUDENTS,
 });
 
 type AnyRow = Record<string, unknown>;
@@ -245,10 +252,12 @@ function buildPlan(anchor: Date): SeedPlan {
   }));
 
   // ---- Guardians -----------------------------------------------------------
+  // Family-coherent pool: every guardian carries a surname that children
+  // assigned to them inherit, so siblings share a family name.
   const guardians: AnyRow[] = [];
-  for (let i = 0; i < SEED_COUNTS.guardians; i++) {
-    const first = rand.pick(i % 2 === 0 ? NIGERIAN_FIRST_NAMES_M : NIGERIAN_FIRST_NAMES_F);
-    const last = rand.pick(NIGERIAN_LAST_NAMES);
+  for (let i = 0; i < TARGET_GUARDIANS; i++) {
+    const first = rand.pick(i % 2 === 0 ? NIGERIAN_FIRST_NAMES_M_EXTENDED : NIGERIAN_FIRST_NAMES_F_EXTENDED);
+    const last = rand.pick(NIGERIAN_LAST_NAMES_EXTENDED);
     const phoneSuffix = pad(10000000 + i * 137, 8);
     guardians.push({
       id: `sd-grd-${pad(i + 1, 3)}`,
@@ -256,51 +265,105 @@ function buildPlan(anchor: Date): SeedPlan {
       full_name: `${first} ${last}`,
       primary_phone: `+23480${phoneSuffix}`,
       secondary_phone: i % 3 === 0 ? `+23470${phoneSuffix}` : null,
-      email: `${first.toLowerCase()}.${last.toLowerCase()}@demo-parent.ng`,
+      email: `${first.toLowerCase()}.${last.toLowerCase()}${i}@demo-parent.ng`,
       relationship: rand.pick(GUARDIAN_RELATIONSHIPS),
-      occupation: rand.pick(['Trader', 'Civil Servant', 'Engineer', 'Nurse', 'Teacher', 'Banker', 'Artisan']),
+      occupation: rand.pick(GUARDIAN_OCCUPATIONS),
       address: `${rand.int(1, 99)} ${rand.pick(STREETS)}, ${rand.pick(TOWNS)}`,
       created_at: iso(daysBefore(anchor, 110 - (i % 30))),
       updated_at: iso(daysBefore(anchor, 110 - (i % 30))),
     });
   }
 
-  // ---- Students --------------------------------------------------------------
+  // ---- Students (class-first: exact deterministic counts per level) ---------
+  // Every class is populated intentionally from CLASS_POPULATIONS — never by
+  // global random distribution. Nursery 15–25, Primary 25–35, JSS/SS 30–60.
   const students: PlannedStudent[] = [];
-  for (let i = 0; i < SEED_COUNTS.students; i++) {
-    const gender = i % 2 === 0 ? 'Male' : 'Female';
-    const firstName = gender === 'Male'
-      ? NIGERIAN_FIRST_NAMES_M[(i * 7) % NIGERIAN_FIRST_NAMES_M.length]!
-      : NIGERIAN_FIRST_NAMES_F[(i * 11) % NIGERIAN_FIRST_NAMES_F.length]!;
-    const lastName = NIGERIAN_LAST_NAMES[(i * 13) % NIGERIAN_LAST_NAMES.length]!;
-    const middleName = i % 4 === 0
-      ? NIGERIAN_LAST_NAMES[(i * 17 + 3) % NIGERIAN_LAST_NAMES.length]!
-      : null;
-    // Spread students over all 14 levels with realistic pyramid weights.
-    const levelIndex = pickLevelIndex(i);
-    const guardianId = guardians[i % guardians.length]!.id as string;
-    const secondGuardianId = rand.chance(0.25)
-      ? guardians[(i + 17) % guardians.length]!.id !== guardianId
-        ? guardians[(i + 17) % guardians.length]!.id
-        : null
-      : null;
-    const birthYear = 2012 + Math.floor(levelIndex / 2) + rand.int(0, 1);
-    students.push({
-      id: `sd-stu-${pad(i + 1, 4)}`,
-      firstName,
-      lastName,
-      middleName,
-      gender,
-      dob: `${birthYear}-${pad(rand.int(1, 12), 2)}-${pad(rand.int(1, 28), 2)}`,
-      admissionNumber: `CAP-${pad(i + 1, 5)}`,
-      levelIndex,
-      guardianId,
-      secondGuardianId,
-      relationship: rand.pick(GUARDIAN_RELATIONSHIPS),
-      archived: i >= SEED_COUNTS.students - 6,
-      street: rand.pick(STREETS),
-      town: rand.pick(TOWNS),
-    });
+  const anchorYear = anchor.getFullYear();
+  let studentSeq = 0;
+  const admissionCounters = new Map<string, number>();
+  for (const classSpec of CLASS_POPULATIONS) {
+    for (let seat = 0; seat < classSpec.targetCount; seat++) {
+      const i = studentSeq;
+      const male = rand.chance(0.52);
+      const gender = male ? 'Male' : 'Female';
+      const firstName = rand.pick(male ? NIGERIAN_FIRST_NAMES_M_EXTENDED : NIGERIAN_FIRST_NAMES_F_EXTENDED);
+      // Placeholder surname — replaced by the family pass below so siblings
+      // sharing a guardian also share a family name.
+      const lastName = rand.pick(NIGERIAN_LAST_NAMES_EXTENDED);
+      const middleName = i % 4 === 0
+        ? rand.pick(NIGERIAN_LAST_NAMES_EXTENDED)
+        : null;
+      const levelIndex = classSpec.levelIndex;
+      const ageRange = AGE_RANGES[levelIndex]!;
+      const age = rand.int(ageRange.min, ageRange.max);
+      const birthYear = anchorYear - age;
+      // Older sections admitted in the previous session year, younger in the
+      // current one — deterministic and realistic.
+      const admissionYear = levelIndex <= 5 ? '2025' : '2024';
+      const admissionSeq = (admissionCounters.get(admissionYear) ?? 0) + 1;
+      admissionCounters.set(admissionYear, admissionSeq);
+      students.push({
+        id: `sd-stu-${pad(i + 1, 4)}`,
+        firstName,
+        lastName,
+        middleName,
+        gender,
+        dob: `${birthYear}-${pad(rand.int(1, 12), 2)}-${pad(rand.int(1, 28), 2)}`,
+        admissionNumber: `CAP/${admissionYear}/${pad(admissionSeq, 4)}`,
+        levelIndex,
+        guardianId: guardians[i % guardians.length]!.id as string,
+        secondGuardianId: null,
+        relationship: rand.pick(GUARDIAN_RELATIONSHIPS),
+        archived: i >= TOTAL_STUDENTS - 6,
+        street: rand.pick(STREETS),
+        town: rand.pick(TOWNS),
+      });
+      studentSeq += 1;
+    }
+  }
+
+  // ---- Family pass ----------------------------------------------------------
+  // Shuffle a copy of the student order (deterministic) and deal children to
+  // guardians in family-sized blocks. Because the shuffled order mixes
+  // classes, siblings naturally land in different grades — as in a real
+  // school — while sharing their guardian's surname.
+  const shuffled = rand.shuffle(students);
+  const familySizes: number[] = [];
+  {
+    let remaining = shuffled.length;
+    for (let g = 0; g < guardians.length; g++) {
+      const familiesLeft = guardians.length - g;
+      if (familiesLeft === 1) {
+        familySizes.push(remaining);
+        break;
+      }
+      const roll = rand.next();
+      const extra = roll < 0.45 ? 0 : roll < 0.8 ? 1 : 2;
+      let size = Math.min(4, 1 + extra);
+      size = Math.min(size, remaining - (familiesLeft - 1));
+      size = Math.max(size, 1);
+      familySizes.push(size);
+      remaining -= size;
+    }
+  }
+  {
+    let cursor = 0;
+    for (let g = 0; g < guardians.length; g++) {
+      const size = familySizes[g]!;
+      const guardian = guardians[g]!;
+      const surname = String(guardian.full_name).split(' ').slice(-1)[0]!;
+      for (let k = 0; k < size && cursor < shuffled.length; k++) {
+        const child = shuffled[cursor++]!;
+        child.lastName = surname;
+        child.guardianId = guardian.id as string;
+        if (rand.chance(0.25)) {
+          const second = guardians[(g + 17) % guardians.length]!;
+          child.secondGuardianId = second.id !== child.guardianId ? (second.id as string) : null;
+        } else {
+          child.secondGuardianId = null;
+        }
+      }
+    }
   }
 
   // ---- Enrollments ------------------------------------------------------------
@@ -419,18 +482,20 @@ function buildPlan(anchor: Date): SeedPlan {
       dayCursor = (dayCursor + 1) % 35;
     };
 
-    if (roll <= 11) {
+    if (roll <= 10) {
       pushSuccess(due, 'FULL', dayCursor > 3);
-    } else if (roll <= 15) {
+    } else if (roll <= 14) {
       // Partial — roughly half the bill.
       const half = Math.max(5000000, Math.round((due * (rand.int(35, 65))) / 100));
       pushSuccess(half, 'PARTIAL', dayCursor > 3);
-    } else if (roll <= 17) {
+    } else if (roll <= 16) {
       // Multiple part-payments totalling the bill.
       const firstShare = rand.int(30, 55);
       const first = Math.max(3000000, Math.round((due * firstShare) / 100));
       pushSuccess(first, 'MULTI', true);
       pushSuccess(due - first, 'MULTI', false);
+    } else if (roll === 17) {
+      // NONE — no payment yet; the full obligation stays outstanding.
     } else if (roll === 18) {
       pendingPayments.push({
         id: `sd-txn-pend-${s.id.slice(-4)}`,
@@ -475,7 +540,7 @@ function buildPlan(anchor: Date): SeedPlan {
   }
 
   // A handful of reversals among older successful payments.
-  const reversalCandidates = successPayments.filter((p) => p.daysAgo > 20).slice(0, 5);
+  const reversalCandidates = successPayments.filter((p) => p.daysAgo > 20).slice(0, 8);
   for (const candidate of reversalCandidates) {
     reversedPayments.push(candidate);
   }
@@ -506,31 +571,62 @@ function buildPlan(anchor: Date): SeedPlan {
     });
   }
 
-  // ---- Notifications -----------------------------------------------------------------
+  // ---- Notifications (recent activity window, ~24 events) ----------------------
   const notifications: AnyRow[] = [];
-  const notifyStudents = activeStudents.filter((_, i) => i % 9 === 0).slice(0, 10);
-  for (const [i, s] of notifyStudents.entries()) {
-    const payment = successPayments.find((p) => p.studentId === s.id);
+  const pushNotification = (
+    idx: number,
+    s: PlannedStudent,
+    body: string,
+    daysAgo: number,
+  ): void => {
     notifications.push({
-      id: `sd-not-${pad(i + 1, 3)}`,
+      id: `sd-not-${pad(idx + 1, 3)}`,
       school_id: DEMO_SCHOOL_ID,
       student_id: s.id,
       guardian_id: s.guardianId,
       recipient_phone: guardians.find((g) => g.id === s.guardianId)?.primary_phone ?? null,
-      message_body: payment
-        ? `Payment of ₦${(payment.amountMinor / 100).toLocaleString('en-NG')} received for ${s.firstName} ${s.lastName}. Ref ${payment.reference}. Thank you.`
-        : `Friendly reminder: outstanding fees for ${s.firstName} ${s.lastName}. Kindly pay via the dedicated account.`,
+      message_body: body,
       delivery_method: 'SMS',
       delivery_status: 'DELIVERED',
-      provider_msg_id: `sbx-msg-${pad(i + 1, 5)}`,
+      provider_msg_id: `sbx-msg-${pad(idx + 1, 5)}`,
       client_sequence: 0,
       device_id: 'sandbox-seed',
-      read: i > 3,
-      created_at: iso(daysBefore(anchor, i + 1)),
-      updated_at: iso(daysBefore(anchor, i + 1)),
+      read: idx > 8,
+      created_at: iso(daysBefore(anchor, daysAgo)),
+      updated_at: iso(daysBefore(anchor, daysAgo)),
       source: 'SERVER',
       version: 1,
     });
+  };
+  {
+    let n = 0;
+    // Recent payment receipts.
+    for (const p of successPayments.filter((x) => x.daysAgo <= 9).slice(0, 10)) {
+      const s = students.find((x) => x.id === p.studentId)!;
+      pushNotification(n++, s,
+        `Payment of ₦${(p.amountMinor / 100).toLocaleString('en-NG')} received for ${s.firstName} ${s.lastName}. Ref ${p.reference}. Thank you.`,
+        p.daysAgo);
+    }
+    // Fee-due reminders for students with no payment yet.
+    const unpaid = activeStudents.filter((s) => !successPayments.some((p) => p.studentId === s.id)).slice(0, 6);
+    for (const s of unpaid) {
+      pushNotification(n++, s,
+        `Friendly reminder: outstanding fees for ${s.firstName} ${s.lastName}. Kindly pay via the dedicated account.`,
+        rand.int(0, 6));
+    }
+    // Failed / reversed payment alerts.
+    for (const f of failedPayments.slice(0, 4)) {
+      const s = students.find((x) => x.id === String(f.student_id))!;
+      pushNotification(n++, s,
+        `Your transfer for ${s.firstName} ${s.lastName} (Ref ${String(f.reference)}) could not be completed: ${String(f.failure_reason)}. Please retry.`,
+        2);
+    }
+    for (const r of reversedPayments.slice(0, 4)) {
+      const s = students.find((x) => x.id === r.studentId)!;
+      pushNotification(n++, s,
+        `A duplicate payment for ${s.firstName} ${s.lastName} (Ref ${r.reference}) was reversed. outstanding balance updated.`,
+        Math.max(r.daysAgo - 2, 0));
+    }
   }
 
   // ---- Audit actions (recent financial events) ----------------------------------------
@@ -539,10 +635,22 @@ function buildPlan(anchor: Date): SeedPlan {
     { action: 'SETTLEMENT_ACCOUNT_VERIFIED', entity: 'settlement_accounts', entityId: 'sd-setacc-main', daysAgo: 41 },
     { action: 'GATEWAY_ASSIGNED', entity: 'gateway_assignments', entityId: 'sd-gw-main', daysAgo: 40 },
     { action: 'PAYMENTS_ACTIVATED', entity: 'schools', entityId: DEMO_SCHOOL_ID, daysAgo: 40 },
+    { action: 'FEE_CONFIGURED', entity: 'fees', entityId: 'sd-fee-nur-tuition', daysAgo: 39 },
+    { action: 'FEE_CONFIGURED', entity: 'fees', entityId: 'sd-fee-pri-tuition', daysAgo: 39 },
+    { action: 'FEE_CONFIGURED', entity: 'fees', entityId: 'sd-fee-jss-tuition', daysAgo: 39 },
+    { action: 'FEE_CONFIGURED', entity: 'fees', entityId: 'sd-fee-ss-tuition', daysAgo: 39 },
   ];
   for (const p of successPayments.filter((x) => x.daysAgo <= 6)) {
     auditActions.push({ action: 'PAYMENT_RECEIVED', entity: 'payment_transactions', entityId: p.reference, daysAgo: p.daysAgo });
   }
+  for (const r of reversedPayments) {
+    auditActions.push({ action: 'PAYMENT_REVERSED', entity: 'payment_transactions', entityId: r.reference, daysAgo: Math.max(r.daysAgo - 2, 0) });
+  }
+  auditActions.push(
+    { action: 'RECONCILIATION_PERFORMED', entity: 'reconciliation_runs', entityId: 'sd-recrun-1', daysAgo: 7 },
+    { action: 'RECONCILIATION_PERFORMED', entity: 'reconciliation_runs', entityId: 'sd-recrun-2', daysAgo: 2 },
+    { action: 'RECONCILIATION_PERFORMED', entity: 'reconciliation_runs', entityId: 'sd-recrun-3', daysAgo: 0 },
+  );
 
   return {
     sessions: sessionRows,
@@ -562,19 +670,6 @@ function buildPlan(anchor: Date): SeedPlan {
     notifications,
     auditActions,
   };
-}
-
-/** Realistic age pyramid: more pupils in lower sections. */
-function pickLevelIndex(i: number): number {
-  const weights = [2, 2, 3, 3, 3, 3, 3, 3, 2, 2, 2, 1, 1, 1]; // sums to 33
-  const total = weights.reduce((a, b) => a + b, 0);
-  const slot = (i * 7 + 3) % total;
-  let acc = 0;
-  for (let idx = 0; idx < weights.length; idx++) {
-    acc += weights[idx]!;
-    if (slot < acc) return idx;
-  }
-  return 0;
 }
 
 export interface SeedResult {
@@ -885,7 +980,7 @@ export async function seedSandboxDatabase(db?: SandboxCapfluxDB): Promise<SeedRe
   // Settlement records for the settled subset (read-only cloud-mirror shape).
   const settlements: AnyRow[] = paymentTransactions
     .filter((t) => t.settlement_status === 'SETTLED')
-    .slice(0, 40)
+    .slice(0, 60)
     .map((t, i) => ({
       id: `sd-stl-${pad(i + 1, 4)}`,
       payment_transaction_id: t.id,
@@ -1000,14 +1095,24 @@ export async function seedSandboxDatabase(db?: SandboxCapfluxDB): Promise<SeedRe
     created_at: iso(daysBefore(anchor, 44)),
   }) as never);
 
-  // Reconciliation history: two clean runs + one open mismatch issue.
+  // Reconciliation history scaled to the larger payment volume. The open
+  // AMOUNT_MISMATCH references a REAL seeded payment: gateway reported
+  // ₦5,000 less than the ledger credit for that reference.
+  const totalSeedTxns =
+    plan.successPayments.length + plan.pendingPayments.length + plan.failedPayments.length;
+  const mismatchPayment = plan.successPayments[41] ?? plan.successPayments[0]!;
+  const mismatchExpectedMinor = mismatchPayment.amountMinor;
+  const mismatchReceivedMinor = Math.max(mismatchExpectedMinor - 500000, 100000);
+  const naira = (minor: number): string =>
+    `₦${(minor / 100).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const duplicatePayment = plan.reversedPayments[0] ?? plan.successPayments[0]!;
   await target.reconciliation_runs.bulkPut([    {
       id: 'sd-recrun-1',
       school_id: DEMO_SCHOOL_ID,
       status: 'COMPLETED',
       provider: SANDBOX_GATEWAY_PROVIDER,
-      transactions_checked: 96,
-      matches_found: 96,
+      transactions_checked: 180,
+      matches_found: 180,
       mismatches_found: 0,
       run_at: iso(daysBefore(anchor, 7, 23, 5)),
       created_at: iso(daysBefore(anchor, 7, 23, 5)),
@@ -1017,26 +1122,50 @@ export async function seedSandboxDatabase(db?: SandboxCapfluxDB): Promise<SeedRe
       school_id: DEMO_SCHOOL_ID,
       status: 'COMPLETED',
       provider: SANDBOX_GATEWAY_PROVIDER,
-      transactions_checked: 118,
-      matches_found: 117,
+      transactions_checked: 260,
+      matches_found: 259,
       mismatches_found: 1,
       run_at: iso(daysBefore(anchor, 2, 23, 5)),
       created_at: iso(daysBefore(anchor, 2, 23, 5)),
+    },
+    {
+      id: 'sd-recrun-3',
+      school_id: DEMO_SCHOOL_ID,
+      status: 'COMPLETED',
+      provider: SANDBOX_GATEWAY_PROVIDER,
+      transactions_checked: totalSeedTxns,
+      matches_found: totalSeedTxns - 1,
+      mismatches_found: 1,
+      run_at: iso(daysBefore(anchor, 0, 23, 5)),
+      created_at: iso(daysBefore(anchor, 0, 23, 5)),
     },
   ] as never[]);
 
   await target.reconciliation_issues.bulkPut([    {
       id: 'sd-reciss-1',
       school_id: DEMO_SCHOOL_ID,
-      run_id: 'sd-recrun-2',
-      reference: 'DEMO-PAY-000042',
+      run_id: 'sd-recrun-3',
+      reference: mismatchPayment.reference,
       issue_type: 'AMOUNT_MISMATCH',
       severity: 'MEDIUM',
-      detail: 'Gateway reported ₦52,000.00 vs ledger ₦51,850.00 (demo rounding scenario)',
+      detail: `Gateway reported ${naira(mismatchReceivedMinor)} vs ledger ${naira(mismatchExpectedMinor)} for ${mismatchPayment.reference} (demo short-pay scenario)`,
       status: 'OPEN',
       resolution_note: null,
-      created_at: iso(daysBefore(anchor, 2, 23, 6)),
+      created_at: iso(daysBefore(anchor, 0, 23, 6)),
       resolved_at: null,
+    },
+    {
+      id: 'sd-reciss-2',
+      school_id: DEMO_SCHOOL_ID,
+      run_id: 'sd-recrun-2',
+      reference: duplicatePayment.reference,
+      issue_type: 'DUPLICATE_TRANSACTION',
+      severity: 'LOW',
+      detail: `Duplicate transfer ${duplicatePayment.reference} detected and reversed by bursar (demo)`,
+      status: 'RESOLVED',
+      resolution_note: 'Reversal posted; ledger balanced.',
+      created_at: iso(daysBefore(anchor, 2, 23, 6)),
+      resolved_at: iso(daysBefore(anchor, 1, 10, 0)),
     },
   ] as never[]);
 
@@ -1048,7 +1177,7 @@ export async function seedSandboxDatabase(db?: SandboxCapfluxDB): Promise<SeedRe
       actor_id: a.action.startsWith('GATEWAY') || a.action.startsWith('PAYMENTS_ACTIVATED')
         ? 'demo-user-platform'
         : 'demo-user-owner',
-      actor_role: a.action === 'PAYMENT_RECEIVED' ? 'BURSAR' : 'OWNER',
+      actor_role: a.action === 'PAYMENT_RECEIVED' || a.action === 'PAYMENT_REVERSED' || a.action === 'RECONCILIATION_PERFORMED' ? 'BURSAR' : 'OWNER',
       action: a.action,
       entity: a.entity,
       entity_id: a.entityId,
@@ -1089,7 +1218,7 @@ export async function seedSandboxDatabase(db?: SandboxCapfluxDB): Promise<SeedRe
 /** Stable content digest — equal plans ⇒ equal hashes (determinism contract). */
 function summarizePlan(plan: SeedPlan, ledgerCount: number): string {
   const parts = [
-    plan.students.map((s) => `${s.id}:${s.firstName}:${s.lastName}:${s.levelIndex}`).join(','),
+    plan.students.map((s) => `${s.id}:${s.firstName}:${s.lastName}:${s.levelIndex}:${s.guardianId}:${s.admissionNumber}:${s.dob}`).join(','),
     plan.guardians.map((g) => String(g.id)).join(','),
     plan.successPayments.map((p) => `${p.reference}:${p.studentId}:${p.amountMinor}:${p.kind}`).join(','),
     plan.charges.map((c) => `${c.chargeId}:${c.fee.amountMinor}`).join(','),
