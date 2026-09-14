@@ -1,9 +1,56 @@
 # CAPFLUX Sandbox Release Verification Report
 
-**Phase:** Sandbox Release Verification & Demo Readiness
-**Date:** 2026-09-13 (UTC)
-**Baseline:** seed v4 dataset (480 students, hash `fnv1a-38dda3bd`)
-**Release decision: BLOCKED** (P0 items in §19; all are deployment/environment, not data)
+**Phase:** Sandbox Release Verification & Demo Readiness → Unblock & Final E2E Gate
+**Dates:** 2026-09-13 (verification) · 2026-09-14 (unblock gate, this update)
+**Baseline:** seed v4 dataset (480 students, hash `fnv1a-38dda3bd`), commits `7cdc7c8`, `03b5b37`, `033ec07`
+**Release decision: BLOCKED** (P0 environment blockers persist; no browser tooling in this environment)
+
+---
+
+## Phase 3 update — Unblock & Final E2E Gate (2026-09-14)
+
+### A. Worktree discipline — PASS
+`git status` shows only the other workstream's auth-refactor/unrelated files; all seed files committed and untouched since `03b5b37`. No code changes were necessary in this phase (both blockers are environment), so **no application commit** was created — only this report update.
+
+### B. Sandbox backend diagnostics — still BLOCKED (P0 #1, P0 #2)
+- `GET /health` → **503**, `database.status: error`, `supabase.connected: false`, `error: null`. The `error: null` + `connected: false` combination means the query path **threw** (catch branch with a messageless throw) rather than returning a PostgREST error → network-level failure reaching the sandbox Supabase project. `SUPABASE_URL`/`SUPABASE_SECRET_KEY` are set (else status would be `not_configured`), so the project is unreachable: paused project, invalid URL/key, or network/DNS. Render logs / Supabase dashboard access is required to pick between causes A–E — not available from here.
+- `POST /api/auth/demo-login` (valid persona) → **401 `DEMO_SESSION_SECRET must be set…`** — unchanged. `DemoAuthService` failing closed is correct; no fallback added, no secret committed.
+- Service keeps sleeping between sessions (cold start again: 24.2s first hit → ~1s warm).
+
+### C. Auth fail-closed matrix (live sandbox backend) — PASS as far as erreichbar
+| Case | Result |
+|---|---|
+| No token → `demo-session` | 401 `Bearer token required` (expected) |
+| Invalid token → `demo-session` | 401 (currently secret error; re-verify post-fix) |
+| Missing `personaId` → `demo-login` | 400 (expected) |
+| Unknown persona → `demo-login` | 401 `Unknown demo persona` (allowlist works) |
+| Valid persona → `demo-login` (warm, 0.84s) | 401 secret error — **P0, environment** |
+| Valid token → authenticated call | NOT VERIFIED (no token can be issued until P0 fixed) |
+
+### D. Latency — P2 infrastructure note (unchanged)
+Cold ≈ 24s (Render sleep), warm ≈ 0.8–1.1s. No per-login seeding, no retry loop in code. Warm ≤2s target holds once warm; cold start is a free-tier characteristic, not an auth defect.
+
+### E. Regression (current tree) — PASS
+Backend `typecheck` PASS · `npm test` **259/259 PASS** · `npm run build` PASS · frontend `npm run build` PASS (~12.7s) · seed suites **36/36 PASS** (exit 0; one transient failure under concurrent backend-build load, green on two isolated reruns — watch, not a regression). `sandboxApi.spec.ts` still 12-failed: auth-workstream debt, untouched.
+
+### F. Production (read-only) — PASS, untouched
+Frontend 200 · backend healthy + DB `connected`, `schoolsCount: 0` · demo endpoints 404/404 · commit range contains zero prod changes.
+
+### G. Login surface (code) — PASS; browser — NOT VERIFIED
+`SandboxDemoLogin.vue`: 4 persona buttons + platform-staff button, `isSandbox`-guarded, single `authStore.signIn` → redirect, no WorkOS, no seeding, no retries. No browser tooling exists in this environment, so §§11–17, 19, 21–22 (rendered UI, console, network capture, responsive) remain NOT VERIFIED.
+
+### H. Seed v4 + boot gate — PASS (code + tests)
+Deployed-DB counts via API impossible while the sandbox DB is down; in-repo seed/tests unchanged and green (36/36). Invalid-token/expired-token 401 matrix completes after P0 fix.
+
+### I. Remediation for the service owner (exact steps, no production touch)
+1. Render `capflux-sandbox-api`: set `DEMO_SESSION_SECRET` to a cryptographically random ≥32-char sandbox-only value (documented in `backend/.env.example`; never commit, never `VITE_*`, never production). Restart.
+2. Restore sandbox Supabase reachability (unpause project / correct `SUPABASE_URL` + `SUPABASE_SECRET_KEY` on the sandbox service only). Confirm `/health` 200 with `database.status: connected`.
+3. Re-run: 5× `demo-login` → tokens → `demo-session` 200 → dashboard smoke in a real browser; capture console/network; confirm zero `capflux.onrender.com` calls.
+4. Then re-classify READY (or READY WITH P1 for cold-start/test-debt only).
+
+---
+
+## 1. Executive summary (2026-09-13, retained)
 
 ---
 
