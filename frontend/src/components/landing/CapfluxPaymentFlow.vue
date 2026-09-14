@@ -61,8 +61,8 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
         </filter>
 
         <linearGradient id="path-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="var(--color-brand)" stop-opacity="0.35" />
-          <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="0.7" />
+          <stop offset="0%" stop-color="var(--color-brand)" stop-opacity="0.75" />
+          <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="1" />
         </linearGradient>
 
         <radialGradient id="particle-gradient">
@@ -117,37 +117,18 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
           stroke-linecap="round"
           class="connection-path"
         />
-        <circle cx="180" cy="130" r="6.5" fill="var(--color-brand)" opacity="0.55" />
-        <circle cx="278" cy="132" r="6.5" fill="var(--color-brand)" opacity="0.55" />
+        <circle cx="180" cy="130" r="6.5" fill="var(--color-brand)" opacity="0.8" />
+        <circle cx="278" cy="132" r="6.5" fill="var(--color-brand)" opacity="0.8" />
 
-        <!-- Animated payment particle -->
-        <circle r="9" fill="url(#particle-gradient)" class="payment-particle" filter="url(#core-glow)">
-          <animateMotion
-            dur="1.2s"
-            repeatCount="indefinite"
-            begin="0.8s"
-            calcMode="spline"
-            keySplines="0.22 1 0.36 1"
-            keyPoints="0;0;1;1;0;0"
-            keyTimes="0;0.05;0.5;0.55;0.95;1"
-            path="M 180 130 C 220 130, 250 132, 278 132"
-          />
-          <animate
-            attributeName="opacity"
-            values="0;1;1;1;0;0"
-            keyTimes="0;0.08;0.45;0.55;0.85;1"
-            dur="1.2s"
-            repeatCount="indefinite"
-            begin="0.8s"
-          />
-        </circle>
+        <!-- Animated payment particle (CSS motion path — SMIL <animateMotion> is unreliable in Chromium) -->
+        <circle cx="0" cy="0" r="9" fill="url(#particle-gradient)" class="payment-particle" filter="url(#core-glow)" />
       </g>
 
       <!-- ====== CAPFLUX CORE ====== -->
       <g class="capflux-core">
         <!-- Outer pulse rings -->
-        <circle cx="372" cy="168" r="92" fill="none" stroke="var(--color-brand)" stroke-width="2.5" opacity="0.18" class="core-ring-outer" />
-        <circle cx="372" cy="168" r="78" fill="none" stroke="var(--color-brand)" stroke-width="2" opacity="0.12" class="core-ring-inner" />
+        <circle cx="372" cy="168" r="92" fill="none" stroke="var(--color-brand)" stroke-width="3" opacity="0.3" class="core-ring-outer" />
+        <circle cx="372" cy="168" r="78" fill="none" stroke="var(--color-brand)" stroke-width="2.5" opacity="0.22" class="core-ring-inner" />
 
         <!-- Core background -->
         <circle cx="372" cy="168" r="64" fill="var(--color-card)" stroke="var(--color-brand)" stroke-width="3" class="core-bg" />
@@ -202,14 +183,14 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       <text x="372" y="300" text-anchor="middle" class="capflux-subtext">every payment automatically</text>
 
       <!-- Down arrow from CAPFLUX -->
-      <path d="M372 312 L372 330" stroke="var(--color-brand)" stroke-width="2" stroke-dasharray="4 3" opacity="0.5" />
-      <path d="M366 326 L372 336 L378 326" fill="var(--color-brand)" opacity="0.5" />
+      <path d="M372 312 L372 330" stroke="var(--color-brand)" stroke-width="2" stroke-dasharray="4 3" opacity="0.7" />
+      <path d="M366 326 L372 336 L378 326" fill="var(--color-brand)" opacity="0.7" />
 
       <!-- Connector webs: core → students, core → transactions -->
-      <g class="student-connections" opacity="0.45">
-        <path d="M 372 260 C 372 300, 316 336, 316 374" stroke="var(--color-brand)" stroke-width="2" stroke-dasharray="5 4" class="account-path" />
-        <path d="M 372 260 C 396 300, 476 330, 484 374" stroke="var(--color-brand)" stroke-width="2" stroke-dasharray="5 4" class="account-path" />
-        <path d="M 464 168 C 512 168, 544 108, 594 88" stroke="var(--color-brand)" stroke-width="2" stroke-dasharray="5 4" class="account-path" />
+      <g class="student-connections" opacity="0.6">
+        <path d="M 372 260 C 372 300, 316 336, 316 374" stroke="var(--color-brand)" stroke-width="2.2" stroke-dasharray="5 4" class="account-path" />
+        <path d="M 372 260 C 396 300, 476 330, 484 374" stroke="var(--color-brand)" stroke-width="2.2" stroke-dasharray="5 4" class="account-path" />
+        <path d="M 464 168 C 512 168, 544 108, 594 88" stroke="var(--color-brand)" stroke-width="2.2" stroke-dasharray="5 4" class="account-path" />
       </g>
 
       <!-- ====== STUDENT ACCOUNTS ====== -->
@@ -231,7 +212,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
         <!-- Card 2: Amina B. -->
         <g class="student-card active-card-2" filter="url(#card-shadow)">
-          <rect x="412" y="376" width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
+          <rect x="412" y="376" width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1.2" class="card-border" />
           <circle cx="428" cy="402" r="14" fill="var(--color-brand-soft)" />
           <text x="428" y="406" text-anchor="middle" class="avatar-text">A</text>
           <text x="452" y="393" class="student-name">Amina B.</text>
@@ -243,7 +224,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
         <!-- Card 3: Chidi K. -->
         <g class="student-card active-card-3" filter="url(#card-shadow)">
-          <rect x="240" y="438" width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
+          <rect x="240" y="438" width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1.2" class="card-border" />
           <circle cx="256" cy="464" r="14" fill="var(--color-brand-soft)" />
           <text x="256" y="468" text-anchor="middle" class="avatar-text">C</text>
           <text x="280" y="455" class="student-name">Chidi K.</text>
@@ -255,7 +236,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
         <!-- Card 4: Zainab S. -->
         <g class="student-card active-card-4" filter="url(#card-shadow)">
-          <rect x="412" y="438" width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
+          <rect x="412" y="438" width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1.2" class="card-border" />
           <circle cx="428" cy="464" r="14" fill="var(--color-brand-soft)" />
           <text x="428" y="468" text-anchor="middle" class="avatar-text">Z</text>
           <text x="452" y="455" class="student-name">Zainab S.</text>
@@ -268,13 +249,13 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
       <!-- ====== RECONCILIATION SUMMARY (bottom-left) ====== -->
       <g class="recon-summary" filter="url(#card-shadow)">
-        <rect x="0" y="256" width="180" height="200" rx="12" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" />
+        <rect x="0" y="256" width="180" height="200" rx="12" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1.5" />
         <circle cx="38" cy="288" r="16" fill="var(--color-success-soft)" />
         <path d="M31 288 L36 293 L45 283" stroke="var(--color-success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="recon-check" />
         <text x="62" y="284" class="summary-title">Reconciled live</text>
         <text x="62" y="298" class="summary-subtitle">Live balance per student</text>
 
-        <line x1="14" y1="312" x2="166" y2="312" stroke="var(--color-divider)" stroke-width="0.5" />
+        <line x1="14" y1="312" x2="166" y2="312" stroke="var(--color-divider)" stroke-width="1" />
 
         <text x="90" y="336" text-anchor="middle" class="summary-stat">₦0 outstanding</text>
         <text x="90" y="352" text-anchor="middle" class="summary-desc">No screenshots. No manual checks.</text>
@@ -287,9 +268,9 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
       <!-- ====== RECENT TRANSACTIONS PANEL ====== -->
       <g class="transaction-panel" filter="url(#card-shadow)">
-        <rect x="600" y="8" width="132" height="310" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" />
+        <rect x="600" y="8" width="132" height="310" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1.5" />
         <text x="666" y="28" text-anchor="middle" class="panel-header">Recent Transactions</text>
-        <line x1="610" y1="38" x2="722" y2="38" stroke="var(--color-divider)" stroke-width="0.5" />
+        <line x1="610" y1="38" x2="722" y2="38" stroke="var(--color-divider)" stroke-width="1" />
 
         <!-- Row 1 -->
         <g class="transaction-row row-1">
@@ -299,6 +280,8 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
           <text x="722" y="75" text-anchor="end" class="tx-time">Just now</text>
         </g>
 
+        <line x1="610" y1="82" x2="722" y2="82" stroke="var(--color-divider)" stroke-width="0.6" />
+
         <!-- Row 2 -->
         <g class="transaction-row row-2">
           <circle cx="618" cy="100" r="5.5" fill="var(--color-brand-soft)" />
@@ -306,6 +289,8 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
           <text x="722" y="103" text-anchor="end" class="tx-amount">₦95k</text>
           <text x="722" y="115" text-anchor="end" class="tx-time">12 mins ago</text>
         </g>
+
+        <line x1="610" y1="122" x2="722" y2="122" stroke="var(--color-divider)" stroke-width="0.6" />
 
         <!-- Row 3 -->
         <g class="transaction-row row-3">
@@ -315,6 +300,8 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
           <text x="722" y="155" text-anchor="end" class="tx-time">1 hour ago</text>
         </g>
 
+        <line x1="610" y1="162" x2="722" y2="162" stroke="var(--color-divider)" stroke-width="0.6" />
+
         <!-- Row 4 -->
         <g class="transaction-row row-4">
           <circle cx="618" cy="180" r="5.5" fill="var(--color-brand-soft)" />
@@ -323,7 +310,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
           <text x="722" y="195" text-anchor="end" class="tx-time">2 hours ago</text>
         </g>
 
-        <line x1="610" y1="210" x2="722" y2="210" stroke="var(--color-divider)" stroke-width="0.5" />
+        <line x1="610" y1="210" x2="722" y2="210" stroke="var(--color-divider)" stroke-width="1" />
 
         <!-- Reconciliation state -->
         <g class="reconciliation-state">
@@ -351,6 +338,16 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
   --cycle-duration: 6s;
   --payment-duration: 1.2s;
   --easing: cubic-bezier(0.22, 1, 0.36, 1);
+  --brand: var(--color-brand);
+  --brand-soft: var(--color-brand-soft);
+  --border: var(--color-border);
+  --divider: var(--color-divider);
+  --card: var(--color-card);
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
   width: 100%;
 }
 
@@ -362,46 +359,46 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 /* ====== TYPOGRAPHY ====== */
 .label-school {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
 .text-amount {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 700;
   fill: var(--brand);
   font-family: var(--font-family-mono);
 }
 
 .text-muted {
-  font-size: 10px;
+  font-size: 12px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .text-muted-small {
-  font-size: 9px;
+  font-size: 10.5px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .verification-text {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   fill: var(--success);
   font-family: var(--font-family-sans);
 }
 
 .verification-subtext {
-  font-size: 9px;
+  font-size: 10px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .capflux-label-text {
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 700;
   fill: var(--text-secondary);
   font-family: var(--font-family-sans);
@@ -409,74 +406,74 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 .capflux-subtext {
-  font-size: 9px;
+  font-size: 10.5px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .section-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   fill: var(--text-secondary);
   font-family: var(--font-family-sans);
 }
 
 .section-sublabel {
-  font-size: 9px;
+  font-size: 10.5px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .student-name {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
 .student-class {
-  font-size: 8.5px;
+  font-size: 10px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .student-amount {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   fill: var(--text-primary);
   font-family: var(--font-family-mono);
 }
 
 .avatar-text {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   fill: var(--brand);
   font-family: var(--font-family-sans);
 }
 
 .panel-header {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
 .tx-name {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
 .tx-amount {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   fill: var(--text-primary);
   font-family: var(--font-family-mono);
 }
 
 .tx-time {
-  font-size: 7px;
+  font-size: 8.5px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
@@ -489,39 +486,39 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 .recon-subtext {
-  font-size: 7.5px;
+  font-size: 9px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .summary-title {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
 .summary-subtitle {
-  font-size: 8px;
+  font-size: 10px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .summary-stat {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 800;
   fill: var(--brand);
   font-family: var(--font-family-mono);
 }
 
 .summary-desc {
-  font-size: 8.5px;
+  font-size: 10px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 .summary-tag {
-  font-size: 7.5px;
+  font-size: 9px;
   font-weight: 700;
   fill: var(--brand);
   font-family: var(--font-family-mono);
@@ -529,19 +526,33 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 .stat-title {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   fill: var(--text-primary);
   font-family: var(--font-family-sans);
 }
 
 .stat-subtitle {
-  font-size: 8px;
+  font-size: 9px;
   fill: var(--text-muted);
   font-family: var(--font-family-sans);
 }
 
 /* ====== ANIMATIONS ====== */
+
+/* Payment particle — travels School → Core on a CSS motion path */
+.payment-particle {
+  offset-path: path('M 180 130 C 220 130, 250 132, 278 132');
+  animation: particle-travel var(--payment-duration) var(--easing) infinite;
+}
+
+@keyframes particle-travel {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; }
+  50% { offset-distance: 55%; opacity: 1; }
+  58% { offset-distance: 100%; opacity: 1; }
+  66%, 100% { offset-distance: 100%; opacity: 0; }
+}
 
 /* CAPFLUX core ring pulse */
 .core-ring-outer {
@@ -555,13 +566,13 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 @keyframes ring-pulse {
-  0%, 40%, 100% { opacity: 0.18; transform: scale(1); }
-  50%, 60% { opacity: 0.32; transform: scale(1.04); }
+  0%, 40%, 100% { opacity: 0.3; transform: scale(1); }
+  50%, 60% { opacity: 0.55; transform: scale(1.04); }
 }
 
 @keyframes ring-pulse-inner {
-  0%, 40%, 100% { opacity: 0.12; transform: scale(1); }
-  50%, 60% { opacity: 0.22; transform: scale(1.03); }
+  0%, 40%, 100% { opacity: 0.22; transform: scale(1); }
+  50%, 60% { opacity: 0.4; transform: scale(1.03); }
 }
 
 /* CAPFLUX pulse burst */
@@ -572,7 +583,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 @keyframes core-activate {
   0%, 42%, 100% { opacity: 0; r: 64; }
-  48% { opacity: 0.45; r: 72; }
+  48% { opacity: 0.55; r: 72; }
   55% { opacity: 0; r: 84; }
 }
 
@@ -613,9 +624,9 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 @keyframes account-flow {
-  0% { stroke-dashoffset: 0; opacity: 0.45; }
-  50% { opacity: 0.7; }
-  100% { stroke-dashoffset: -18; opacity: 0.45; }
+  0% { stroke-dashoffset: 0; opacity: 0.6; }
+  50% { opacity: 0.85; }
+  100% { stroke-dashoffset: -18; opacity: 0.6; }
 }
 
 /* Student card highlight sequence */
@@ -639,7 +650,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 .active-card-4 .card-border { animation: border-emphasis 6s var(--easing) infinite; animation-delay: 3.6s; }
 
 @keyframes border-emphasis {
-  0%, 55%, 100% { stroke: var(--border); stroke-width: 1; }
+  0%, 55%, 100% { stroke: var(--border); stroke-width: 1.2; }
   60%, 70% { stroke: var(--brand); stroke-width: 2; }
 }
 
@@ -717,5 +728,40 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
   .capflux-payment-flow {
     margin: 0 auto;
   }
+}
+
+/* Mobile legibility: hide decorative micro-captions that would render at ~5px
+   and enlarge the essential labels so they stay readable when the graphic scales down */
+@media (max-width: 640px) {
+  .text-muted,
+  .text-muted-small,
+  .section-sublabel,
+  .student-class,
+  .tx-time,
+  .summary-desc,
+  .summary-tag,
+  .summary-subtitle,
+  .verification-subtext,
+  .capflux-subtext,
+  .recon-text,
+  .recon-subtext,
+  .stat-subtitle {
+    display: none;
+  }
+
+  .verification-text { font-size: 13px; }
+  .text-amount { font-size: 28px; }
+  .label-school { font-size: 20px; }
+  .capflux-label-text { font-size: 18px; }
+  .section-label { font-size: 16px; }
+  .student-name { font-size: 20px; }
+  .student-amount { font-size: 20px; }
+  .tx-name { font-size: 13px; }
+  .tx-amount { font-size: 13px; }
+  .panel-header { font-size: 14px; }
+  .summary-title { font-size: 18px; }
+  .summary-stat { font-size: 22px; }
+  .recon-text { font-size: 12px; }
+  .stat-title { font-size: 13px; }
 }
 </style>
