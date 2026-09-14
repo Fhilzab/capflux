@@ -154,18 +154,18 @@ onMounted(() => {
     <LandingNav />
 
     <!-- HERO SECTION -->
-    <section class="relative min-h-[50vh] sm:min-h-screen flex items-center px-4 sm:px-6 pt-14 sm:pt-16 overflow-hidden">
+    <section class="relative min-h-[50vh] sm:min-h-screen flex items-center px-4 sm:px-6 pt-12 sm:pt-14 overflow-hidden">
       <FinancialNetwork class="absolute inset-0 -z-10" />
 
-      <div class="mx-auto max-w-6xl w-full">
-        <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+      <div class="mx-auto max-w-7xl w-full">
+        <div class="grid lg:grid-cols-[0.45fr_0.55fr] gap-8 lg:gap-12 items-center">
           <!-- LEFT: Hero Copy -->
           <div class="order-2 lg:order-1 text-center lg:text-left">
             <p class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-brand mb-4 sm:mb-5">
               Built for Nigerian Private Schools
             </p>
 
-            <h1 class="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-text-primary mb-4 sm:mb-6 leading-tight">
+            <h1 class="text-2xl sm:text-3xl md:text-5xl lg:text-[68px] font-extrabold tracking-tight text-text-primary mb-4 sm:mb-6 leading-[1.08] lg:leading-[1.02]">
               School Fee Collection,<br class="hidden sm:block" />Finally Without the Stress.
             </h1>
 

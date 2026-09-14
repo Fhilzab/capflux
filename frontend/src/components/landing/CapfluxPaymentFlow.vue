@@ -36,7 +36,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 <template>
   <div class="capflux-payment-flow" :class="{ 'reduced-motion': isReducedMotion }" aria-hidden="true">
     <svg
-      viewBox="0 0 900 600"
+      viewBox="0 0 880 400"
       class="payment-flow-svg"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
@@ -67,7 +67,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       </defs>
 
       <!-- ====== LAYER 1: SCHOOL PAYMENT ORIGIN ====== -->
-      <g class="payment-origin">
+      <g class="payment-origin" transform="translate(0, -20)">
         <!-- Payment card -->
         <rect x="20" y="120" width="130" height="80" rx="12" fill="url(#card-bg)" stroke="var(--color-border)" stroke-width="1.5" />
         <rect x="20" y="120" width="130" height="28" rx="12" fill="var(--color-brand-soft)" />
@@ -122,7 +122,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       </g>
 
       <!-- ====== LAYER 3: CAPFLUX CORE ====== -->
-      <g class="capflux-core" transform="translate(355, 80)">
+      <g class="capflux-core" transform="translate(355, 60)">
         <!-- Outer pulse ring -->
         <circle cx="65" cy="65" r="58" fill="none" stroke="var(--color-brand)" stroke-width="1.5" opacity="0.15" class="capflux-core-ring" />
         <!-- Inner ring -->
@@ -140,7 +140,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       </g>
 
       <!-- Verification badge near CAPFLUX -->
-      <g class="verification-badge" transform="translate(420, 30)">
+      <g class="verification-badge" transform="translate(420, 10)">
         <rect x="-8" y="-14" width="100" height="28" rx="8" fill="var(--color-card)" stroke="var(--color-success)" stroke-width="1.5" />
         <circle cx="6" cy="0" r="5" fill="var(--color-success-soft)" class="check-bg" />
         <path d="M3.5 0 L6.5 3 L10.5 -3" stroke="var(--color-success)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="verification-check" />
@@ -149,7 +149,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       </g>
 
       <!-- Processing label under CAPFLUX -->
-      <g class="processing-label" transform="translate(355, 145)">
+      <g class="processing-label" transform="translate(355, 125)">
         <text x="65" y="0" text-anchor="middle" class="processing-title">CAPFLUX</text>
         <text x="65" y="14" text-anchor="middle" class="processing-subtitle">Verifies, allocates and reconciles automatically</text>
         <text x="65" y="28" text-anchor="middle" class="processing-arrow">↓</text>
@@ -158,7 +158,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       <!-- ====== LAYER 4: STUDENT ACCOUNT CARDS ====== -->
       <g class="student-accounts">
         <!-- Card 1: Tunde A. -->
-        <g class="student-card active-card-1" transform="translate(540, 60)">
+        <g class="student-card active-card-1" transform="translate(540, 40)">
           <rect width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-brand)" stroke-width="1.5" class="card-border" />
           <circle cx="22" cy="22" r="10" fill="var(--color-brand-soft)" />
           <text x="22" y="26" text-anchor="middle" class="avatar-text">T</text>
@@ -170,7 +170,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
         </g>
 
         <!-- Card 2: Amina B. -->
-        <g class="student-card active-card-2" transform="translate(540, 122)">
+        <g class="student-card active-card-2" transform="translate(540, 100)">
           <rect width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
           <circle cx="22" cy="22" r="10" fill="var(--color-brand-soft)" />
           <text x="22" y="26" text-anchor="middle" class="avatar-text">A</text>
@@ -182,7 +182,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
         </g>
 
         <!-- Card 3: Chidi K. -->
-        <g class="student-card active-card-3" transform="translate(540, 184)">
+        <g class="student-card active-card-3" transform="translate(540, 160)">
           <rect width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
           <circle cx="22" cy="22" r="10" fill="var(--color-brand-soft)" />
           <text x="22" y="26" text-anchor="middle" class="avatar-text">C</text>
@@ -194,7 +194,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
         </g>
 
         <!-- Card 4: Zainab S. -->
-        <g class="student-card active-card-4" transform="translate(540, 246)">
+        <g class="student-card active-card-4" transform="translate(540, 220)">
           <rect width="160" height="52" rx="10" fill="var(--color-card)" stroke="var(--color-border)" stroke-width="1" class="card-border" />
           <circle cx="22" cy="22" r="10" fill="var(--color-brand-soft)" />
           <text x="22" y="26" text-anchor="middle" class="avatar-text">Z</text>
@@ -208,10 +208,10 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
       <!-- ====== LAYER 5: CONNECTIONS TO STUDENT ACCOUNTS ====== -->
       <g class="account-connections">
-        <path d="M 440 120 C 480 120, 520 100, 540 86" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
-        <path d="M 440 120 C 480 120, 520 140, 540 148" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
-        <path d="M 440 120 C 480 120, 520 190, 540 210" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
-        <path d="M 440 120 C 480 120, 520 260, 540 274" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
+        <path d="M 440 100 C 480 100, 520 80, 540 66" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
+        <path d="M 440 100 C 480 100, 520 120, 540 126" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
+        <path d="M 440 100 C 480 100, 520 170, 540 186" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
+        <path d="M 440 100 C 480 100, 520 230, 540 246" stroke="var(--color-brand)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3" class="account-path" />
       </g>
 
       <!-- ====== LAYER 6: RECENT TRANSACTIONS PANEL ====== -->
@@ -497,7 +497,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 @keyframes core-activate {
   0%, 42%, 100% { opacity: 0; r: 40; }
   48% { opacity: 0.4; r: 44; }
-  55% { opacity: 0; r: 50; }
+  55% { opacity: 0; r: 48; }
 }
 
 /* Verification badge */
@@ -506,8 +506,8 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 @keyframes verification-in {
-  0%, 48%, 100% { opacity: 0; transform: translate(420px, 30px) scale(0.85); }
-  52%, 90% { opacity: 1; transform: translate(420px, 30px) scale(1); }
+  0%, 48%, 100% { opacity: 0; transform: translate(420px, 10px) scale(0.85); }
+  52%, 90% { opacity: 1; transform: translate(420px, 10px) scale(1); }
 }
 
 .verification-check {
@@ -640,18 +640,18 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 /* ====== RESPONSIVE ====== */
 @media (max-width: 1024px) {
   .payment-flow-svg {
-    max-width: 600px;
+    max-width: 700px;
   }
 }
 
 @media (max-width: 768px) {
   .capflux-payment-flow {
-    max-width: 340px;
+    max-width: 420px;
     margin: 0 auto;
   }
 
   .payment-flow-svg {
-    max-width: 340px;
+    max-width: 420px;
   }
 
   /* Hide last student card on mobile */
@@ -672,11 +672,11 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 @media (max-width: 430px) {
   .capflux-payment-flow {
-    max-width: 300px;
+    max-width: 350px;
   }
 
   .payment-flow-svg {
-    max-width: 300px;
+    max-width: 350px;
   }
 
   .student-card:nth-child(3) {
