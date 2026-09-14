@@ -90,7 +90,8 @@ describe('AppHeader.vue', () => {
 
   // ── Left side: logo + separator + school name ──────────
   it('renders the CAPFLUX logo circle as perfectly circular', () => {
-    const logoCircle = wrapper.find('[data-testid="capflux-logo"] div');
+    const logoCircle = wrapper.find('[data-testid="capflux-logo"] .rounded-full');
+    expect(logoCircle.exists()).toBe(true);
     expect(logoCircle.classes()).toContain('rounded-full');
     expect(logoCircle.classes()).not.toContain('rounded-button');
   });

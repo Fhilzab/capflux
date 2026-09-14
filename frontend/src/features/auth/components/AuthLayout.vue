@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { runtimeEnvironment } from '../../../shared/environment/runtimeEnvironment';
 import { CmBadge } from '@/components/ui';
+import CapfluxMark from '@/components/branding/CapfluxMark.vue';
 
 const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/';
 </script>
@@ -22,7 +23,7 @@ const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/
             aria-label="Go to CAPFLUX home"
             class="inline-flex items-center gap-2 text-text-primary font-bold text-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded mb-6"
           >
-            <img src="/icons.svg" alt="" class="h-9 w-auto" />
+            <CapfluxMark :size="36" />
             <span>CAPFLUX</span>
           </a>
           <h2 class="text-headline mb-2">Every Naira Accounted For.</h2>

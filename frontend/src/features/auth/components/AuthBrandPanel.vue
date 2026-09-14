@@ -2,6 +2,7 @@
 import authViewIllustration from '@/assets/authview_illustration.png';
 import { runtimeEnvironment } from '../../../shared/environment/runtimeEnvironment';
 import { CmBadge } from '@/components/ui';
+import CapfluxMark from '@/components/branding/CapfluxMark.vue';
 
 const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/';
 </script>
@@ -15,7 +16,7 @@ const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/
         aria-label="Go to CAPFLUX home"
         class="inline-flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
       >
-        <img src="/icons.svg" alt="" class="h-7 w-auto lg:h-10" />
+        <CapfluxMark :size="28" class="lg:!w-10 lg:!h-10 lg:!text-lg" />
         <span class="font-bold text-xl text-text-primary lg:text-2xl">CAPFLUX</span>
       </a>
     </div>

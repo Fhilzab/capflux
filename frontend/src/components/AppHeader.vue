@@ -15,6 +15,7 @@ import { useSyncStore } from '../stores/syncStore';
 import { useDashboardStore } from '../features/dashboard/stores/dashboardStore';
 import { useThemeStore } from '../stores/themeStore';
 import ProfileMenu from './ProfileMenu.vue';
+import CapfluxMark from './branding/CapfluxMark.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -79,11 +80,7 @@ const openNotifications = () => emit('open-notifications');
         class="flex items-center gap-2 rounded-button px-1.5 py-1 text-text-primary hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-brand/50"
         aria-label="CAPFLUX Home"
       >
-        <div
-          class="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-background font-bold text-sm shadow-card"
-        >
-          C
-        </div>
+        <CapfluxMark :size="28" aria-label="CAPFLUX Home" />
         <span class="font-semibold text-sm text-text-primary hidden sm:block">CAPFLUX</span>
       </button>
 

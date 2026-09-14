@@ -52,17 +52,35 @@ describe('useModuleLock (Phase 8.2 progressive access)', () => {
     onboardingStoreMock.statusLoading = false;
     onboardingStoreMock.statusLoaded = false;
     onboardingStoreMock.status = null;
+    onboardingStoreMock.error = null;
+    (onboardingStoreMock as any).errorCategory = null;
     financialStoreMock.kycVerified = false;
     financialStoreMock.kycState = 'NOT_SUBMITTED';
     financialStoreMock.settlementVerified = false;
     financialStoreMock.kycStatus = null;
-    financialStoreMock.readiness = null;
+    financialStoreMock.settlementStatus = null as any;
+    financialStoreMock.readiness = null as any;
+    financialStoreMock.kycStatusLoaded = false;
+    financialStoreMock.settlementStatusLoaded = false;
+    financialStoreMock.readinessLoaded = false;
+    financialStoreMock.error = null;
+    (financialStoreMock as any).errorCategory = null;
     financialStoreMock.loading = false;
   });
 
   // ── Capability checks ──────────────────────────────────────────
 
   it('detects all requirements incomplete when nothing is verified', async () => {
+    // Known not-verified state: loaded but status/kyc present and not verified
+    onboardingStoreMock.statusLoaded = true;
+    onboardingStoreMock.status = { school: { status: 'ACTIVE', paymentStatus: 'NOT_READY' } } as any;
+    onboardingStoreMock.paymentStatus = 'NOT_READY';
+    financialStoreMock.kycStatusLoaded = true;
+    (financialStoreMock as any).kycStatus = { kyc: { status: 'PENDING' } };
+    financialStoreMock.kycVerified = false;
+    financialStoreMock.settlementStatusLoaded = true;
+    (financialStoreMock as any).settlementStatus = { settlement: { status: 'PENDING' } };
+    financialStoreMock.settlementVerified = false;
     const wrapper = mount(TestComponent);
     await nextTick();
 
@@ -73,7 +91,12 @@ describe('useModuleLock (Phase 8.2 progressive access)', () => {
   });
 
   it('reports setup required when school is PENDING_SETUP', async () => {
+    onboardingStoreMock.statusLoaded = true;
+    onboardingStoreMock.status = { school: { status: 'PENDING_SETUP', paymentStatus: 'NOT_READY' } } as any;
     onboardingStoreMock.requiresSetup = true;
+    financialStoreMock.kycStatusLoaded = true;
+    (financialStoreMock as any).kycStatus = { kyc: { status: 'PENDING' } };
+    financialStoreMock.kycVerified = false;
     const wrapper = mount(TestComponent);
     await nextTick();
 
@@ -82,6 +105,8 @@ describe('useModuleLock (Phase 8.2 progressive access)', () => {
   });
 
   it('reports KYC complete when kycVerified is true', async () => {
+    financialStoreMock.kycStatusLoaded = true;
+    (financialStoreMock as any).kycStatus = { kyc: { status: 'VERIFIED' } };
     financialStoreMock.kycVerified = true;
     financialStoreMock.kycState = 'VERIFIED';
     const wrapper = mount(TestComponent);
@@ -92,7 +117,11 @@ describe('useModuleLock (Phase 8.2 progressive access)', () => {
   });
 
   it('reports settlement complete when settlementVerified is true', async () => {
+    financialStoreMock.kycStatusLoaded = true;
+    (financialStoreMock as any).kycStatus = { kyc: { status: 'VERIFIED' } };
     financialStoreMock.kycVerified = true;
+    financialStoreMock.settlementStatusLoaded = true;
+    (financialStoreMock as any).settlementStatus = { settlement: { status: 'VERIFIED' } };
     financialStoreMock.settlementVerified = true;
     const wrapper = mount(TestComponent);
     await nextTick();
@@ -101,6 +130,8 @@ describe('useModuleLock (Phase 8.2 progressive access)', () => {
   });
 
   it('reports payments unlocked when paymentStatus is READY', async () => {
+    onboardingStoreMock.statusLoaded = true;
+    onboardingStoreMock.status = { school: { status: 'ACTIVE', paymentStatus: 'READY' } } as any;
     onboardingStoreMock.paymentStatus = 'READY';
     const wrapper = mount(TestComponent);
     await nextTick();
@@ -120,5 +151,47 @@ describe('useModuleLock (Phase 8.2 progressive access)', () => {
     wrapper = mount(TestComponent);
     await nextTick();
     expect(wrapper.vm.loading).toBe(true);
+  });
+
+  it('does not represent UNKNOWN KYC as requiresKyc when status not loaded', async () => {
+    // Never loaded, no status — should NOT show KYC lock (avoid false KYC required)
+    onboardingStoreMock.statusLoaded = false;
+    financialStoreMock.kycStatusLoaded = false;
+    financialStoreMock.kycVerified = false;
+    const wrapper = mount(TestComponent);
+    await nextTick();
+    expect(wrapper.vm.requiresKyc).toBe(false);
+    expect(wrapper.vm.isKycStatusUnknown).toBe(false);
+  });
+
+  it('treats network/auth failure as unknown, not as not-verified', async () => {
+    financialStoreMock.kycStatusLoaded = true;
+    (financialStoreMock as any).kycStatus = null;
+    (financialStoreMock as any).error = 'Network error';
+    (financialStoreMock as any).errorCategory = 'NETWORK_ERROR';
+    const wrapper = mount(TestComponent);
+    await nextTick();
+    expect(wrapper.vm.requiresKyc).toBe(false);
+    expect(wrapper.vm.isKycStatusUnknown).toBe(true);
+    expect(wrapper.vm.hasStatusError).toBe(true);
+  });
+
+  it('requiresKyc only when KYC status is known and not verified', async () => {
+    financialStoreMock.kycStatusLoaded = true;
+    (financialStoreMock as any).kycStatus = { kyc: { status: 'PENDING' } };
+    financialStoreMock.kycVerified = false;
+    (financialStoreMock as any).error = null;
+    const wrapper = mount(TestComponent);
+    await nextTick();
+    expect(wrapper.vm.requiresKyc).toBe(true);
+  });
+
+  it('paymentsLocked is false when status unknown (do not misrepresent)', async () => {
+    onboardingStoreMock.statusLoaded = false;
+    onboardingStoreMock.paymentStatus = 'NOT_READY';
+    onboardingStoreMock.status = null;
+    const wrapper = mount(TestComponent);
+    await nextTick();
+    expect(wrapper.vm.paymentsLocked).toBe(false);
   });
 });

@@ -24,24 +24,60 @@ export function useModuleLock() {
   const financialStore = useFinancialActivationStore();
 
   // ── Payment lifecycle ─────────────────────────────────────
-  const paymentReady = computed(() => onboardingStore.paymentStatus === 'READY');
-  const paymentsLocked = computed(() => !paymentReady.value);
-  const requiresSetup = computed(() => onboardingStore.requiresSetup);
+  // Distinguish VERIFIED vs UNKNOWN: only assert "not ready" when status is known.
+  const paymentReady = computed(() => onboardingStore.statusLoaded && onboardingStore.paymentStatus === 'READY');
+  const paymentsLocked = computed(() => {
+    if (!onboardingStore.statusLoaded) return false;
+    if (!onboardingStore.status) return false; // UNKNOWN (network/auth) — do not misrepresent as locked
+    return onboardingStore.paymentStatus !== 'READY';
+  });
+  const requiresSetup = computed(() => {
+    if (!onboardingStore.statusLoaded) return false;
+    if (!onboardingStore.status) return false;
+    return onboardingStore.requiresSetup;
+  });
 
   // ── KYC / identity verification ─────────────────────────────
   const kycVerified = computed(() => financialStore.kycVerified);
   const kycState = computed(() => financialStore.kycState || 'NONE');
-  const requiresKyc = computed(() => !kycVerified.value);
+  // Only require KYC when we KNOW it is not verified; UNKNOWN must not be shown as "KYC required".
+  const requiresKyc = computed(() => {
+    if (!financialStore.kycStatusLoaded) return false;
+    if (!financialStore.kycStatus?.kyc) return false; // UNKNOWN — status unavailable
+    return !financialStore.kycVerified;
+  });
 
   // ── Settlement account verification ────────────────────────
   const settlementVerified = computed(() => financialStore.settlementVerified);
-  const requiresSettlement = computed(() => !settlementVerified.value);
+  const requiresSettlement = computed(() => {
+    if (!financialStore.settlementStatusLoaded) return false;
+    if (!financialStore.settlementStatus?.settlement) return false;
+    return !financialStore.settlementVerified;
+  });
 
   // ── Payment activation (KYC + settlement + gateway + ACTIVE) ─
-  const requiresPaymentActivation = computed(() => !paymentReady.value);
+  const requiresPaymentActivation = computed(() => {
+    if (!onboardingStore.statusLoaded) return false;
+    if (!onboardingStore.status) return false;
+    return !paymentReady.value;
+  });
+
+  // ── Unknown / unavailable states — honest presentation vs secure fail-closed
+  const isKycStatusUnknown = computed(() =>
+    financialStore.kycStatusLoaded && !financialStore.kycStatus?.kyc && !!financialStore.error
+  );
+  const isSettlementStatusUnknown = computed(() =>
+    financialStore.settlementStatusLoaded && !financialStore.settlementStatus?.settlement && !!financialStore.error
+  );
+  const isOnboardingStatusUnknown = computed(() =>
+    onboardingStore.statusLoaded && !onboardingStore.status && !!onboardingStore.error
+  );
+  const hasStatusError = computed(() =>
+    !!(financialStore.error || onboardingStore.error)
+  );
 
   // ── Combined loading ───────────────────────────────────────
-  const loading = computed(() => onboardingStore.loading || financialStore.loading);
+  const loading = computed(() => onboardingStore.loading || onboardingStore.statusLoading || financialStore.loading);
 
   onMounted(() => {
     if (!onboardingStore.status && !onboardingStore.statusLoaded) {
@@ -70,6 +106,10 @@ export function useModuleLock() {
     kycVerified,
     kycState,
     settlementVerified,
+    isKycStatusUnknown,
+    isSettlementStatusUnknown,
+    isOnboardingStatusUnknown,
+    hasStatusError,
     loading,
     onboardingStore,
     financialStore,
