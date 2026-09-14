@@ -48,14 +48,6 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       fill="none"
     >
       <defs>
-        <filter id="core-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="6" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-
         <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="130%">
           <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.06)" />
         </filter>
@@ -121,7 +113,7 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
         <circle cx="278" cy="132" r="6.5" fill="var(--color-brand)" opacity="0.8" />
 
         <!-- Animated payment particle (CSS motion path — SMIL <animateMotion> is unreliable in Chromium) -->
-        <circle cx="0" cy="0" r="9" fill="url(#particle-gradient)" class="payment-particle" filter="url(#core-glow)" />
+        <circle cx="0" cy="0" r="6.5" fill="url(#particle-gradient)" class="payment-particle" />
       </g>
 
       <!-- ====== CAPFLUX CORE ====== -->

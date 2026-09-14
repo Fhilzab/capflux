@@ -195,7 +195,7 @@ onMounted(() => {
             </div>
 
             <!-- Product benefit indicators -->
-            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-text-muted sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-4 sm:gap-y-2">
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-text-muted sm:flex sm:flex-wrap sm:items-center justify-center sm:gap-x-4 sm:gap-y-2 lg:justify-start">
               <span class="flex items-center justify-center gap-1.5">
                 <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
                 Automated Reconciliation
