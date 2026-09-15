@@ -19,6 +19,11 @@ import { ref, onMounted, onUnmounted } from 'vue';
  * 2.6s  Transaction highlights
  * 3.0s  System remains visible
  * 4.0s  Pause, then repeat
+ *
+ * Transport particles (shared 1.2s beat, payment → sync → reconciled):
+ *   payment-particle    School Payment   → core left
+ *   sync-particle       Daily sync       → core right
+ *   reconciled-particle Reconciled live  → core lower-left
  */
 
 const isReducedMotion = ref(false);
@@ -111,9 +116,21 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
         />
         <circle cx="180" cy="130" r="6.5" fill="var(--color-brand)" opacity="0.8" />
         <circle cx="278" cy="132" r="6.5" fill="var(--color-brand)" opacity="0.8" />
+      </g>
 
-        <!-- Animated payment particle (CSS motion path — SMIL <animateMotion> is unreliable in Chromium) -->
-        <circle cx="0" cy="0" r="6.5" fill="url(#particle-gradient)" class="payment-particle" />
+      <!-- ====== TRANSPORT PARTICLES ======
+           One shared transport system — three equivalent particles stream INTO the
+           CAPFLUX core from the surrounding flow elements. Same radius, gradient,
+           opacity model, motion mechanism, duration and easing; only the route
+           (offset-path) and an arrival stagger differ.
+             · payment    School Payment   (180,130) → core left  (~278,132)
+             · sync       Daily sync       (622,358) → core right (~470,168)
+             · reconciled Reconciled live  (38,288)  → core lower-left (~283,207)
+           SMIL <animateMotion> is unreliable in Chromium — CSS offset-path is used. -->
+      <g class="transport-particles">
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="payment-particle" />
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="sync-particle" />
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="reconciled-particle" />
       </g>
 
       <!-- ====== CAPFLUX CORE ====== -->
@@ -532,10 +549,38 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 /* ====== ANIMATIONS ====== */
 
-/* Payment particle — travels School → Core on a CSS motion path */
+/* Transport particles — one shared system. All three ride the same route
+   language (identical keyframes, duration, easing, opacity model) and only
+   differ by path geometry and an intentional stagger so the flows read as
+   payment → sync → reconciliation feeding a single CAPFLUX core. */
+
+/* Circles need no path rotation; offset-rotate:auto also inflates the
+   rendered bounding box on steep routes (measured 15.4/14.3 user units vs
+   the true 11.0). Pinning it keeps the three diameters pixel-identical. */
+.payment-particle,
+.sync-particle,
+.reconciled-particle {
+  offset-rotate: 0deg;
+}
+
+/* Payment particle — School Payment → CAPFLUX core */
 .payment-particle {
   offset-path: path('M 180 130 C 220 130, 250 132, 278 132');
   animation: particle-travel var(--payment-duration) var(--easing) infinite;
+}
+
+/* Sync particle — Daily sync status → CAPFLUX core */
+.sync-particle {
+  offset-path: path('M 622 358 C 590 330, 520 250, 470 168');
+  animation: particle-travel var(--payment-duration) var(--easing) infinite;
+  animation-delay: calc(var(--payment-duration) * 0.4);
+}
+
+/* Reconciled particle — Reconciled live status → CAPFLUX core */
+.reconciled-particle {
+  offset-path: path('M 38 288 C 100 290, 200 240, 283 207');
+  animation: particle-travel var(--payment-duration) var(--easing) infinite;
+  animation-delay: calc(var(--payment-duration) * 0.8);
 }
 
 @keyframes particle-travel {
@@ -691,6 +736,8 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 /* ====== REDUCED MOTION ====== */
 .reduced-motion .payment-particle,
+.reduced-motion .sync-particle,
+.reduced-motion .reconciled-particle,
 .reduced-motion .core-ring-outer,
 .reduced-motion .core-ring-inner,
 .reduced-motion .capflux-pulse,
@@ -709,7 +756,9 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 .reduced-motion .verification-badge { opacity: 1; }
 .reduced-motion .verification-check { stroke-dashoffset: 0; }
-.reduced-motion .payment-particle { opacity: 0; }
+.reduced-motion .payment-particle,
+.reduced-motion .sync-particle,
+.reduced-motion .reconciled-particle { opacity: 0; }
 .reduced-motion .card-border { stroke: var(--border) !important; stroke-width: 1 !important; }
 .reduced-motion .reconciliation-state { opacity: 1; }
 .reduced-motion .recon-check { stroke-dashoffset: 0; }
@@ -741,6 +790,14 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
   .panel-header,
   .summary-title,
   .stat-card {
+    display: none;
+  }
+
+  /* The Daily sync source card is hidden on small screens — its transport
+     particle follows so the dot never floats without its anchor element.
+     display:none (not opacity) because the transport keyframe animates
+     opacity, which would otherwise override any static opacity value. */
+  .sync-particle {
     display: none;
   }
 }
