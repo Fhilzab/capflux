@@ -61,11 +61,6 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
           <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.06)" />
         </filter>
 
-        <linearGradient id="path-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="var(--color-brand)" stop-opacity="0.75" />
-          <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="1" />
-        </linearGradient>
-
         <radialGradient id="particle-gradient">
           <stop offset="0%" stop-color="var(--color-brand)" stop-opacity="1" />
           <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="0.3" />
@@ -109,17 +104,19 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       <text x="90" y="230" text-anchor="middle" class="text-muted-small">bank transfer, card or USSD</text>
 
       <!-- ====== PAYMENT ROUTE ====== -->
+      <!-- One lane in the unified transport network: same 2.2/5-4/solid-brand
+           base treatment, resting opacity and account-flow drift as the other
+           fleet lanes. Geometry is unchanged. Source/destination clarity comes
+           from the card + particle + moving highlight, not from endpoint pips. -->
       <g class="payment-route">
         <path
           d="M 180 130 C 220 130, 250 132, 278 132"
-          stroke="url(#path-gradient)"
-          stroke-width="4"
-          stroke-dasharray="9 6"
-          stroke-linecap="round"
-          class="connection-path"
+          stroke="var(--color-brand)"
+          stroke-width="2.2"
+          stroke-dasharray="5 4"
+          opacity="0.6"
+          class="account-path"
         />
-        <circle cx="180" cy="130" r="6.5" fill="var(--color-brand)" opacity="0.8" />
-        <circle cx="278" cy="132" r="6.5" fill="var(--color-brand)" opacity="0.8" />
       </g>
 
       <!-- ====== TRANSPORT PARTICLES ======
@@ -689,16 +686,6 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
   58%, 90% { stroke-dashoffset: 0; }
 }
 
-/* Connection path flow */
-.connection-path {
-  animation: path-flow var(--cycle-duration) linear infinite;
-}
-
-@keyframes path-flow {
-  0% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -30; }
-}
-
 /* Account paths */
 .account-path {
   animation: account-flow var(--cycle-duration) linear infinite;
@@ -786,7 +773,6 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 .reduced-motion .capflux-pulse,
 .reduced-motion .verification-badge,
 .reduced-motion .verification-check,
-.reduced-motion .connection-path,
 .reduced-motion .account-path,
 .reduced-motion .student-card,
 .reduced-motion .card-border,
