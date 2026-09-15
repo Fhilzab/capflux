@@ -20,10 +20,14 @@ import { ref, onMounted, onUnmounted } from 'vue';
  * 3.0s  System remains visible
  * 4.0s  Pause, then repeat
  *
- * Transport particles (shared 1.2s beat, payment → sync → reconciled):
- *   payment-particle    School Payment   → core left
- *   sync-particle       Daily sync       → core right
- *   reconciled-particle Reconciled live  → core lower-left
+ * One unified transport system. Five transports feed the CAPFLUX core
+ * (Individual Student Account uses two connector lanes) — every route carries
+ * a particle AND a short moving path-highlight:
+ *   payment-particle       School Payment        → core left
+ *   transactions-particle  Recent Transactions   → core right
+ *   sync-particle          Daily sync            → core right-lower
+ *   student-particle-l/r   Ind. Student Account  → core bottom (two lanes)
+ *   reconciled-particle    Reconciled live       → core lower-left
  */
 
 const isReducedMotion = ref(false);
@@ -128,9 +132,27 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
              · reconciled Reconciled live  (38,288)  → core lower-left (~283,207)
            SMIL <animateMotion> is unreliable in Chromium — CSS offset-path is used. -->
       <g class="transport-particles">
-        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="payment-particle" />
-        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="sync-particle" />
-        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="reconciled-particle" />
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="transport-particle payment-particle" />
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="transport-particle transactions-particle" />
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="transport-particle sync-particle" />
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="transport-particle student-particle-l" />
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="transport-particle reconciled-particle" />
+        <circle cx="0" cy="0" r="5.5" fill="url(#particle-gradient)" class="transport-particle student-particle-r" />
+      </g>
+
+      <!-- ====== MOVING PATH HIGHLIGHTS ======
+           A short brightened segment (one shared length/weight token) rides each
+           route toward the core, leading its particle by 0.1s so every transport
+           reads as one event: [active route] → [particle] → CAPFLUX. Shares the
+           particle duration/easing/opacity model; route variants only set the d
+           geometry and length-derived dash tokens. -->
+      <g class="transport-highlights">
+        <path d="M 180 130 C 220 130, 250 132, 278 132" fill="none" stroke="var(--color-brand)" stroke-width="4" stroke-linecap="round" opacity="0" class="transport-highlight highlight-payment" />
+        <path d="M 594 88 C 544 108, 512 168, 464 168" fill="none" stroke="var(--color-brand)" stroke-width="4" stroke-linecap="round" opacity="0" class="transport-highlight highlight-transactions" />
+        <path d="M 622 358 C 590 330, 520 250, 470 168" fill="none" stroke="var(--color-brand)" stroke-width="4" stroke-linecap="round" opacity="0" class="transport-highlight highlight-sync" />
+        <path d="M 316 374 C 316 336, 372 300, 372 260" fill="none" stroke="var(--color-brand)" stroke-width="4" stroke-linecap="round" opacity="0" class="transport-highlight highlight-student-l" />
+        <path d="M 38 288 C 100 290, 200 240, 283 207" fill="none" stroke="var(--color-brand)" stroke-width="4" stroke-linecap="round" opacity="0" class="transport-highlight highlight-reconciled" />
+        <path d="M 484 374 C 476 330, 396 300, 372 260" fill="none" stroke="var(--color-brand)" stroke-width="4" stroke-linecap="round" opacity="0" class="transport-highlight highlight-student-r" />
       </g>
 
       <!-- ====== CAPFLUX CORE ====== -->
@@ -195,11 +217,13 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
       <path d="M372 312 L372 330" stroke="var(--color-brand)" stroke-width="2" stroke-dasharray="4 3" opacity="0.7" />
       <path d="M366 326 L372 336 L378 326" fill="var(--color-brand)" opacity="0.7" />
 
-      <!-- Connector webs: core → students, core → transactions -->
+      <!-- Connector webs: core → students, core → transactions, core → sync/reconciled -->
       <g class="student-connections" opacity="0.6">
         <path d="M 372 260 C 372 300, 316 336, 316 374" stroke="var(--color-brand)" stroke-width="2.2" stroke-dasharray="5 4" class="account-path" />
         <path d="M 372 260 C 396 300, 476 330, 484 374" stroke="var(--color-brand)" stroke-width="2.2" stroke-dasharray="5 4" class="account-path" />
         <path d="M 464 168 C 512 168, 544 108, 594 88" stroke="var(--color-brand)" stroke-width="2.2" stroke-dasharray="5 4" class="account-path" />
+        <path d="M 470 168 C 520 250, 590 330, 622 358" stroke="var(--color-brand)" stroke-width="2.2" stroke-dasharray="5 4" class="account-path sync-route" />
+        <path d="M 283 207 C 200 240, 100 290, 38 288" stroke="var(--color-brand)" stroke-width="2.2" stroke-dasharray="5 4" class="account-path reconciled-route" />
       </g>
 
       <!-- ====== STUDENT ACCOUNTS ====== -->
@@ -549,39 +573,48 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 /* ====== ANIMATIONS ====== */
 
-/* Transport particles — one shared system. All three ride the same route
-   language (identical keyframes, duration, easing, opacity model) and only
-   differ by path geometry and an intentional stagger so the flows read as
-   payment → sync → reconciliation feeding a single CAPFLUX core. */
+/* ====== TRANSPORT SYSTEM ======
+   One visual language for all five transports:
+     · particles  — r5.5 radial-gradient dot, CSS offset-path motion, shared fade
+     · highlights — 22u brightened segment riding the same route, leading its
+                    particle by 0.1s
+     · base routes — the existing dashed connectors (resting network)
+   Shared tokens: radius, gradient, opacity model, easing, segment length and
+   width. Route variants set ONLY: offset-path geometry, dash tokens, and a
+   duration scaled to the MEASURED route length (Chromium getTotalLength —
+   payment 98u, transactions 155u, student-L 129u, student-R 162u, sync 244u,
+   reconciled 260u) so particle AND highlight speed is uniform (~81.7 user
+   units/s) — a shared 1.2s beat would make the long routes move 2.5× faster.
+   Route-specific durations are the documented normalization required by the
+   spec once browser measurement proves material speed inconsistency. */
 
-/* Circles need no path rotation; offset-rotate:auto also inflates the
-   rendered bounding box on steep routes (measured 15.4/14.3 user units vs
-   the true 11.0). Pinning it keeps the three diameters pixel-identical. */
-.payment-particle,
-.sync-particle,
-.reconciled-particle {
-  offset-rotate: 0deg;
+.transport-particle {
+  offset-rotate: 0deg; /* Chromium auto-rotation inflates steep routes to 15+u; pin for pixel-identical dots */
+  animation: particle-travel var(--d, 1.2s) var(--easing) var(--delay, 0s) infinite;
 }
 
-/* Payment particle — School Payment → CAPFLUX core */
-.payment-particle {
-  offset-path: path('M 180 130 C 220 130, 250 132, 278 132');
-  animation: particle-travel var(--payment-duration) var(--easing) infinite;
+.transport-highlight {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 4;
+  stroke-linecap: round;
+  animation: highlight-travel var(--d, 1.2s) var(--easing) var(--delay, 0s) infinite;
 }
 
-/* Sync particle — Daily sync status → CAPFLUX core */
-.sync-particle {
-  offset-path: path('M 622 358 C 590 330, 520 250, 470 168');
-  animation: particle-travel var(--payment-duration) var(--easing) infinite;
-  animation-delay: calc(var(--payment-duration) * 0.4);
-}
+/* Routes: geometry + stagger + length-derived duration/dash tokens */
+.payment-particle      { --d: 1.2s;  --delay: 1.4s;  offset-path: path('M 180 130 C 220 130, 250 132, 278 132'); }
+.transactions-particle { --d: 1.9s;  --delay: 0s;    offset-path: path('M 594 88 C 544 108, 512 168, 464 168'); }
+.sync-particle         { --d: 2.99s; --delay: 0.35s; offset-path: path('M 622 358 C 590 330, 520 250, 470 168'); }
+.student-particle-l    { --d: 1.58s; --delay: 0.55s; offset-path: path('M 316 374 C 316 336, 372 300, 372 260'); }
+.reconciled-particle   { --d: 3.18s; --delay: 1.05s; offset-path: path('M 38 288 C 100 290, 200 240, 283 207'); }
+.student-particle-r    { --d: 1.99s; --delay: 0.75s; offset-path: path('M 484 374 C 476 330, 396 300, 372 260'); }
 
-/* Reconciled particle — Reconciled live status → CAPFLUX core */
-.reconciled-particle {
-  offset-path: path('M 38 288 C 100 290, 200 240, 283 207');
-  animation: particle-travel var(--payment-duration) var(--easing) infinite;
-  animation-delay: calc(var(--payment-duration) * 0.8);
-}
+.highlight-payment      { --d: 1.2s;  --delay: 1.3s;  --hlt: 76px;  stroke-dasharray: 22px 98px; }
+.highlight-transactions { --d: 1.9s;  --delay: -0.1s; --hlt: 133px; stroke-dasharray: 22px 155px; }
+.highlight-sync         { --d: 2.99s; --delay: 0.25s; --hlt: 222px; stroke-dasharray: 22px 244px; }
+.highlight-student-l    { --d: 1.58s; --delay: 0.45s; --hlt: 107px; stroke-dasharray: 22px 129px; }
+.highlight-reconciled   { --d: 3.18s; --delay: 0.95s; --hlt: 238px; stroke-dasharray: 22px 260px; }
+.highlight-student-r    { --d: 1.99s; --delay: 0.65s; --hlt: 140px; stroke-dasharray: 22px 162px; }
 
 @keyframes particle-travel {
   0% { offset-distance: 0%; opacity: 0; }
@@ -589,6 +622,17 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
   50% { offset-distance: 55%; opacity: 1; }
   58% { offset-distance: 100%; opacity: 1; }
   66%, 100% { offset-distance: 100%; opacity: 0; }
+}
+
+/* The highlight segment is a 22u dash inside a long gap (gap = measured route
+   length). Animated stroke-dashoffset runs the segment from the source to the
+   route end; the fade envelope mirrors the particle so each loop restart is
+   invisible. Route only varies --hlt (route length − segment length). */
+@keyframes highlight-travel {
+  0% { stroke-dashoffset: 0; opacity: 0; }
+  8% { opacity: 0.85; }
+  86% { opacity: 0.85; }
+  100% { stroke-dashoffset: var(--hlt, 0px); opacity: 0; }
 }
 
 /* CAPFLUX core ring pulse */
@@ -735,9 +779,8 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 }
 
 /* ====== REDUCED MOTION ====== */
-.reduced-motion .payment-particle,
-.reduced-motion .sync-particle,
-.reduced-motion .reconciled-particle,
+.reduced-motion .transport-particle,
+.reduced-motion .transport-highlight,
 .reduced-motion .core-ring-outer,
 .reduced-motion .core-ring-inner,
 .reduced-motion .capflux-pulse,
@@ -756,9 +799,8 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
 
 .reduced-motion .verification-badge { opacity: 1; }
 .reduced-motion .verification-check { stroke-dashoffset: 0; }
-.reduced-motion .payment-particle,
-.reduced-motion .sync-particle,
-.reduced-motion .reconciled-particle { opacity: 0; }
+.reduced-motion .transport-particle,
+.reduced-motion .transport-highlight { opacity: 0; }
 .reduced-motion .card-border { stroke: var(--border) !important; stroke-width: 1 !important; }
 .reduced-motion .reconciliation-state { opacity: 1; }
 .reduced-motion .recon-check { stroke-dashoffset: 0; }
@@ -793,11 +835,13 @@ const handleMotionChange = (e: MediaQueryListEvent) => {
     display: none;
   }
 
-  /* The Daily sync source card is hidden on small screens — its transport
-     particle follows so the dot never floats without its anchor element.
-     display:none (not opacity) because the transport keyframe animates
-     opacity, which would otherwise override any static opacity value. */
-  .sync-particle {
+  /* The Daily sync source card is hidden on small screens — its whole transport
+     (particle, route and highlight) follows so no dot/glow floats without its
+     anchor element. display:none (not opacity) because the transport keyframes
+     animate opacity, which would otherwise override any static opacity value. */
+  .sync-particle,
+  .sync-route,
+  .highlight-sync {
     display: none;
   }
 }
