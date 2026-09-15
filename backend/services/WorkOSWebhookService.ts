@@ -26,7 +26,6 @@
 import { supabase } from '../supabaseClient.js';
 import { WorkOS } from '@workos-inc/node';
 import { errorMessage } from '../types/http.js';
-import { revokeSessionId } from '../middleware/requireAuthHybrid.js';
 
 /**
  * Normalized WorkOS user data for internal use.
@@ -435,7 +434,7 @@ export class WorkOSWebhookService {
 
   /**
    * Handle session.revoked event.
-   * Invalidates the user's session by adding the session ID to the revocation cache.
+   * Records the session ID in the durable revocation store for immediate enforcement.
    */
   async handleSessionRevoked(event: WorkOSEvent): Promise<EventProcessingResult> {
     const eventId = event.id;
@@ -449,10 +448,17 @@ export class WorkOSWebhookService {
         return { success: false, eventId, eventType, error: 'Missing user_id in session.revoked event' };
       }
 
-      // Revoke the session ID if present
+      // Revoke the session ID if present using durable database store
       if (sessionId) {
-        revokeSessionId(sessionId);
-        console.log(`[workos-webhook] Revoked session: session_id=${sessionId} for workos_user_id=${workosUserId}`);
+        const { error: revokeErr } = await supabase.rpc('revoke_workos_session', {
+          p_session_id: sessionId,
+          p_source: 'webhook',
+        });
+        if (revokeErr) {
+          console.error('[workos-webhook] Failed to revoke session in database:', errorMessage(revokeErr));
+        } else {
+          console.log(`[workos-webhook] Revoked session in database: session_id=${sessionId} for workos_user_id=${workosUserId}`);
+        }
       } else {
         console.log(`[workos-webhook] Received session.revoked without session ID: workos_user_id=${workosUserId}`);
       }

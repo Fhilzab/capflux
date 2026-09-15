@@ -13,7 +13,7 @@ import onboardingRoutes from './routes/onboarding.js';
 import kycRoutes from './routes/kyc.js';
 import contextRoutes from './routes/context.js';
 import financialAdminRoutes from './routes/financial-admin.js';
-import requireAuthSupabase from './middleware/requireAuthSupabase.js';
+import requireAuthProvider from './middleware/requireAuthProvider.js';
 import ProviderStatusService from './services/ProviderStatusService.js';
 import { validateRuntimeConfiguration } from './services/RuntimeConfiguration.js';
 import providerStatusRoutes from './routes/provider-status.js';
@@ -213,8 +213,8 @@ const PERMITTED_RPC_FUNCTIONS = [
   'get_onboarding_status',
 ];
 
-// RPC proxy endpoint — requires a valid Supabase JWT (Bearer token).
-app.post('/rpc', requireAuthSupabase, async (req: express.Request, res: express.Response) => {
+// RPC proxy endpoint — requires a valid Bearer token per AUTH_PROVIDER_MODE.
+app.post('/rpc', requireAuthProvider, async (req: express.Request, res: express.Response) => {
   if (!hasSupabaseConfig) {
     return res.status(500).json({ error: 'Supabase backend is not configured.' });
   }

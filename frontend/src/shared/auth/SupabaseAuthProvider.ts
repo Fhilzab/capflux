@@ -183,11 +183,11 @@ export class SupabaseAuthProvider extends AuthProvider {
   }
 
   /**
-   * Supabase Auth has no hosted UI to redirect to. Returns null URL so the
+   * Supabase Auth has no hosted UI to redirect to. Returns empty URL so the
    * caller (AuthView) falls back to rendering the inline form components.
    */
-  async initiateAuthKit(mode: 'login' | 'signup'): Promise<AuthResult<{ url: string }>> {
-    return { data: { url: '' }, error: null };
+  async initiateAuthKit(mode: 'login' | 'signup'): Promise<AuthResult<{ url: string; redirect?: boolean }>> {
+    return { data: { url: '', redirect: false }, error: null };
   }
 
   async signInWithProvider(provider: string): Promise<AuthResult<{ session: Session | null; user: User | null; redirect?: boolean }>> {

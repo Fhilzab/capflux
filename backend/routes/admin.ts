@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
+import requireAuthProvider from '../middleware/requireAuthProvider.js';
 import { supabase } from '../supabaseClient.js';
 import { errorMessage } from '../types/http.js';
 import type {
@@ -9,8 +9,10 @@ import type {
 
 const router = Router();
 // Admin management routes (Owner/Admin authorization)
-// Phase 4: Switch to Supabase Auth (JWT Bearer token).
-router.use(requireAuthSupabase);
+// Auth cutover: provider switch (AUTH_PROVIDER_MODE). supabase_only preserves
+// pre-cutover behavior; dual accepts WorkOS AuthKit JWTs during transition;
+// workos_only is the cutover end state.
+router.use(requireAuthProvider);
 
 /**
  * Resolve the caller's school membership from the authenticated session.

@@ -39,11 +39,12 @@ export const AuthService = {
   /**
    * Initiate provider auth flow. With Supabase Auth there is no hosted UI
    * redirect — returns an empty URL so the caller renders inline forms.
+   * With WorkOS AuthKit, redirects to hosted UI and returns { url, redirect: true }.
    */
-  async initiateAuthKit(mode: 'login' | 'signup'): Promise<{ data: { url: string } | null; error: AuthErrorData | null }> {
+  async initiateAuthKit(mode: 'login' | 'signup'): Promise<{ data: { url: string; redirect?: boolean } | null; error: AuthErrorData | null }> {
     try {
       const result = await this._provider.initiateAuthKit(mode);
-      return { data: result.data, error: result.error };
+      return { data: result.data as { url: string; redirect?: boolean } | null, error: result.error };
     } catch (rawError) {
       return { data: null, error: mapProviderError(rawError) };
     }

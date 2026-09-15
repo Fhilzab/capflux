@@ -174,6 +174,139 @@ router.post('/google', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/auth/authkit-url
+ * Returns the WorkOS AuthKit hosted UI authorization URL.
+ * Called by the frontend AuthKitProvider to initiate the AuthKit flow.
+ * Screen hint: 'signin' for login, 'signup' for registration.
+ * Sets a state cookie for CSRF protection on the callback.
+ */
+router.get('/authkit-url', async (req: Request, res: Response) => {
+  const mode = (req.query.mode as string) || 'login';
+  if (!['login', 'signup'].includes(mode)) {
+    return res.status(400).json({ error: 'Invalid mode. Use "login" or "signup".' });
+  }
+
+  try {
+    const { url, state } = authService.getAuthKitAuthorizationUrl(mode as 'login' | 'signup');
+    // Set state cookie for CSRF protection on callback
+    res.cookie(STATE_COOKIE_NAME, state, STATE_COOKIE_OPTIONS);
+    return res.json({ success: true, url, state });
+  } catch (error) {
+    return handleError(res, error, 500);
+  }
+});
+
+/**
+ * GET /api/auth/authkit-callback
+ * Handles the WorkOS AuthKit OAuth callback.
+ * Exchanges the authorization code for tokens.
+ * Verifies state cookie for CSRF protection (like legacy Google OAuth flow).
+ * 
+ * Also handles linking for existing CAPFLUX users (Supabase Auth migration):
+ * - If WorkOS user has no identity link, check legacy_identity_migrations table
+ * - If legacy record exists (PENDING/INVITED), create identity link and mark COMPLETED
+ * - This enables seamless migration for existing users
+ */
+router.get('/authkit-callback', async (req: Request, res: Response) => {
+  const code = req.query.code;
+  const state = req.query.state;
+
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'OAuth callback code is required.' });
+  }
+  if (!state || typeof state !== 'string') {
+    return res.status(400).json({ error: 'State parameter is required.' });
+  }
+
+  // Validate state against HttpOnly cookie (timing-safe comparison)
+  const cookies = sessionService.parseCookieHeader(req.headers.cookie);
+  const cookieState = cookies[STATE_COOKIE_NAME];
+  if (!cookieState || !authService.validateAuthState(state, cookieState)) {
+    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+    return res.status(400).json({ error: 'Invalid or expired authentication state.' });
+  }
+
+  // Consume-once: clear the state cookie immediately after successful validation
+  res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+
+  try {
+    const result = await authService.handleOAuthCallback(code);
+    
+    // Check if WorkOS user has an existing identity link
+    const workosUserId = result.user?.id;
+    if (workosUserId && workosUserId.startsWith('user_')) {
+      const { data: existingLink } = await supabase
+        .from('user_identity_links')
+        .select('capflux_user_id, status')
+        .eq('workos_user_id', workosUserId)
+        .eq('identity_type', 'workos_authkit')
+        .maybeSingle();
+
+      if (!existingLink) {
+        // No identity link - check for legacy migration record
+        const workosEmail = result.user?.email;
+        if (workosEmail) {
+          const { data: legacyRecord } = await supabase
+            .from('legacy_identity_migrations')
+            .select('id, legacy_user_id, status, workos_user_id')
+            .eq('email', workosEmail.toLowerCase())
+            .maybeSingle();
+
+          if (legacyRecord && ['PENDING', 'INVITED', 'CLAIMED'].includes(legacyRecord.status || '')) {
+            // Legacy user migrating to WorkOS - create identity link
+            const capfluxUserId = legacyRecord.legacy_user_id;
+            if (capfluxUserId) {
+              // Verify the legacy user exists in CAPFLUX
+              const { data: capfluxUser } = await supabase
+                .from('users')
+                .select('id')
+                .eq('id', capfluxUserId)
+                .maybeSingle();
+
+              if (capfluxUser) {
+                // Create identity link
+                const { error: linkErr } = await supabase
+                  .from('user_identity_links')
+                  .insert({
+                    capflux_user_id: capfluxUserId,
+                    workos_user_id: workosUserId,
+                    identity_type: 'workos_authkit',
+                    status: 'ACTIVE',
+                    migration_source: 'JIT_VERIFIED_EMAIL',
+                    verified_at: new Date().toISOString(),
+                  });
+
+                if (!linkErr) {
+                  // Update legacy migration record
+                  await supabase
+                    .from('legacy_identity_migrations')
+                    .update({
+                      status: 'COMPLETED',
+                      workos_user_id: workosUserId,
+                      completed_at: new Date().toISOString(),
+                    })
+                    .eq('id', legacyRecord.id);
+
+                  console.log(`[authkit-callback] Linked WorkOS user ${workosUserId} to existing CAPFLUX user ${capfluxUserId} via legacy migration`);
+                } else {
+                  console.error('[authkit-callback] Failed to create identity link:', errorMessage(linkErr));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    await upsertUserRecords(result.user);
+    await setSessionCookie(res, result);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return handleError(res, error, 400);
+  }
+});
+
 router.get('/callback', async (req: Request, res: Response) => {
   const code = req.query.code;
   const state = req.query.state;
@@ -238,7 +371,16 @@ router.post('/signout', requireAuthHybrid, async (req: Request, res: Response) =
     // Try to revoke session using sessionId from either auth method
     const sessionId = req.sessionId;
     if (sessionId) {
+      // Revoke via WorkOS API (triggers session.revoked webhook)
       await sessionService.revokeSession(sessionId);
+      // Also record in durable database store for immediate enforcement
+      const { error: revokeErr } = await supabase.rpc('revoke_workos_session', {
+        p_session_id: sessionId,
+        p_source: 'signout',
+      });
+      if (revokeErr) {
+        console.error('signout: Failed to revoke session in database:', errorMessage(revokeErr));
+      }
     }
     clearSessionCookie(res);
     return res.json({ success: true });

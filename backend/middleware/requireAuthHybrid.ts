@@ -31,46 +31,6 @@ function getJWKS() {
 }
 
 /**
- * In-memory revocation cache for WorkOS session IDs (sid claim from JWT).
- * In production, this should be replaced with Redis or database-backed storage.
- * Format: Map<sessionId, revokedAtTimestamp>
- */
-const revokedSessionCache = new Map<string, number>();
-const REVOCATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-/**
- * Check if a session ID is revoked.
- */
-function isSessionRevoked(sessionId: string): boolean {
-  const revokedAt = revokedSessionCache.get(sessionId);
-  if (!revokedAt) return false;
-
-  // Clean up expired entries
-  if (Date.now() - revokedAt > REVOCATION_CACHE_TTL_MS) {
-    revokedSessionCache.delete(sessionId);
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Mark a session ID as revoked.
- */
-export function revokeSessionId(sessionId: string): void {
-  revokedSessionCache.set(sessionId, Date.now());
-  // Clean up old entries periodically
-  if (revokedSessionCache.size > 10000) {
-    const now = Date.now();
-    for (const [sid, revokedAt] of revokedSessionCache.entries()) {
-      if (now - revokedAt > REVOCATION_CACHE_TTL_MS) {
-        revokedSessionCache.delete(sid);
-      }
-    }
-  }
-}
-
-/**
  * Try to authenticate using WorkOS Bearer token (new JWT flow).
  * Returns the CAPFLUX user if successful, null otherwise.
  */
@@ -101,10 +61,17 @@ async function tryBearerTokenAuth(req: Request): Promise<AuthUser | null> {
     return null;
   }
 
-  // Check if session ID (sid) is revoked
+  // Check if session ID (sid) is revoked using durable database store
   const sessionId = payload.sid;
-  if (sessionId && typeof sessionId === 'string' && isSessionRevoked(sessionId)) {
-    return null;
+  if (sessionId && typeof sessionId === 'string') {
+    const { data: isRevoked, error: revokedErr } = await supabase.rpc('is_workos_session_revoked', {
+      p_session_id: sessionId,
+    });
+    if (revokedErr) {
+      console.error('tryBearerTokenAuth: Failed to check session revocation:', errorMessage(revokedErr));
+    } else if (isRevoked) {
+      return null;
+    }
   }
 
   // Resolve canonical CAPFLUX UUID
@@ -126,7 +93,7 @@ async function tryBearerTokenAuth(req: Request): Promise<AuthUser | null> {
   // Attach WorkOS info to request for downstream use
   req.workosUserId = workosUserId;
   req.capfluxUserId = resolution.capfluxUserId;
-  req.token = token.substring(7).trim(); // The Bearer token
+  req.token = token; // The Bearer token
 
   return appUser as unknown as AuthUser;
 }

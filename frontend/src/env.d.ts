@@ -6,7 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string;
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
-  readonly VITE_WORKOS_CLIENT_ID?: string;
+  /** Auth provider selection: 'workos' (cutover target) | 'supabase' (pre-cutover/rollback). */
+  readonly VITE_AUTH_PROVIDER?: string;
   readonly VITE_GOOGLE_CLIENT_ID?: string;
 }
 

@@ -1,7 +1,7 @@
 import express, { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { supabase } from '../supabaseClient.js';
-import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
+import requireAuthProvider from '../middleware/requireAuthProvider.js';
 import {
   encryptField,
   decryptField,
@@ -40,8 +40,10 @@ const handleError = (res: Response, error: unknown, fallbackStatus = 500): Respo
   return res.status(status).json({ error: message });
 };
 
-// Phase 4: Switch to Supabase Auth (JWT Bearer token).
-router.use(requireAuthSupabase);
+// Auth cutover: provider switch (AUTH_PROVIDER_MODE). supabase_only preserves
+// pre-cutover behavior; dual accepts WorkOS AuthKit JWTs during transition;
+// workos_only is the cutover end state.
+router.use(requireAuthProvider);
 
 /**
  * Get the user's school ID from school_members

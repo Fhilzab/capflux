@@ -14,7 +14,7 @@
  */
 import { Router, Request, Response } from 'express';
 import { supabase } from '../supabaseClient.js';
-import requireAuthSupabase from '../middleware/requireAuthSupabase.js';
+import requireAuthProvider from '../middleware/requireAuthProvider.js';
 import requirePaymentReady from '../middleware/requirePaymentReady.js';
 // Migration fix (approved): the original JavaScript did
 // `import { DVAService }` (the CLASS) and called instance methods on it, so
@@ -25,8 +25,10 @@ import dvaService from '../services/DVAService.js';
 import { errorMessage, errorStatusCode } from '../types/http.js';
 
 const router = Router();
-// Phase 4: Switch to Supabase Auth (JWT Bearer token).
-router.use(requireAuthSupabase);
+// Auth cutover: provider switch (AUTH_PROVIDER_MODE). supabase_only preserves
+// pre-cutover behavior; dual accepts WorkOS AuthKit JWTs during transition;
+// workos_only is the cutover end state.
+router.use(requireAuthProvider);
 
 const handleError = (res: Response, error: unknown, fallbackStatus = 500): Response => {
   const status = errorStatusCode(error) || fallbackStatus;

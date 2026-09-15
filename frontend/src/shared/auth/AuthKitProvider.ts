@@ -232,11 +232,15 @@ export class AuthKitProvider extends AuthProvider {
   }
 
   // === AuthKit Hosted UI ===
-  async initiateAuthKit(mode: 'login' | 'signup'): Promise<AuthResult<{ url: string }>> {
-    const data = await this.request<{ url: string }>(() =>
+  async initiateAuthKit(mode: 'login' | 'signup'): Promise<AuthResult<{ url: string; redirect: boolean }>> {
+    const data = await this.request<{ url: string; state: string }>(() =>
       this.http.get('/auth/authkit-url', { params: { mode } })
     );
-    return { data: { url: data.url }, error: null };
+    if (data.url) {
+      window.location.href = data.url;
+      return { data: { url: data.url, redirect: true }, error: null };
+    }
+    return { data: { url: '', redirect: false }, error: null };
   }
 
   // === AuthProvider ===
@@ -323,7 +327,7 @@ export class AuthKitProvider extends AuthProvider {
     const params: { code: string; state?: string } = { code };
     if (state) params.state = state;
     const data = await this.request<BackendAuthResponse>(() =>
-      this.http.get('/auth/callback', { params })
+      this.http.get('/auth/authkit-callback', { params })
     );
     const session = toSession(data);
     if (session) {
