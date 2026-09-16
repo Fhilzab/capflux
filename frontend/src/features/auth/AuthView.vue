@@ -117,7 +117,7 @@ onMounted(() => {
       </template>
 
       <template #illustration-mobile>
-        <AuthIllustration />
+        <AuthIllustration variant="mobile" />
       </template>
 
       <template #form>

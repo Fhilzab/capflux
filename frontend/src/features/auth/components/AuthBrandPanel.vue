@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import authViewIllustration from '@/assets/authview_illustration.png';
+import AuthIllustration from './AuthIllustration.vue';
 import { runtimeEnvironment } from '../../../shared/environment/runtimeEnvironment';
 import { CmBadge } from '@/components/ui';
 import CapfluxMark from '@/components/branding/CapfluxMark.vue';
@@ -33,12 +33,7 @@ const homeUrl = runtimeEnvironment.isSandbox ? 'https://capflux.vercel.app' : '/
 
     <!-- Illustration -->
     <div class="flex justify-center my-8 lg:my-12">
-      <img
-        :src="authViewIllustration"
-        alt="CAPFLUX infrastructure: School to CAPFLUX to student financial accounts to verification"
-        class="w-full max-w-[560px] h-auto"
-        style="max-width: 90%; max-height: 440px;"
-      />
+      <AuthIllustration />
     </div>
 
     <!-- Trust Message -->
