@@ -74,12 +74,12 @@ watch(
   { immediate: true },
 );
 
-// Supabase Auth: no hosted UI redirect. When entering login or signup mode
-// (and no OAuth callback code is present), we render the inline form
-// components directly instead of redirecting to a provider-hosted page.
-// Skipped entirely in sandbox mode: sandbox auth is persona-first and must
-// never initiate credential or OAuth flows.
-onMounted(async () => {
+// WorkOS AuthKit: no hosted UI redirect for email/password.
+// When entering login or signup mode (and no OAuth callback code is present),
+// we render the inline form components directly instead of redirecting to
+// a provider-hosted page. Skipped entirely in sandbox mode: sandbox auth
+// is persona-first and must never initiate credential or OAuth flows.
+onMounted(() => {
   if (runtimeEnvironment.isSandbox) return;
   const mode = currentMode.value;
   if (mode !== 'login' && mode !== 'signup') return;
@@ -87,9 +87,9 @@ onMounted(async () => {
   const code = getQueryParam(route.query.code);
   if (code) return; // Callback flow is already handled by the watch above.
 
-  // initiateAuthKit returns an empty URL for Supabase Auth — forms render
-  // inline, no redirect needed.
-  await authStore.initiateAuthKit(mode);
+  // initiateAuthKit returns an empty URL for custom WorkOS AuthKit — forms
+  // render inline, no redirect needed.
+  authStore.initiateAuthKit(mode);
 });
 
 // If the URL contains ?provider=google (Google OAuth redirect), auto-click

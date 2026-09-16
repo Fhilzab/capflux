@@ -231,15 +231,11 @@ export class AuthKitProvider extends AuthProvider {
     return this.config;
   }
 
-  // === AuthKit Hosted UI ===
+  // === AuthKit Custom UI ===
+  // Returns empty URL so the caller renders inline forms instead of
+  // redirecting to WorkOS Hosted AuthKit. The custom login/register forms
+  // handle email/password directly via /api/auth/signin and /api/auth/signup.
   async initiateAuthKit(mode: 'login' | 'signup'): Promise<AuthResult<{ url: string; redirect: boolean }>> {
-    const data = await this.request<{ url: string; state: string }>(() =>
-      this.http.get('/auth/authkit-url', { params: { mode } })
-    );
-    if (data.url) {
-      window.location.href = data.url;
-      return { data: { url: data.url, redirect: true }, error: null };
-    }
     return { data: { url: '', redirect: false }, error: null };
   }
 
