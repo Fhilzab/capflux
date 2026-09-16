@@ -11,6 +11,7 @@ import RegisterForm from './components/RegisterForm.vue';
 import EmailVerification from './components/EmailVerification.vue';
 import ForgotPassword from './components/ForgotPassword.vue';
 import ResetPassword from './components/ResetPassword.vue';
+import CmAlert from '../../components/ui/CmAlert.vue';
 import SandboxDemoLogin from '../../sandbox/ui/SandboxDemoLogin.vue';
 import { runtimeEnvironment } from '../../shared/environment/runtimeEnvironment';
 
@@ -124,6 +125,14 @@ onMounted(() => {
         <!-- Sandbox mode is persona-first: no credential forms, no OAuth. -->
         <SandboxDemoLogin v-if="runtimeEnvironment.isSandbox" />
         <div v-else class="w-full">
+          <!-- Global auth error (e.g. OAuth callback failure) -->
+          <CmAlert
+            v-if="authStore.error"
+            variant="danger"
+            title="Authentication error"
+            :description="authStore.error"
+            class="mb-4"
+          />
           <Transition name="auth" mode="out-in">
             <component
               :is="formComponents[currentMode]"

@@ -85,9 +85,11 @@ export class AuthKitProvider extends AuthProvider {
       baseURL: API_BASE_URL,
       timeout: 15000,
       headers: { 'Content-Type': 'application/json' },
-      // Do NOT use withCredentials for the new JWT Bearer token flow.
-      // The WorkOS access token is sent as Authorization header.
-      withCredentials: false,
+      // Required: the backend sets HttpOnly cookies (workos_session, auth_state)
+      // that must be sent with requests and returned on responses for:
+      // - OAuth state validation (auth_state cookie)
+      // - Session persistence (workos_session cookie)
+      withCredentials: true,
     });
 
     // Request interceptor to add Authorization header
@@ -290,13 +292,16 @@ export class AuthKitProvider extends AuthProvider {
     const data = await this.request<BackendAuthResponse & { verificationRequired?: boolean }>(() =>
       this.http.post('/auth/signup', { fullName, email, password })
     );
+
+    // If verification is required, the user object may be null (WorkOS created
+    // the user but verification is pending). Return success without requiring user.
+    if (data.verificationRequired) {
+      const user = toUser(data.user);
+      return { data: { user: user!, verificationRequired: true }, error: null };
+    }
+
     const user = toUser(data.user);
     if (!user) throw new Error('Sign up did not return a valid user');
-
-    // If verification is required, don't store tokens or create session
-    if (data.verificationRequired) {
-      return { data: { user, verificationRequired: true }, error: null };
-    }
 
     // Store tokens if returned (fallback for legacy flow)
     if (data.accessToken && data.refreshToken) {
@@ -330,16 +335,20 @@ export class AuthKitProvider extends AuthProvider {
     const data = await this.request<BackendAuthResponse>(() =>
       this.http.get('/auth/authkit-callback', { params })
     );
-    const session = toSession(data);
-    if (session) {
-      // Store tokens in memory from callback response
-      if (data.accessToken && data.refreshToken) {
-        setMemoryTokens(data.accessToken, data.refreshToken, data.expiresAt);
-      }
-      this.notify('SIGNED_IN', session);
-      return { data: { session, user: session.user }, error: null };
+    if (data.error) {
+      throw new Error(data.error);
     }
-    return { data: { session: null, user: null }, error: null };
+    const session = toSession(data);
+    if (!session) {
+      const detail = !data.accessToken ? 'missing access token' : !data.user ? 'missing user' : 'unknown';
+      throw new Error(`OAuth callback succeeded but session could not be created (${detail})`);
+    }
+    // Store tokens in memory from callback response
+    if (data.accessToken && data.refreshToken) {
+      setMemoryTokens(data.accessToken, data.refreshToken, data.expiresAt);
+    }
+    this.notify('SIGNED_IN', session);
+    return { data: { session, user: session.user }, error: null };
   }
 
   async signOut(): Promise<AuthResult<void>> {

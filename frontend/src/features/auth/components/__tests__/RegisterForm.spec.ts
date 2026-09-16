@@ -186,7 +186,7 @@ describe('RegisterForm', () => {
   });
 
   it('shows WEAK_PASSWORD error from authStore', () => {
-    authStore.error = "Your password does not meet CAPFLUX's security requirements. Use at least 12 characters with at least one number and one symbol.";
+    authStore.error = "Your password does not meet CAPFLUX's security requirements. Use at least 12 characters with uppercase, lowercase, number, and symbol.";
     const wrapper = mount(RegisterForm);
     const alert = wrapper.find('.alert');
     expect(alert.exists()).toBe(true);

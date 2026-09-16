@@ -19,7 +19,7 @@ const ERROR_MESSAGES: Record<AuthErrorCode, string> = {
   RATE_LIMITED: 'Too many attempts. Please try again later.',
   NOT_FOUND: 'The requested resource was not found.',
    VALIDATION_ERROR: 'Please correct the highlighted fields and try again.',
-  WEAK_PASSWORD: 'Your password does not meet CAPFLUX\'s security requirements. Use at least 12 characters with at least one number and one symbol.',
+  WEAK_PASSWORD: 'Your password does not meet CAPFLUX\'s security requirements. Use at least 12 characters with uppercase, lowercase, number, and symbol.',
   BREACHED_PASSWORD: 'This password has appeared in known data breaches and cannot be used. Please choose a different password.',
   SERVER_ERROR: 'CAPFLUX could not complete the request. Please try again.',
   UNKNOWN: 'An unexpected error occurred. Please try again.',

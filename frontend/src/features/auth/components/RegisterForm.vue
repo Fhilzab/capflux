@@ -47,6 +47,12 @@ const canSubmit = computed(() => {
   );
 });
 
+const passwordError = computed(() => {
+  if (!submitted.value || !password.value) return undefined;
+  if (!isPasswordValid.value) return getPasswordError();
+  return undefined;
+});
+
 const fullName = computed(() => {
   return `${firstName.value.trim()} ${lastName.value.trim()}`.trim();
 });
@@ -156,7 +162,7 @@ const switchToLogin = () => {
           id="signup-password"
           :type="showPassword ? 'text' : 'password'"
           v-model="password"
-          :error="submitted && !password ? 'Password is required' : undefined"
+          :error="passwordError"
           :placeholder="getPasswordPlaceholder()"
           autocomplete="new-password"
           input-class="h-[44px]"
