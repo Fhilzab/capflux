@@ -153,7 +153,7 @@ class WorkOSAuthService {
         try {
           await this.um.sendVerificationEmail({ userId: created.user.id });
         } catch (verifyError) {
-          console.warn('Failed to send verification email:', this.errorMessage(verifyError));
+          console.warn('Failed to send verification email:', errorMessage(verifyError));
           // Don't fail the signup if verification email fails
         }
       }
