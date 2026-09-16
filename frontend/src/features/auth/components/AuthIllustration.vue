@@ -4,10 +4,12 @@
  * AuthView raster artwork (school → CAPFLUX core → verified account cards).
  *
  * The artwork is real SVG (inspectable / animatable), not an embedded PNG.
- * The central mark is the canonical CAPFLUX icon: the geometry below is an
- * exact, unaltered copy of `frontend/src/assets/icon.svg` (viewBox 0 0 32 32).
- * Do NOT redraw, simplify, or restyle it here — edit icon.svg instead (don't).
+ * The central mark is the geometric/interlocking CAPFLUX mark, reused
+ * verbatim from CapfluxMark.vue (single source of truth). It is never
+ * animated, rotated, morphed, or distorted.
  */
+import CapfluxMark from '@/components/branding/CapfluxMark.vue';
+
 withDefaults(
   defineProps<{
     /** `panel` = desktop brand-panel sizing, `mobile` = compact sizing. */
@@ -121,11 +123,11 @@ withDefaults(
           <circle class="auth-core-ring" cx="490" cy="320" r="98" />
           <circle class="auth-core-disc" cx="490" cy="320" r="76" />
           <circle class="auth-core-inner" cx="490" cy="320" r="63" />
-          <!-- Canonical CAPFLUX icon: exact copy of frontend/src/assets/icon.svg. Do not edit. -->
-          <svg class="auth-core-icon" x="458" y="288" width="64" height="64" viewBox="0 0 32 32" aria-hidden="true">
-            <rect width="32" height="32" rx="16" fill="#059669" />
-            <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="Inter,system-ui,sans-serif" font-size="18" font-weight="700">C</text>
-          </svg>
+          <!-- AuthView center mark: exact geometric CAPFLUX mark reused from
+               CapfluxMark.vue (single source of truth). Never animated. -->
+          <g transform="translate(458,288)">
+            <CapfluxMark :size="64" variant="plain" class="auth-core-icon" />
+          </g>
         </g>
 
         <!-- ============ ACCOUNT + STATUS CARDS ============ -->
