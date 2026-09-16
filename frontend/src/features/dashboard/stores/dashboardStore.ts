@@ -64,6 +64,18 @@ export interface TrendData {
   count: number;
 }
 
+/** One period (`date`) of the compound financial chart. All money values are
+ *  NGN (naira), as-of the period end: expected (assessed), collected, and
+ *  outstanding (expected − collected within the selected window) plus the
+ *  cumulative reconciliation/collection rate (%). */
+export interface CompoundPoint {
+  date: string;
+  expected: number;
+  collected: number;
+  outstanding: number;
+  reconciliationRate: number;
+}
+
 export const useDashboardStore = defineStore('dashboard', {
   state: () => ({
     loading: false as boolean,
@@ -109,6 +121,11 @@ export const useDashboardStore = defineStore('dashboard', {
       payments: [] as TrendData[],
       byRange: {} as Record<TrendRange, TrendData[]>,
     },
+
+    // Compound financial chart — as-of-period series per range
+    compoundData: {
+      byRange: {} as Record<TrendRange, CompoundPoint[]>,
+    },
   }),
 
   getters: {
@@ -128,6 +145,10 @@ export const useDashboardStore = defineStore('dashboard', {
     // Trend data for the currently selected range
     trendDataByRange: (state): TrendData[] =>
       state.trendData.byRange[state.selectedTrendRange] || [],
+
+    // Compound financial chart series for the currently selected range
+    compoundDataByRange: (state): CompoundPoint[] =>
+      state.compoundData.byRange[state.selectedTrendRange] || [],
 
     // Month-over-month trend for "This Month" metric
     monthlyTrend: (state): { trend: 'up' | 'down' | 'flat'; value: string } | null => {
@@ -309,20 +330,37 @@ export const useDashboardStore = defineStore('dashboard', {
         // Trend data — net PAYMENT credits per day (reversals subtract)
         // Build a signed byDay map where REVERSAL debits are negative.
         const trendByDay = new Map<string, { totalMinor: number; count: number }>();
+        // Per-day financial position (kobo) — assessed (CHARGE debits) and
+        // collected (PAYMENT credits net of REVERSAL debits). Feeds the
+        // compound as-of-period chart series.
+        const positionByDay = new Map<string, { assessedMinor: number; collectedMinor: number }>();
+        const upsertPosition = (key: string, assessedMinor: number, collectedMinor: number) => {
+          const bucket = positionByDay.get(key);
+          if (bucket) {
+            bucket.assessedMinor += assessedMinor;
+            bucket.collectedMinor += collectedMinor;
+          } else {
+            positionByDay.set(key, { assessedMinor, collectedMinor });
+          }
+        };
         for (const e of entries as LedgerEntry[]) {
           const d = this._getEntryDate(e);
           if (!d) continue;
           const key = dayjs(d).format('YYYY-MM-DD');
-          if (this._isPaymentCredit(e)) {
+          if (this._isCharge(e)) {
+            upsertPosition(key, this._getAmountMinor(e), 0);
+          } else if (this._isPaymentCredit(e)) {
             const minor = this._getAmountMinor(e);
             const bucket = trendByDay.get(key);
             if (bucket) { bucket.totalMinor += minor; bucket.count += 1; }
             else trendByDay.set(key, { totalMinor: minor, count: 1 });
+            upsertPosition(key, 0, minor);
           } else if (this._isReversalDebit(e)) {
             const minor = this._getAmountMinor(e);
             const bucket = trendByDay.get(key);
             if (bucket) { bucket.totalMinor -= minor; bucket.count += 0; }
             else trendByDay.set(key, { totalMinor: -minor, count: 0 });
+            upsertPosition(key, 0, -minor);
           }
         }
         // Convert kobo map to NGN TrendData[] for existing range calculators
@@ -354,6 +392,16 @@ export const useDashboardStore = defineStore('dashboard', {
             '6M': this.calculateTrendData(netCreditEntries, '6M'),
             '1Y': this.calculateTrendData(netCreditEntries, '1Y'),
           },
+        };
+
+        // Compound financial chart — as-of-period series (all ranges).
+        // Built from the same per-day kobo position map as the totals above.
+        this.compoundData.byRange = {
+          '7D': this.calculateCompoundSeries(positionByDay, '7D'),
+          '30D': this.calculateCompoundSeries(positionByDay, '30D'),
+          '3M': this.calculateCompoundSeries(positionByDay, '3M'),
+          '6M': this.calculateCompoundSeries(positionByDay, '6M'),
+          '1Y': this.calculateCompoundSeries(positionByDay, '1Y'),
         };
 
       } catch (err) {
@@ -476,6 +524,90 @@ export const useDashboardStore = defineStore('dashboard', {
       }
 
       return [];
+    },
+
+    /**
+     * Analytical windows for the compound chart, oldest → newest, matching the
+     * bucketing used by calculateTrendData (daily 7D/30D, weekly 3M/6M,
+     * monthly 1Y). `end` is the as-of threshold for each period.
+     */
+    _trendCompoundWindows(range: TrendRange): { label: string; end: dayjs.Dayjs }[] {
+      const today = dayjs();
+
+      if (range === '7D' || range === '30D') {
+        const days = range === '7D' ? 7 : 30;
+        const out: { label: string; end: dayjs.Dayjs }[] = [];
+        for (let i = days - 1; i >= 0; i--) {
+          const d = today.subtract(i, 'day');
+          out.push({ label: d.format('MMM D'), end: d });
+        }
+        return out;
+      }
+
+      if (range === '3M' || range === '6M') {
+        const weeks = range === '3M' ? 13 : 26;
+        const out: { label: string; end: dayjs.Dayjs }[] = [];
+        for (let i = weeks - 1; i >= 0; i--) {
+          const weekEnd = today.subtract(i * 7, 'day');
+          const weekStart = weekEnd.subtract(6, 'day');
+          out.push({ label: weekStart.format('MMM D'), end: weekEnd });
+        }
+        return out;
+      }
+
+      if (range === '1Y') {
+        const out: { label: string; end: dayjs.Dayjs }[] = [];
+        for (let i = 11; i >= 0; i--) {
+          const month = today.subtract(i, 'month');
+          out.push({ label: month.format('MMM'), end: month.endOf('month') });
+        }
+        return out;
+      }
+
+      return [];
+    },
+
+    /**
+     * Compound financial series (as-of period end) from a per-day kobo
+     * position map. Each period reports CUMULATIVE expected/collected
+     * (so early assessments like charges posted 46 days ago form the baseline
+     * of every range) — outstanding = expected − collected, and the
+     * reconciliation/collection rate = collected/expected. This is a faithful
+     * "how much was expected, collected, still owed, and reconciled by period
+     * X" view derived from the authoritative ledger; the final point equals
+     * the store totals (totalCharges/totalPayments/netBalance/collectionRate).
+     * Integer kobo arithmetic throughout; naira conversion at the boundary.
+     */
+    calculateCompoundSeries(
+      positionByDay: Map<string, { assessedMinor: number; collectedMinor: number }>,
+      range: TrendRange,
+    ): CompoundPoint[] {
+      const keys = Array.from(positionByDay.keys()).sort();
+      const windows = this._trendCompoundWindows(range);
+
+      let pointer = 0;
+      let assessedRun = 0;
+      let collectedRun = 0;
+      const points: CompoundPoint[] = [];
+
+      for (const w of windows) {
+        const endKey = w.end.format('YYYY-MM-DD');
+        while (pointer < keys.length && keys[pointer] <= endKey) {
+          const day = positionByDay.get(keys[pointer]);
+          if (day) {
+            assessedRun += day.assessedMinor;
+            collectedRun += day.collectedMinor;
+          }
+          pointer += 1;
+        }
+        const expected = Math.round(assessedRun / 100);
+        const collected = Math.round(collectedRun / 100);
+        const outstanding = Math.max(0, expected - collected);
+        const reconciliationRate = assessedRun > 0 ? (collectedRun / assessedRun) * 100 : 0;
+        points.push({ date: w.label, expected, collected, outstanding, reconciliationRate });
+      }
+
+      return points;
     },
   },
 });

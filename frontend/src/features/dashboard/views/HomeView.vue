@@ -150,7 +150,7 @@ onUnmounted(() => {
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2">
             <FeeCollectionTrend
-              :data="dashboardStore.trendDataByRange"
+              :data="dashboardStore.compoundDataByRange"
               :loading="dashboardStore.loading"
               :selected-range="dashboardStore.selectedTrendRange"
               :available-ranges="availableRanges"

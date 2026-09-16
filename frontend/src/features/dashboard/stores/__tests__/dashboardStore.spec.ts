@@ -76,6 +76,12 @@ function ledgerReversal(studentId: string, minor: number) {
   };
 }
 
+const daysAgoIso = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+};
+
 describe('dashboardStore — ledger semantics (V4 regression)', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -252,5 +258,119 @@ describe('dashboardStore — ledger semantics (V4 regression)', () => {
     ];
     const total = store.calculateMonthlyCollections(entries as any, 0);
     expect(total).toBe(600); // 1000 - 400
+  });
+});
+
+describe('dashboardStore — compound financial series (V4 regression)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    (PaymentAccountRepository.getBySchool as any).mockResolvedValue([]);
+    (NotificationRepository.getBySchool as any).mockResolvedValue([]);
+    (GuardianRepository.getBySchool as any).mockResolvedValue([]);
+    (StudentRepository.getStudentsBySchool as any).mockResolvedValue([
+      { id: 's1', first_name: 'A', last_name: 'B', class_name: 'Primary 1', guardian: {} },
+    ]);
+  });
+
+  it('compound last point equals aggregate totals (7D)', async () => {
+    const store = useDashboardStore();
+    // Charges assess 46 days ago; payments land today — all within the series.
+    (LedgerRepository.getEntriesBySchool as any).mockResolvedValue([
+      ledgerCharge('s1', 200000, { occurred_at: daysAgoIso(46), created_at: daysAgoIso(46) }),
+      ledgerPayment('s1', 60000, { occurred_at: daysAgoIso(5), created_at: daysAgoIso(5) }),
+      ledgerPayment('s1', 40000, { occurred_at: daysAgoIso(2), created_at: daysAgoIso(2) }),
+    ]);
+    await store.fetchDashboardData();
+
+    const series = store.compoundData.byRange['7D'];
+    expect(series).toHaveLength(7);
+    const last = series[series.length - 1];
+    expect(last.expected).toBe(store.totalCharges);
+    expect(last.collected).toBe(store.totalPayments);
+    expect(last.outstanding).toBe(store.netBalance);
+    expect(last.reconciliationRate).toBeCloseTo(store.collectionRate);
+  });
+
+  it('cumulative semantics: expected and collected are non-decreasing over the range', async () => {
+    const store = useDashboardStore();
+    (LedgerRepository.getEntriesBySchool as any).mockResolvedValue([
+      ledgerCharge('s1', 200000, { occurred_at: daysAgoIso(46), created_at: daysAgoIso(46) }),
+      ledgerPayment('s1', 60000, { occurred_at: daysAgoIso(5), created_at: daysAgoIso(5) }),
+      ledgerPayment('s1', 80000, { occurred_at: daysAgoIso(2), created_at: daysAgoIso(2) }),
+    ]);
+    await store.fetchDashboardData();
+
+    const series = store.compoundData.byRange['30D'];
+    const expected = series.map((d) => d.expected);
+    const collected = series.map((d) => d.collected);
+    const outstanding = series.map((d) => d.outstanding);
+    // Monotonic non-decreasing
+    for (let i = 1; i < expected.length; i += 1) {
+      expect(expected[i]).toBeGreaterThanOrEqual(expected[i - 1]);
+      expect(collected[i]).toBeGreaterThanOrEqual(collected[i - 1]);
+    }
+    // Outstanding = expected − collected (non-negative), rate in [0,100]-ish
+    for (const d of series) {
+      expect(d.outstanding).toBeGreaterThanOrEqual(0);
+      expect(d.expected - d.collected).toBe(d.outstanding);
+    }
+    // And never NaN
+    for (const d of series) {
+      expect(Number.isFinite(d.reconciliationRate)).toBe(true);
+    }
+    expect(outstanding[0]).toBeGreaterThan(0);
+    expect(collected[0]).toBe(0);
+  });
+
+  it('early assessments appear as the baseline of every range (no fabrication)', async () => {
+    const store = useDashboardStore();
+    // Charge dated 46 days ago, i.e. before the 7D window start.
+    (LedgerRepository.getEntriesBySchool as any).mockResolvedValue([
+      ledgerCharge('s1', 300000, { occurred_at: daysAgoIso(46), created_at: daysAgoIso(46) }),
+      ledgerPayment('s1', 100000, { occurred_at: daysAgoIso(1), created_at: daysAgoIso(1) }),
+    ]);
+    await store.fetchDashboardData();
+
+    for (const range of ['7D', '30D', '3M', '6M', '1Y'] as const) {
+      const series = store.compoundData.byRange[range];
+      expect(series.length).toBeGreaterThan(0);
+      const last = series[series.length - 1];
+      expect(last.expected).toBe(store.totalCharges);
+      // Baseline present from the very first period bar of the 7D daily view.
+      if (range === '7D') {
+        expect(series[0].expected).toBe(store.totalCharges);
+        expect(series[0].collected).toBe(0);
+      }
+    }
+  });
+
+  it('zero assessed → zero money series and zero (not NaN) rate', async () => {
+    const store = useDashboardStore();
+    (LedgerRepository.getEntriesBySchool as any).mockResolvedValue([]);
+    await store.fetchDashboardData();
+
+    const series = store.compoundData.byRange['7D'];
+    expect(series).toHaveLength(7);
+    for (const d of series) {
+      expect(d.expected).toBe(0);
+      expect(d.collected).toBe(0);
+      expect(d.outstanding).toBe(0);
+      expect(d.reconciliationRate).toBe(0);
+    }
+  });
+
+  it('reversals reduce collected within the compound series', async () => {
+    const store = useDashboardStore();
+    (LedgerRepository.getEntriesBySchool as any).mockResolvedValue([
+      ledgerCharge('s1', 200000, { occurred_at: daysAgoIso(46), created_at: daysAgoIso(46) }),
+      ledgerPayment('s1', 100000, { occurred_at: daysAgoIso(5), created_at: daysAgoIso(5) }),
+      { ...ledgerReversal('s1', 40000), occurred_at: daysAgoIso(4), created_at: daysAgoIso(4) },
+    ]);
+    await store.fetchDashboardData();
+    const last = store.compoundData.byRange['7D'][store.compoundData.byRange['7D'].length - 1];
+    expect(last.collected).toBe(store.totalPayments);
+    expect(store.totalPayments).toBe(600); // 1000 - 400
+    expect(last.expected - last.collected).toBe(last.outstanding);
   });
 });

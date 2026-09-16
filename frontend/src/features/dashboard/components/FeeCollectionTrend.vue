@@ -1,21 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { ChartLine, ChartColumn, GitBranch, ArrowDown } from '@lucide/vue';
+import { computed, ref } from 'vue';
 import { useDashboardStore } from '../stores/dashboardStore';
 import ChartCard from '../../../components/ui/ChartCard.vue';
 import CmButton from '../../../components/ui/CmButton.vue';
 import EmptyState from '../../../components/ui/EmptyState.vue';
 import SkeletonLoader from '../../../components/ui/SkeletonLoader.vue';
-import type { TrendRange, TrendData } from '../stores/dashboardStore';
-
-export type ChartMode = 'linear' | 'bar' | 'flow';
+import type { TrendRange, CompoundPoint } from '../stores/dashboardStore';
 
 interface Props {
-  data?: TrendData[];
+  data?: CompoundPoint[];
   loading?: boolean;
   selectedRange?: TrendRange;
   availableRanges?: TrendRange[];
-  modelValue?: ChartMode;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,12 +19,10 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   selectedRange: '7D',
   availableRanges: () => ['7D', '30D', '3M', '6M', '1Y'] as TrendRange[],
-  modelValue: 'linear',
 });
 
 const emit = defineEmits<{
   (e: 'update:selectedRange', value: TrendRange): void;
-  (e: 'update:modelValue', value: ChartMode): void;
 }>();
 
 const rangeLabels: Record<TrendRange, string> = {
@@ -39,114 +33,170 @@ const rangeLabels: Record<TrendRange, string> = {
   '1Y': '1Y',
 };
 
-const chartModes: { value: ChartMode; label: string; icon: any; ariaLabel: string }[] = [
-  { value: 'linear', label: 'Linear', icon: ChartLine, ariaLabel: 'Show fee collection as a linear chart' },
-  { value: 'bar', label: 'Bar', icon: ChartColumn, ariaLabel: 'Show fee collection as a bar chart' },
-  { value: 'flow', label: 'Flow', icon: GitBranch, ariaLabel: 'Show fee collection as a flow chart' },
-];
-
-const internalMode = ref<ChartMode>(props.modelValue);
-const chartMode = computed({
-  get: () => internalMode.value,
-  set: (v: ChartMode) => {
-    internalMode.value = v;
-    emit('update:modelValue', v);
-  },
-});
-
 const dashboardStore = useDashboardStore();
 
-const chartData = computed(() => props.data || []);
-const maxValue = computed(() => Math.max(...chartData.value.map((d) => d.total), 1));
+const series = computed<CompoundPoint[]>(() => props.data || []);
 
-// Responsive chart geometry
-const chartHeight = 180;
+// ---------------------------------------------------------------------------
+// Chart geometry — viewBox is constant; CSS scales responsively (no overflow
+// at any of the supported viewports). Left axis = ₦ (bars), right = % (line).
+// ---------------------------------------------------------------------------
 const chartWidth = 800;
-const padding = { top: 16, right: 16, bottom: 34, left: 52 };
+const chartHeight = 240;
+const padding = { top: 16, right: 48, bottom: 32, left: 56 };
+const chartW = chartWidth - padding.left - padding.right;
+const chartH = chartHeight - padding.top - padding.bottom;
 
-const chartW = computed(() => chartWidth - padding.left - padding.right);
-const chartH = computed(() => chartHeight - padding.top - padding.bottom);
+// ---- Money (left axis) ----
+const maxMoney = computed(() =>
+  Math.max(1, ...series.value.flatMap((d) => [d.expected, d.collected, d.outstanding])),
+);
 
-const point = (i: number): { x: number; y: number } => {
-  const x = padding.left + (i / Math.max(chartData.value.length - 1, 1)) * chartW.value;
-  const y = padding.top + chartH.value - (chartData.value[i].total / maxValue.value) * chartH.value;
-  return { x, y };
-};
+function niceCeil(v: number): number {
+  if (v <= 0) return 1;
+  const pow = 10 ** Math.floor(Math.log10(v));
+  const m = v / pow;
+  const nice = m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10;
+  return nice * pow;
+}
 
-// Hover tooltip
-const hoverIndex = ref<number | null>(null);
+const moneyMax = computed(() => niceCeil(maxMoney.value));
 
-const formatCurrency = (n: number) => `₦${n.toLocaleString()}`;
-
-const formatTick = (n: number) => {
-  if (n >= 1000) return `₦${(n / 1000).toFixed(0)}k`;
-  return `₦${n}`;
-};
-
-const yAxisTicks = computed(() => {
-  const max = maxValue.value;
+const moneyTicks = computed(() => {
   const ticks: number[] = [];
-  const step = max / 4;
-  for (let i = 0; i <= 4; i++) {
-    ticks.push(Math.round((step * i)));
-  }
+  for (let i = 0; i <= 4; i += 1) ticks.push(Math.round((moneyMax.value * i) / 4));
   return ticks;
 });
 
-// Period summary
-const periodTotal = computed(() =>
-  chartData.value.reduce((sum, d) => sum + d.total, 0)
-);
-const periodCount = computed(() =>
-  chartData.value.reduce((sum, d) => sum + d.count, 0)
+const yMoney = (v: number): number =>
+  padding.top + chartH - (Math.min(v, moneyMax.value) / moneyMax.value) * chartH;
+
+// ---- Reconciliation % (right axis) ----
+const percentMax = 100;
+const percentTicks = [0, 25, 50, 75, 100];
+const yPercent = (rate: number): number =>
+  padding.top + chartH - (Math.min(rate, percentMax) / percentMax) * chartH;
+
+// ---- Grouped-bar cluster geometry ----
+const clusterWidth = computed(() => (series.value.length > 0 ? chartW / series.value.length : 0));
+const barW = computed(() => Math.max(3, Math.min(22, clusterWidth.value * 0.16)));
+const gap = computed(() => Math.max(1.5, barW.value * 0.4));
+const xCenter = (i: number): number => padding.left + (i + 0.5) * clusterWidth.value;
+
+// offsets: expected | collected | outstanding
+const barX = (i: number, offset: number): number =>
+  xCenter(i) + offset * (barW.value + gap.value) - barW.value / 2;
+
+const linePoints = computed(() =>
+  series.value.map((d, i) => `${xCenter(i)},${yPercent(d.reconciliationRate)}`).join(' '),
 );
 
-// Label skipping to prevent overlap on narrow screens
+// ---- X labels — skip to prevent overlap on narrow screens ----
 const labelInterval = computed(() => {
-  const n = chartData.value.length;
+  const n = series.value.length;
   if (n <= 8) return 1;
   if (n <= 16) return 2;
   return 3;
 });
 const shouldShowLabel = (i: number): boolean => i % labelInterval.value === 0;
 
-// Flow data — uses canonical financial store values (single source of truth)
+// ---- Formatting ----
+const formatCurrency = (n: number) => `₦${Math.round(n).toLocaleString()}`;
+const formatTick = (n: number) => {
+  if (n >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `₦${Math.round(n / 1_000)}k`;
+  return `₦${n}`;
+};
+const formatRate = (n: number) => `${n.toFixed(1)}%`;
+
+// ---- Source-of-truth period totals (canonical store values) ----
 const flowAssessed = computed(() => dashboardStore.totalCharges);
 const flowCollected = computed(() => dashboardStore.totalPayments);
 const flowOutstanding = computed(() => dashboardStore.netBalance);
 const flowRate = computed(() => dashboardStore.collectionRate);
+
+const lastPeriodLabel = computed(() =>
+  series.value.length > 0 ? series.value[series.value.length - 1].date : '',
+);
+
+const isEmpty = computed(() => series.value.length === 0 || maxMoney.value <= 0);
+
+// ---- Hover / tooltip / keyboard ----
+const hoverIndex = ref<number | null>(null);
+const tooltip = computed(() =>
+  hoverIndex.value === null ? null : series.value[hoverIndex.value],
+);
+const tooltipLeftPct = computed(() => {
+  if (hoverIndex.value === null) return 50;
+  const cx = xCenter(hoverIndex.value);
+  return Math.max(12, Math.min(88, (cx / chartWidth) * 100));
+});
+const tooltipTopPct = computed(() => {
+  if (hoverIndex.value === null) return 0;
+  const d = series.value[hoverIndex.value];
+  const topY = Math.min(yMoney(d.expected), yMoney(d.collected), yMoney(d.outstanding));
+  return Math.max(4, (topY / chartHeight) * 100);
+});
+
+const barOpacityClass = (i: number): string =>
+  hoverIndex.value === null || hoverIndex.value === i ? 'compound-bar--active' : 'compound-bar--dim';
+
+const clusterEls = ref<SVGElement[]>([]);
+const setClusterEl = (el: SVGElement | null, i: number): void => {
+  if (el) clusterEls.value[i] = el;
+};
+const onClusterKeydown = (i: number, event: KeyboardEvent): void => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  event.preventDefault();
+  const next =
+    event.key === 'ArrowRight'
+      ? Math.min(series.value.length - 1, i + 1)
+      : Math.max(0, i - 1);
+  hoverIndex.value = next;
+  clusterEls.value[next]?.focus();
+};
+
+const clusterAriaLabel = (d: CompoundPoint): string =>
+  `${d.date}: expected ${formatCurrency(d.expected)}, collected ${formatCurrency(d.collected)}, ` +
+  `outstanding ${formatCurrency(d.outstanding)}, reconciliation ${formatRate(d.reconciliationRate)}`;
+
+const chartAriaLabel = computed(() =>
+  `Fee collection overview${lastPeriodLabel.value ? ` as of ${lastPeriodLabel.value}` : ''}. ` +
+  `Expected ${formatCurrency(flowAssessed.value)}, collected ${formatCurrency(flowCollected.value)}, ` +
+  `outstanding ${formatCurrency(flowOutstanding.value)}, reconciliation ${formatRate(flowRate.value)}.`,
+);
 </script>
 
 <template>
-  <ChartCard title="Fee Collection Overview" description="Payments received over time">
+  <ChartCard
+    title="Fee Collection Overview"
+    description="Expected vs collected vs outstanding with reconciliation trend — as-of period totals"
+  >
     <div class="flex flex-col h-full">
-      <!-- Controls: chart mode + range selector -->
+      <!-- Controls: legend (series) + range selector -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <!-- Chart mode toggle — Lucide icons, accessible -->
-        <div
-          class="inline-flex rounded-lg border border-divider bg-surface p-1 gap-1"
-          role="group"
-          aria-label="Chart visualization mode"
-          data-testid="chart-mode-toggle"
+        <ul
+          role="list"
+          aria-label="Chart series legend"
+          class="flex flex-wrap items-center gap-x-4 gap-y-1.5"
         >
-          <button
-            v-for="mode in chartModes"
-            :key="mode.value"
-            :data-testid="`chart-mode-${mode.value}`"
-            :aria-label="mode.ariaLabel"
-            :aria-pressed="chartMode === mode.value"
-            :class="[
-              'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-              chartMode === mode.value
-                ? 'bg-brand text-white shadow-sm'
-                : 'text-text-muted hover:bg-card hover:text-text-primary'
-            ]"
-            @click="chartMode = mode.value"
-          >
-            <component :is="mode.icon" class="h-3.5 w-3.5" :stroke-width="2" />
-            {{ mode.label }}
-          </button>
-        </div>
+          <li class="inline-flex items-center gap-1.5" data-testid="compound-legend-expected">
+            <span class="h-2.5 w-2.5 rounded-[2px]" :style="{ backgroundColor: 'var(--color-info)' }" aria-hidden="true"></span>
+            <span class="text-xs font-medium text-text-secondary">Expected</span>
+          </li>
+          <li class="inline-flex items-center gap-1.5" data-testid="compound-legend-collected">
+            <span class="h-2.5 w-2.5 rounded-[2px]" :style="{ backgroundColor: 'var(--color-success)' }" aria-hidden="true"></span>
+            <span class="text-xs font-medium text-text-secondary">Collected</span>
+          </li>
+          <li class="inline-flex items-center gap-1.5" data-testid="compound-legend-outstanding">
+            <span class="h-2.5 w-2.5 rounded-[2px]" :style="{ backgroundColor: 'var(--color-warning)' }" aria-hidden="true"></span>
+            <span class="text-xs font-medium text-text-secondary">Outstanding</span>
+          </li>
+          <li class="inline-flex items-center gap-1.5" data-testid="compound-legend-reconciliation">
+            <span class="block w-3.5 border-t-2 border-dashed" :style="{ borderColor: 'var(--color-brand)' }" aria-hidden="true"></span>
+            <span class="text-xs font-medium text-text-secondary">Reconciliation</span>
+          </li>
+        </ul>
 
         <!-- Date range selector -->
         <div class="flex items-center gap-1">
@@ -169,301 +219,314 @@ const flowRate = computed(() => dashboardStore.collectionRate);
         <SkeletonLoader type="chart" />
       </div>
 
-      <!-- Empty state — shared -->
-      <div v-else-if="chartData.length === 0 && chartMode !== 'flow'" class="py-8">
+      <!-- Empty state -->
+      <div v-else-if="isEmpty" class="py-6">
         <EmptyState
-          title="No payment history yet"
-          description="Payments received will appear here once they are recorded."
+          title="No fee activity yet"
+          description="Assessed fees and payments received will appear here once they are recorded."
           icon="M12 6v6l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </div>
 
-      <!-- LINEAR -->
-      <div v-else-if="chartMode === 'linear'" class="relative w-full h-[160px] sm:h-[200px]" data-testid="chart-linear">
+      <!-- Compound financial chart -->
+      <div
+        v-else
+        class="relative w-full h-[200px] sm:h-[240px]"
+        role="group"
+        :aria-label="chartAriaLabel"
+        data-testid="compound-chart"
+      >
         <svg
           class="w-full h-full"
           :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
           preserveAspectRatio="none"
         >
-          <!-- Grid lines -->
+          <defs>
+            <pattern id="outstandingStripe" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">
+              <rect width="7" height="7" fill="var(--color-warning)" />
+              <line x1="0" y1="0" x2="0" y2="7" stroke="var(--color-background)" stroke-width="2" />
+            </pattern>
+          </defs>
+
+          <!-- Money grid + % guide lines -->
           <g class="text-divider" stroke-width="1">
             <line
-              v-for="tick in yAxisTicks"
-              :key="tick"
+              v-for="tick in moneyTicks"
+              :key="`m${tick}`"
               :x1="padding.left"
-              :y1="padding.top + chartH - (tick / maxValue) * chartH"
+              :y1="yMoney(tick)"
               :x2="chartWidth - padding.right"
-              :y2="padding.top + chartH - (tick / maxValue) * chartH"
+              :y2="yMoney(tick)"
+            />
+          </g>
+          <g class="text-divider" stroke-width="1" stroke-dasharray="3,4" stroke-opacity="0.6">
+            <line
+              v-for="tick in [25, 50]"
+              :key="`p${tick}`"
+              :x1="padding.left"
+              :y1="yPercent(tick)"
+              :x2="chartWidth - padding.right"
+              :y2="yPercent(tick)"
             />
           </g>
 
-          <!-- Y-axis labels -->
+          <!-- Left axis (₦) -->
           <g class="text-text-muted" font-size="10" text-anchor="end">
             <text
-              v-for="tick in yAxisTicks"
-              :key="tick"
+              v-for="tick in moneyTicks"
+              :key="`ml${tick}`"
               :x="padding.left - 8"
-              :y="padding.top + chartH - (tick / maxValue) * chartH + 3"
+              :y="yMoney(tick) + 3"
             >
               {{ formatTick(tick) }}
             </text>
           </g>
 
-          <!-- Area under line -->
-          <path
-            :d="`
-              M${padding.left} ${padding.top + chartH}
-              ${chartData.map((d, i) => {
-                const { x, y } = point(i);
-                return `L${x} ${y}`;
-              }).join(' ')}
-              L${padding.left + chartW} ${padding.top + chartH} Z
-            `"
-            fill="url(#chartGradientLinear)"
-            fill-opacity="0.15"
-          />
-          <defs>
-            <linearGradient id="chartGradientLinear" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="var(--color-brand)" stop-opacity="0.25" />
-              <stop offset="100%" stop-color="var(--color-brand)" stop-opacity="0" />
-            </linearGradient>
-          </defs>
+          <!-- Right axis (%) -->
+          <g class="text-text-muted" font-size="10" text-anchor="start">
+            <text
+              v-for="tick in percentTicks"
+              :key="`pl${tick}`"
+              :x="chartWidth - padding.right + 10"
+              :y="yPercent(tick) + 3"
+            >
+              {{ tick }}%
+            </text>
+          </g>
 
-          <!-- Line -->
-          <polyline
-            :points="chartData.map((d, i) => `${point(i).x},${point(i).y}`).join(' ')"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            class="text-brand"
-          />
-
-          <!-- Data points + hover -->
+          <!-- Reconciliation trend line -->
           <g>
-            <line
-              v-if="hoverIndex !== null"
-              stroke="currentColor"
-              stroke-width="1"
-              stroke-dasharray="3,3"
-              class="text-text-muted/40"
-              :x1="point(hoverIndex!).x"
-              :y1="padding.top"
-              :x2="point(hoverIndex!).x"
-              :y2="padding.top + chartH"
+            <polyline
+              :points="linePoints"
+              fill="none"
+              stroke="var(--color-brand)"
+              stroke-width="2.5"
+              class="compound-line"
+              data-testid="compound-line"
             />
             <circle
-              v-for="(d, i) in chartData"
-              :key="i"
-              :cx="point(i).x"
-              :cy="point(i).y"
-              :r="hoverIndex === i ? 5 : 3"
-              :fill="hoverIndex === i ? 'var(--color-brand)' : 'var(--color-surface)'"
-              stroke="currentColor"
-              stroke-width="2"
-              class="text-brand"
-              @mouseenter="hoverIndex = i"
-              @mouseleave="hoverIndex = null"
+              v-for="(d, i) in series"
+              :key="`dot${i}`"
+              :cx="xCenter(i)"
+              :cy="yPercent(d.reconciliationRate)"
+              r="3.5"
+              fill="var(--color-surface)"
+              stroke="var(--color-brand)"
+              stroke-width="2.5"
+              class="compound-dot"
+              :class="hoverIndex !== null && hoverIndex !== i ? 'compound-bar--dim' : 'compound-bar--active'"
             />
           </g>
 
-          <!-- Tooltip -->
-          <g v-if="hoverIndex !== null" font-size="10" pointer-events="none">
-            <rect
-              :x="point(hoverIndex!).x - 30"
-              :y="point(hoverIndex!).y - 42"
-              width="60"
-              height="32"
-              rx="6"
-              fill="var(--color-card)"
-              stroke="var(--color-border)"
-              stroke-width="1"
-            />
-            <text
-              :x="point(hoverIndex!).x"
-              :y="point(hoverIndex!).y - 30"
-              text-anchor="middle"
-              class="text-text-primary"
-              font-weight="600"
+          <!-- Grouped bars: expected | collected | outstanding -->
+          <g>
+            <g
+              v-for="(d, i) in series"
+              :key="`bars${i}-${d.date}`"
+              :data-testid="`compound-cluster-${i}`"
             >
-              {{ formatCurrency(chartData[hoverIndex!].total) }}
-            </text>
-            <text
-              :x="point(hoverIndex!).x"
-              :y="point(hoverIndex!).y - 16"
-              text-anchor="middle"
-              class="text-text-muted"
-            >
-              {{ chartData[hoverIndex!].count }} payment{{ chartData[hoverIndex!].count !== 1 ? 's' : '' }}
-            </text>
+              <rect
+                v-if="d.expected > 0"
+                :data-testid="`compound-bar-expected-${i}`"
+                :x="barX(i, -1)"
+                :y="yMoney(d.expected)"
+                :width="barW"
+                :height="Math.max(0, padding.top + chartH - yMoney(d.expected))"
+                rx="2"
+                fill="var(--color-info)"
+                :class="['compound-bar', barOpacityClass(i)]"
+                :style="{ '--i': Math.min(i, 8) }"
+              />
+              <rect
+                v-if="d.collected > 0"
+                :data-testid="`compound-bar-collected-${i}`"
+                :x="barX(i, 0)"
+                :y="yMoney(d.collected)"
+                :width="barW"
+                :height="Math.max(0, padding.top + chartH - yMoney(d.collected))"
+                rx="2"
+                fill="var(--color-success)"
+                :class="['compound-bar', barOpacityClass(i)]"
+                :style="{ '--i': Math.min(i, 8) }"
+              />
+              <rect
+                v-if="d.outstanding > 0"
+                :data-testid="`compound-bar-outstanding-${i}`"
+                :x="barX(i, 1)"
+                :y="yMoney(d.outstanding)"
+                :width="barW"
+                :height="Math.max(0, padding.top + chartH - yMoney(d.outstanding))"
+                rx="2"
+                fill="url(#outstandingStripe)"
+                :class="['compound-bar', barOpacityClass(i)]"
+                :style="{ '--i': Math.min(i, 8) }"
+              />
+            </g>
           </g>
 
           <!-- X-axis labels -->
           <g class="text-text-muted" font-size="10" text-anchor="middle">
             <text
-              v-for="(d, i) in chartData"
-              :key="d.date"
-              :x="point(i).x"
-              :y="padding.top + chartH + 16"
+              v-for="(d, i) in series"
+              :key="`x${i}-${d.date}`"
+              :x="xCenter(i)"
+              :y="padding.top + chartH + 18"
             >
               <template v-if="shouldShowLabel(i)">{{ d.date }}</template>
             </text>
           </g>
-        </svg>
-      </div>
 
-      <!-- BAR -->
-      <div v-else-if="chartMode === 'bar'" class="relative w-full h-[160px] sm:h-[200px]" data-testid="chart-bar">
-        <svg
-          class="w-full h-full"
-          :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
-          preserveAspectRatio="none"
-        >
-          <g class="text-divider" stroke-width="1">
-            <line
-              v-for="tick in yAxisTicks"
-              :key="tick"
-              :x1="padding.left"
-              :y1="padding.top + chartH - (tick / maxValue) * chartH"
-              :x2="chartWidth - padding.right"
-              :y2="padding.top + chartH - (tick / maxValue) * chartH"
-            />
-          </g>
-          <g class="text-text-muted" font-size="10" text-anchor="end">
-            <text
-              v-for="tick in yAxisTicks"
-              :key="tick"
-              :x="padding.left - 8"
-              :y="padding.top + chartH - (tick / maxValue) * chartH + 3"
-            >
-              {{ formatTick(tick) }}
-            </text>
-          </g>
-          <!-- Bars — same data as linear -->
+          <!-- Interactive hit areas (mouse + keyboard) -->
           <g>
             <rect
-              v-for="(d, i) in chartData"
-              :key="i"
-              :x="point(i).x - Math.min(18, chartW / chartData.length / 2.5)"
-              :y="padding.top + chartH - (d.total / maxValue) * chartH"
-              :width="Math.min(32, chartW / chartData.length * 0.6)"
-              :height="(d.total / maxValue) * chartH"
-              rx="3"
-              :fill="hoverIndex === i ? 'var(--color-brand)' : 'var(--color-brand)'"
-              :fill-opacity="hoverIndex === i ? 0.95 : 0.75"
-              class="transition-all cursor-pointer"
+              v-for="(d, i) in series"
+              :key="`hit${i}`"
+              :data-testid="`compound-cluster-hit-${i}`"
+              :x="padding.left + i * clusterWidth"
+              :y="padding.top"
+              :width="clusterWidth"
+              :height="chartH"
+              fill="transparent"
+              tabindex="0"
+              role="button"
+              :aria-label="clusterAriaLabel(d)"
+              :ref="(el: SVGElement | null) => setClusterEl(el, i)"
               @mouseenter="hoverIndex = i"
-              @mouseleave="hoverIndex = null"
+              @mouseleave="hoverIndex = hoverIndex === i ? null : hoverIndex"
+              @focus="hoverIndex = i"
+              @blur="hoverIndex = hoverIndex === i ? null : hoverIndex"
+              @keydown="onClusterKeydown(i, $event)"
             />
-          </g>
-          <!-- Tooltip for bar -->
-          <g v-if="hoverIndex !== null" font-size="10" pointer-events="none">
-            <rect
-              :x="point(hoverIndex!).x - 30"
-              :y="padding.top + chartH - (chartData[hoverIndex!].total / maxValue) * chartH - 42"
-              width="60"
-              height="32"
-              rx="6"
-              fill="var(--color-card)"
-              stroke="var(--color-border)"
-              stroke-width="1"
-            />
-            <text
-              :x="point(hoverIndex!).x"
-              :y="padding.top + chartH - (chartData[hoverIndex!].total / maxValue) * chartH - 30"
-              text-anchor="middle"
-              class="text-text-primary"
-              font-weight="600"
-            >
-              {{ formatCurrency(chartData[hoverIndex!].total) }}
-            </text>
-            <text
-              :x="point(hoverIndex!).x"
-              :y="padding.top + chartH - (chartData[hoverIndex!].total / maxValue) * chartH - 16"
-              text-anchor="middle"
-              class="text-text-muted"
-            >
-              {{ chartData[hoverIndex!].count }} payment{{ chartData[hoverIndex!].count !== 1 ? 's' : '' }}
-            </text>
-          </g>
-          <g class="text-text-muted" font-size="10" text-anchor="middle">
-            <text
-              v-for="(d, i) in chartData"
-              :key="d.date"
-              :x="point(i).x"
-              :y="padding.top + chartH + 16"
-            >
-              <template v-if="shouldShowLabel(i)">{{ d.date }}</template>
-            </text>
           </g>
         </svg>
+
+        <!-- Consolidated tooltip -->
+        <div
+          v-if="tooltip"
+          class="compound-tooltip"
+          :style="{ left: tooltipLeftPct + '%', top: tooltipTopPct + '%' }"
+          role="status"
+          aria-live="polite"
+          data-testid="compound-tooltip"
+        >
+          <p class="text-xs font-semibold text-text-primary mb-1.5">{{ tooltip.date }}</p>
+          <ul class="space-y-1">
+            <li class="flex items-center justify-between gap-4">
+              <span class="inline-flex items-center gap-1.5 text-text-muted">
+                <span class="h-2 w-2 rounded-[2px]" :style="{ backgroundColor: 'var(--color-info)' }" aria-hidden="true"></span>
+                Expected
+              </span>
+              <span class="font-mono font-medium text-text-primary">{{ formatCurrency(tooltip.expected) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-4">
+              <span class="inline-flex items-center gap-1.5 text-text-muted">
+                <span class="h-2 w-2 rounded-[2px]" :style="{ backgroundColor: 'var(--color-success)' }" aria-hidden="true"></span>
+                Collected
+              </span>
+              <span class="font-mono font-medium text-text-primary">{{ formatCurrency(tooltip.collected) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-4">
+              <span class="inline-flex items-center gap-1.5 text-text-muted">
+                <span class="h-2 w-2 rounded-[2px]" :style="{ backgroundColor: 'var(--color-warning)' }" aria-hidden="true"></span>
+                Outstanding
+              </span>
+              <span class="font-mono font-medium text-text-primary">{{ formatCurrency(tooltip.outstanding) }}</span>
+            </li>
+            <li class="flex items-center justify-between gap-4 border-t border-divider pt-1 mt-1">
+              <span class="inline-flex items-center gap-1.5 text-text-muted">
+                <span class="block w-3 border-t-2 border-dashed" :style="{ borderColor: 'var(--color-brand)' }" aria-hidden="true"></span>
+                Reconciliation
+              </span>
+              <span class="font-mono font-medium text-text-primary">{{ formatRate(tooltip.reconciliationRate) }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Screen-reader data summary -->
+        <p class="sr-only">{{ chartAriaLabel }}</p>
       </div>
 
-      <!-- FLOW — financial pipeline, uses actual store values -->
-      <div v-else-if="chartMode === 'flow'" class="py-2" data-testid="chart-flow">
-        <div class="grid grid-cols-1 gap-2">
-          <!-- Assessed -->
-          <div class="flex flex-col items-stretch">
-            <div class="flex items-center justify-between rounded-lg border border-divider bg-card px-4 py-3">
-              <div>
-                <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Fees Assessed</p>
-                <p class="text-lg font-bold font-mono text-text-primary" data-testid="flow-assessed">{{ formatCurrency(flowAssessed) }}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-xs text-text-muted">100%</p>
-                <div class="mt-1 h-1.5 w-24 rounded-full bg-divider overflow-hidden">
-                  <div class="h-full bg-brand rounded-full" style="width: 100%"></div>
-                </div>
-              </div>
-            </div>
-            <div class="flex justify-center py-1">
-              <ArrowDown class="h-4 w-4 text-text-muted" :stroke-width="2" aria-hidden="true" />
-            </div>
-            <!-- Collected -->
-            <div class="flex items-center justify-between rounded-lg border border-success/20 bg-success/5 px-4 py-3">
-              <div>
-                <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Collected</p>
-                <p class="text-lg font-bold font-mono text-success" data-testid="flow-collected">{{ formatCurrency(flowCollected) }}</p>
-                <p class="text-xs text-text-muted">Payments Received</p>
-              </div>
-              <div class="text-right">
-                <p class="text-xs font-semibold text-success" data-testid="flow-rate">{{ flowRate.toFixed(1) }}%</p>
-                <div class="mt-1 h-1.5 w-24 rounded-full bg-divider overflow-hidden">
-                  <div class="h-full bg-success rounded-full" :style="{ width: `${Math.min(flowRate, 100)}%` }"></div>
-                </div>
-              </div>
-            </div>
-            <div class="flex justify-center py-1">
-              <ArrowDown class="h-4 w-4 text-text-muted" :stroke-width="2" aria-hidden="true" />
-            </div>
-            <!-- Outstanding -->
-            <div class="flex items-center justify-between rounded-lg border border-warning/20 bg-warning/5 px-4 py-3">
-              <div>
-                <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Outstanding</p>
-                <p class="text-lg font-bold font-mono text-warning" data-testid="flow-outstanding">{{ formatCurrency(flowOutstanding) }}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-xs font-semibold text-warning">{{ (100 - flowRate).toFixed(1) }}%</p>
-                <div class="mt-1 h-1.5 w-24 rounded-full bg-divider overflow-hidden">
-                  <div class="h-full bg-warning rounded-full" :style="{ width: `${Math.max(0, 100 - flowRate)}%` }"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <p class="text-xs text-text-muted text-center mt-2">
-            Assessed ₦{{ flowAssessed.toLocaleString() }} = Collected ₦{{ flowCollected.toLocaleString() }} + Outstanding ₦{{ flowOutstanding.toLocaleString() }}
+      <!-- Period summary — canonical financial values (single source of truth) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-divider mt-4">
+        <div>
+          <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Expected</p>
+          <p class="text-sm font-bold font-mono text-text-primary mt-0.5" data-testid="compound-summary-expected">
+            {{ formatCurrency(flowAssessed) }}
+          </p>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Collected</p>
+          <p class="text-sm font-bold font-mono text-success mt-0.5" data-testid="compound-summary-collected">
+            {{ formatCurrency(flowCollected) }}
+          </p>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Outstanding</p>
+          <p class="text-sm font-bold font-mono text-warning mt-0.5" data-testid="compound-summary-outstanding">
+            {{ formatCurrency(flowOutstanding) }}
+          </p>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Reconciliation</p>
+          <p class="text-sm font-bold font-mono text-brand mt-0.5" data-testid="compound-summary-reconciliation">
+            {{ formatRate(flowRate) }}
           </p>
         </div>
       </div>
-
-      <!-- Period summary — unchanged, shared across modes (except flow adds pipeline context) -->
-      <div class="flex items-center justify-between pt-4 border-t border-divider mt-4">
-        <span class="text-xs text-text-muted">
-          Period total • {{ periodCount }} payments
-        </span>
-        <span class="text-lg font-semibold font-mono text-text-primary">
-          {{ formatCurrency(periodTotal) }}
-        </span>
-      </div>
+      <p class="text-xs text-text-muted mt-2">
+        As-of period totals{{ lastPeriodLabel ? ` through ${lastPeriodLabel}` : '' }}: assessed ₦{{ flowAssessed.toLocaleString() }}
+        = collected ₦{{ flowCollected.toLocaleString() }} + outstanding ₦{{ flowOutstanding.toLocaleString() }}
+      </p>
     </div>
   </ChartCard>
 </template>
+
+<style scoped>
+/* Restrained motion: bars/dots reveal with a short, eased opacity fade; hover
+   dims non-focused series. All motion is disabled under prefers-reduced-motion. */
+.compound-bar,
+.compound-dot,
+.compound-line {
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes compoundFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.compound-bar {
+  animation: compoundFade 300ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 18ms);
+  opacity: 0.9;
+}
+
+.compound-bar--active { opacity: 1; }
+.compound-bar--dim { opacity: 0.35; }
+
+.compound-tooltip {
+  position: absolute;
+  z-index: 20;
+  width: 178px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-card) 96%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compound-bar,
+  .compound-dot,
+  .compound-line {
+    transition: none;
+  }
+  .compound-bar {
+    animation: none;
+  }
+}
+</style>
