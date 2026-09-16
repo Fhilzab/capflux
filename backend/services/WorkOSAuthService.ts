@@ -330,11 +330,12 @@ class WorkOSAuthService {
   /**
    * Build the AuthKit Hosted UI authorization URL.
    * Uses WorkOS AuthKit (provider: 'authkit') with a screenHint of
-   * 'signin' or 'signup' to direct the WorkOS hosted UI to the
-   * correct screen.
+   * 'sign-in' or 'sign-up' to direct the WorkOS hosted UI to the
+   * correct screen (hyphenated values are what AuthKit expects;
+   * 'signin'/'signup' are rejected to the SSO error page).
    */
   getAuthKitAuthorizationUrl(mode: 'login' | 'signup', state?: string): { url: string; state: string } {
-    const screenHint = mode === 'signup' ? 'signup' : 'signin';
+    const screenHint = mode === 'signup' ? 'sign-up' : 'sign-in';
     const redirectUri =
       process.env.WORKOS_AUTHKIT_REDIRECT_URI ||
       `http://localhost:5173/auth/callback`;

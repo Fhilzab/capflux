@@ -198,16 +198,16 @@ describe('AuthKit state generation', () => {
 describe('AuthKit authorization URL generation', () => {
   const svc = new WorkOSAuthService();
 
-  test('login generates URL with provider=authkit and screen_hint=signin', () => {
+  test('login generates URL with provider=authkit and screen_hint=sign-in', () => {
     const { url, state } = svc.getAuthKitAuthorizationUrl('login');
     assert.ok(url.includes('provider=authkit'), 'URL must contain provider=authkit');
-    assert.ok(url.includes('screen_hint=signin'), 'URL must contain screen_hint=signin');
+    assert.ok(url.includes('screen_hint=sign-in'), 'URL must contain screen_hint=sign-in');
   });
 
-  test('signup generates URL with provider=authkit and screen_hint=signup', () => {
+  test('signup generates URL with provider=authkit and screen_hint=sign-up', () => {
     const { url, state } = svc.getAuthKitAuthorizationUrl('signup');
     assert.ok(url.includes('provider=authkit'), 'URL must contain provider=authkit');
-    assert.ok(url.includes('screen_hint=signup'), 'URL must contain screen_hint=signup');
+    assert.ok(url.includes('screen_hint=sign-up'), 'URL must contain screen_hint=sign-up');
   });
 
   test('URL contains the generated state parameter', () => {

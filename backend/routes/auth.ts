@@ -178,7 +178,7 @@ router.post('/google', async (req: Request, res: Response) => {
  * GET /api/auth/authkit-url
  * Returns the WorkOS AuthKit hosted UI authorization URL.
  * Called by the frontend AuthKitProvider to initiate the AuthKit flow.
- * Screen hint: 'signin' for login, 'signup' for registration.
+ * Mode 'login'|'signup' selects the WorkOS screen_hint 'sign-in'|'sign-up'.
  * Sets a state cookie for CSRF protection on the callback.
  */
 router.get('/authkit-url', async (req: Request, res: Response) => {
