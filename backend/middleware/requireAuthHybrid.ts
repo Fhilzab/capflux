@@ -108,6 +108,24 @@ async function tryCookieAuth(req: Request): Promise<AuthUser | null> {
 
   if (!session || !session.user?.id) return null;
 
+  // Enforce revocation on the sealed-cookie path as well (durable store).
+  // On infrastructure error the check is logged and authentication continues;
+  // enforcement additionally requires migration 202609150001 applied.
+  if (session.sessionId) {
+    try {
+      const { data: isRevoked, error: revokedErr } = await supabase.rpc('is_workos_session_revoked', {
+        p_session_id: session.sessionId,
+      });
+      if (revokedErr) {
+        console.error('tryCookieAuth: Failed to check session revocation:', errorMessage(revokedErr));
+      } else if (isRevoked) {
+        return null;
+      }
+    } catch (error) {
+      console.error('tryCookieAuth: Failed to check session revocation:', errorMessage(error));
+    }
+  }
+
   req.sessionId = session.sessionId || null;
   req.organizationId = session.organizationId || null;
   req.authenticationMethod = session.authenticationMethod || null;
