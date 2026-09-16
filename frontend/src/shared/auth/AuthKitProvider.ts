@@ -286,14 +286,19 @@ export class AuthKitProvider extends AuthProvider {
     return { data: { session, user: session.user }, error: null };
   }
 
-  async signUpWithName(email: string, password: string, fullName: string): Promise<AuthResult<{ user: User }>> {
-    const data = await this.request<BackendAuthResponse>(() =>
+  async signUpWithName(email: string, password: string, fullName: string): Promise<AuthResult<{ user: User; verificationRequired: boolean }>> {
+    const data = await this.request<BackendAuthResponse & { verificationRequired?: boolean }>(() =>
       this.http.post('/auth/signup', { fullName, email, password })
     );
     const user = toUser(data.user);
     if (!user) throw new Error('Sign up did not return a valid user');
 
-    // Store tokens if returned
+    // If verification is required, don't store tokens or create session
+    if (data.verificationRequired) {
+      return { data: { user, verificationRequired: true }, error: null };
+    }
+
+    // Store tokens if returned (fallback for legacy flow)
     if (data.accessToken && data.refreshToken) {
       setMemoryTokens(data.accessToken, data.refreshToken, data.expiresAt);
     }
@@ -302,7 +307,7 @@ export class AuthKitProvider extends AuthProvider {
     if (session) {
       this.notify('SIGNED_UP', session);
     }
-    return { data: { user }, error: null };
+    return { data: { user, verificationRequired: false }, error: null };
   }
 
   async signUp(email: string, password: string): Promise<AuthResult<{ user: User }>> {
@@ -312,7 +317,7 @@ export class AuthKitProvider extends AuthProvider {
   async signInWithProvider(provider: string): Promise<AuthResult<{ session: Session | null; user: User | null; redirect?: boolean }>> {
     if (provider !== 'google') throw new Error(`Provider ${provider} is not supported`);
     const data = await this.request<BackendAuthResponse>(() =>
-      this.http.post('/auth/google', { redirectUri: `${window.location.origin}/auth?provider=google` })
+      this.http.post('/auth/google', { redirectUri: `${window.location.origin}/auth/callback` })
     );
     if (!data.url) throw new Error('Google sign in did not return an authorization URL');
     window.location.href = data.url;

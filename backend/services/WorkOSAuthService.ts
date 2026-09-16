@@ -85,6 +85,7 @@ class WorkOSAuthService {
   clientId: string;
   clientSecret: string | undefined;
   redirectUri: string | undefined;
+  authKitRedirectUri: string | undefined;
 
   /** Live lookup so runtime monkey-patching (tests) keeps working. */
   private get um(): UserManagementApi {
@@ -107,7 +108,10 @@ class WorkOSAuthService {
     this.workos = new WorkOS(apiKey, workosOpts);
     this.clientId = clientId;
     this.clientSecret = clientSecret;
+    // Legacy Google OAuth redirect URI (kept for backwards compatibility)
     this.redirectUri = process.env.WORKOS_REDIRECT_URI || undefined;
+    // AuthKit / Google OAuth callback URL (production: https://capflux.vercel.app/auth/callback)
+    this.authKitRedirectUri = process.env.WORKOS_AUTHKIT_REDIRECT_URI || undefined;
   }
 
   /**
@@ -128,9 +132,11 @@ class WorkOSAuthService {
   }
 
   /**
-   * Create a user with email/password + full name, then authenticate.
+   * Create a user with email/password + full name.
+   * Does NOT authenticate - user must verify email first.
+   * Sends verification email automatically.
    */
-  async signUpWithPassword(email: string, password: string, fullName: string): Promise<WorkosAuthResult> {
+  async signUpWithPassword(email: string, password: string, fullName: string): Promise<{ success: boolean; user: WorkosFormattedUser | null }> {
     try {
       const [firstName = '', ...lastNameParts] = (fullName || '').trim().split(' ');
 
@@ -139,17 +145,23 @@ class WorkOSAuthService {
         password,
         firstName,
         lastName: lastNameParts.join(' ') || '',
-        emailVerified: true,
+        emailVerified: false,
       });
 
-      // Authenticate to obtain a session for the newly created user
-      const response = await this.um.authenticateWithPassword({
-        clientId: this.clientId,
-        email,
-        password,
-      });
+      // Send verification email
+      if (created.user?.id) {
+        try {
+          await this.um.sendVerificationEmail({ userId: created.user.id });
+        } catch (verifyError) {
+          console.warn('Failed to send verification email:', this.errorMessage(verifyError));
+          // Don't fail the signup if verification email fails
+        }
+      }
 
-      return this.formatAuthResponse(response, created.user);
+      return {
+        success: true,
+        user: this.formatUser(created.user),
+      };
     } catch (error) {
       throw this.transformError(error, 'Failed to sign up');
     }
@@ -294,15 +306,22 @@ class WorkOSAuthService {
 
   /**
    * Build the OAuth authorization URL for a provider (e.g. google).
+   * Generates a cryptographically random state for CSRF protection.
    */
-  getOAuthAuthorizationUrl(provider: string, redirectUri?: string): string {
+  getOAuthAuthorizationUrl(provider: string, redirectUri?: string): { url: string; state: string } {
     try {
-      return this.um.getAuthorizationUrl({
+      const state = this.generateAuthState();
+      const resolvedRedirectUri = redirectUri || this.authKitRedirectUri || this.redirectUri;
+      if (!resolvedRedirectUri) {
+        throw new Error('No redirect URI configured for OAuth');
+      }
+      const url = this.um.getAuthorizationUrl({
         clientId: this.clientId,
-        redirectUri: redirectUri || this.redirectUri,
+        redirectUri: resolvedRedirectUri,
         provider,
-        state: 'capflux',
+        state,
       });
+      return { url, state };
     } catch (error) {
       throw this.transformError(error, `Failed to get ${provider} authorization URL`);
     }

@@ -9,6 +9,7 @@ import CmAlert from '../../../components/ui/CmAlert.vue';
 import GoogleIcon from '../../../components/ui/GoogleIcon.vue';
 import { Eye, EyeOff, ChevronRight } from '@lucide/vue';
 import type { AuthState } from '../useAuthState';
+import { validatePassword, getPasswordPlaceholder, getPasswordError } from '../../../shared/auth/passwordValidation';
 
 interface Emits {
   (e: 'switch-state', state: AuthState): void;
@@ -26,13 +27,14 @@ const agreeToTerms = ref(false);
 const showPassword = ref(false);
 const submitted = ref(false);
 
-// Basic UX validation only — Supabase is the authority on password policy.
+// Basic UX validation only — WorkOS is the authority on password policy.
 const isEmailValid = computed(() => {
   const e = email.value.trim();
   return e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 });
 
-const isPasswordValid = computed(() => password.value.length >= 8);
+const passwordValidation = computed(() => validatePassword(password.value));
+const isPasswordValid = computed(() => passwordValidation.value.isValid);
 
 const canSubmit = computed(() => {
   return (
@@ -64,7 +66,13 @@ const handleSignUp = async () => {
     return;
   }
 
-  // On success, redirect to dashboard
+  // If verification is required, go to verify-email page
+  if (response?.data?.verificationRequired) {
+    router.push({ name: 'Auth', query: { mode: 'verify-email', email: email.value.trim() } });
+    return;
+  }
+
+  // On success (legacy flow), redirect to dashboard
   router.push({ name: 'Home' });
 };
 
@@ -149,7 +157,7 @@ const switchToLogin = () => {
           :type="showPassword ? 'text' : 'password'"
           v-model="password"
           :error="submitted && !password ? 'Password is required' : undefined"
-          placeholder="At least 8 characters"
+          :placeholder="getPasswordPlaceholder()"
           autocomplete="new-password"
           input-class="h-[44px]"
         >

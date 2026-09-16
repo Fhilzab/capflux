@@ -93,7 +93,7 @@ export const AuthService = {
   /**
    * Sign up with email and password
    */
-  async signUp(email: string, password: string, fullName?: string): Promise<{ data: { user: User | null }; error: AuthErrorData | null }> {
+  async signUp(email: string, password: string, fullName?: string): Promise<{ data: { user: User | null; verificationRequired?: boolean }; error: AuthErrorData | null }> {
     try {
       const result = fullName
         ? await this._provider.signUpWithName(email, password, fullName)
@@ -101,12 +101,13 @@ export const AuthService = {
       return {
         data: {
           user: result.data?.user ?? null,
+          verificationRequired: result.data?.verificationRequired ?? false,
         },
         error: result.error,
       };
     } catch (rawError) {
       return {
-        data: { user: null },
+        data: { user: null, verificationRequired: false },
         error: mapProviderError(rawError),
       };
     }

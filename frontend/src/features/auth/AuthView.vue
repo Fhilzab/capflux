@@ -129,6 +129,7 @@ onMounted(() => {
               :is="formComponents[currentMode]"
               :key="currentMode"
               @switch-state="transition"
+              :email="currentMode === 'verify-email' ? getQueryParam(route.query.email) : undefined"
             />
           </Transition>
         </div>

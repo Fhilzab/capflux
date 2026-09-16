@@ -149,25 +149,28 @@ router.post('/signup', async (req: Request, res: Response) => {
 
   try {
     const result = await authService.signUpWithPassword(email as string, password as string, fullName as string);
-    await upsertUserRecords(result.user);
-    await setSessionCookie(res, result);
-    return res.json({ success: true, ...result });
+    if (result.user) {
+      await upsertUserRecords(result.user);
+    }
+    // No session cookie - user must verify email first
+    return res.json({ success: true, user: result.user, verificationRequired: true });
   } catch (error) {
     return handleError(res, error, 400);
   }
 });
 
 router.post('/google', async (req: Request, res: Response) => {
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  const { redirectUri } = body;
-  const redirect = (redirectUri as string) || process.env.WORKOS_REDIRECT_URI;
+  // Use the AuthKit callback URL for Google OAuth (production: https://capflux.vercel.app/auth/callback)
+  const redirectUri = process.env.WORKOS_AUTHKIT_REDIRECT_URI;
 
-  if (!redirect) {
-    return res.status(500).json({ error: 'WORKOS_REDIRECT_URI is not configured.' });
+  if (!redirectUri) {
+    return res.status(500).json({ error: 'WORKOS_AUTHKIT_REDIRECT_URI is not configured.' });
   }
 
   try {
-    const url = authService.getOAuthAuthorizationUrl('google', redirect);
+    const { url, state } = authService.getOAuthAuthorizationUrl('google', redirectUri);
+    // Set state cookie for CSRF protection on callback (same as AuthKit flow)
+    res.cookie(STATE_COOKIE_NAME, state, STATE_COOKIE_OPTIONS);
     return res.json({ success: true, url });
   } catch (error) {
     return handleError(res, error, 500);

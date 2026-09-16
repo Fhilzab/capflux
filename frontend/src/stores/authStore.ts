@@ -186,6 +186,11 @@ export const useAuthStore = defineStore('auth', {
         return { error };
       }
 
+      // If email verification is required, redirect to verify-email page
+      if (data?.verificationRequired) {
+        return { data: { verificationRequired: true }, error: null };
+      }
+
       return { data, error: null };
     },
 

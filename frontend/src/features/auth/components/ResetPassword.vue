@@ -6,6 +6,7 @@ import CmButton from '../../../components/ui/CmButton.vue';
 import CmInput from '../../../components/ui/CmInput.vue';
 import CmAlert from '../../../components/ui/CmAlert.vue';
 import type { AuthState } from '../useAuthState';
+import { validatePassword, getPasswordError } from '../../../shared/auth/passwordValidation';
 
 interface Emits {
   (e: 'switch-state', state: AuthState): void;
@@ -28,7 +29,8 @@ onMounted(() => {
   }
 });
 
-const isPasswordValid = computed(() => newPassword.value.length >= 8);
+const passwordValidation = computed(() => validatePassword(newPassword.value));
+const isPasswordValid = computed(() => passwordValidation.value.isValid);
 
 const passwordsMatch = computed(() => {
   return confirmPassword.value && newPassword.value.length > 0 &&
@@ -89,7 +91,7 @@ const switchToLogin = () => {
           id="reset-password"
           type="password"
           v-model="newPassword"
-          :error="submitted && !isPasswordValid ? 'Password must be at least 8 characters' : undefined"
+          :error="submitted && !isPasswordValid ? getPasswordError() : undefined"
           placeholder="••••••••"
           autocomplete="new-password"
           input-class="h-[44px]"
