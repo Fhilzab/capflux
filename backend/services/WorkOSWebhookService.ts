@@ -158,10 +158,14 @@ export class WorkOSWebhookService {
   }
 
   /**
-   * Provision a new CAPFLUX user from WorkOS identity using atomic database RPC.
+   * Provision a new CAPFLUX user from WorkOS identity using application-level logic.
    *
-   * This creates the user, profile, and identity link in a single transaction.
-   * Only called by handleUserCreated when no existing identity is found.
+   * Creates the user, profile, and identity link without relying on database RPCs.
+   * This reuses the same provisioning logic as the auth routes (authkit-callback, signin).
+   *
+   * IMPORTANT: This method does NOT perform email-based lookups.
+   * If the email already exists (unique constraint violation), the error is logged
+   * and the auth routes will JIT-provision the identity on the user's next login.
    *
    * @param userData - Normalized WorkOS user data
    * @returns CAPFLUX canonical UUID
@@ -170,22 +174,64 @@ export class WorkOSWebhookService {
   private async provisionCAPFLUXUserFromWorkOS(userData: WorkOSUserData): Promise<string> {
     console.log(`[workos-webhook] Provisioning new CAPFLUX user for WorkOS ID: ${userData.id}`);
 
-    const { data: capfluxUserId, error: provisionError } = await supabase.rpc('provision_workos_user', {
-      p_workos_user_id: userData.id,
-      p_email: userData.email,
-      p_first_name: userData.firstName,
-      p_last_name: userData.lastName,
-      p_email_verified: userData.emailVerified,
-      p_profile_picture_url: userData.profilePictureUrl,
-    });
+    // Create new CAPFLUX user — email is used only as a unique constraint,
+    // NOT for identity resolution. If the email already exists (unique constraint
+    // violation), the auth routes will JIT-provision on the user's next login.
+    const { data: newUser, error: createErr } = await supabase
+      .from('users')
+      .insert({
+        email: userData.email.toLowerCase(),
+        auth_provider: 'workos',
+        email_verified: userData.emailVerified,
+      })
+      .select('id')
+      .single();
 
-    if (provisionError) {
-      console.error('[workos-webhook] Failed to provision CAPFLUX user:', errorMessage(provisionError));
-      throw new Error(`Failed to provision CAPFLUX user: ${errorMessage(provisionError)}`);
+    if (createErr) {
+      // Unique constraint violation — user with this email already exists.
+      // The auth routes will handle JIT provisioning on next login.
+      // Do NOT perform email-based lookups here (security requirement).
+      if (createErr.code === '23505') {
+        throw new Error('Email already exists — will JIT-provision on next login');
+      }
+      throw new Error(`Failed to create CAPFLUX user: ${errorMessage(createErr)}`);
     }
 
+    const capfluxUserId = newUser?.id || null;
+
     if (!capfluxUserId) {
-      throw new Error('Provisioning RPC returned no UUID');
+      throw new Error('Failed to obtain CAPFLUX user ID');
+    }
+
+    // Create user profile
+    const fullName = `${userData.firstName} ${userData.lastName}`.trim();
+    await supabase
+      .from('user_profiles')
+      .insert({
+        user_id: capfluxUserId,
+        full_name: fullName || null,
+        avatar_url: userData.profilePictureUrl || null,
+      });
+
+    // Create identity link (idempotent — insert only if not exists)
+    const { error: linkErr } = await supabase
+      .from('user_identity_links')
+      .insert({
+        capflux_user_id: capfluxUserId,
+        workos_user_id: userData.id,
+        identity_type: 'workos_authkit',
+        status: 'ACTIVE',
+        migration_source: 'WEBHOOK_JIT_PROVISION',
+        verified_at: new Date().toISOString(),
+      });
+
+    if (linkErr) {
+      // If duplicate key (already exists), that's fine — idempotent
+      if (linkErr.code === '23505') {
+        console.log(`[workos-webhook] Identity link already exists for WorkOS user ${userData.id}`);
+      } else {
+        throw new Error(`Failed to create identity link: ${errorMessage(linkErr)}`);
+      }
     }
 
     console.log(`[workos-webhook] Provisioned CAPFLUX user: workos_user_id=${userData.id} -> capflux_user_id=${capfluxUserId}`);
@@ -272,8 +318,13 @@ export class WorkOSWebhookService {
 
   /**
    * Handle user.created event.
-   * Creates the CAPFLUX user, profile, and identity link atomically.
-   * Uses the atomic provisioning RPC to ensure FK constraints are satisfied.
+   * Creates the CAPFLUX user, profile, and identity link.
+   * Uses application-level provisioning (no database RPC dependency).
+   *
+   * CRITICAL: Non-critical provisioning failures must NOT cause the webhook
+   * to return 500, which triggers endless WorkOS retries. The webhook always
+   * returns 200 after accepting the event — provisioning errors are logged
+   * and can be resolved via the auth routes on next login.
    */
   async handleUserCreated(event: WorkOSEvent): Promise<EventProcessingResult> {
     const eventId = event.id;
@@ -292,7 +343,6 @@ export class WorkOSWebhookService {
 
       if (existingCapfluxUserId) {
         // Identity already exists - this is an idempotent retry or duplicate event
-        // Update the user/profile data to match current WorkOS state
         capfluxUserId = existingCapfluxUserId;
         console.log(`[workos-webhook] Existing identity found for user.created: workos_user_id=${userData.id} -> capflux_user_id=${capfluxUserId}`);
 
@@ -302,8 +352,16 @@ export class WorkOSWebhookService {
           return { success: false, eventId, eventType, error: result.error };
         }
       } else {
-        // No existing identity - provision atomically
-        capfluxUserId = await this.provisionCAPFLUXUserFromWorkOS(userData);
+        // No existing identity - provision via application-level logic
+        try {
+          capfluxUserId = await this.provisionCAPFLUXUserFromWorkOS(userData);
+        } catch (provisionErr) {
+          // Non-critical: the user can still authenticate via the auth routes
+          // which will JIT-provision the identity on next login.
+          // Return success to avoid endless webhook retries.
+          console.error('[workos-webhook] Provisioning failed (will JIT-provision on next login):', errorMessage(provisionErr));
+          return { success: true, eventId, eventType };
+        }
       }
 
       console.log(`[workos-webhook] received event=user.created id=${eventId} workos_user_id=${userData.id} capflux_user_id=${capfluxUserId}`);

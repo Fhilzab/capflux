@@ -136,31 +136,39 @@ class WorkOSAuthService {
    * Does NOT authenticate - user must verify email first.
    * Sends verification email automatically.
    */
-  async signUpWithPassword(email: string, password: string, fullName: string): Promise<{ success: boolean; user: WorkosFormattedUser | null }> {
+  async signUpWithPassword(email: string, password: string, fullName: string): Promise<{ success: boolean; user: WorkosFormattedUser | null; verificationSent: boolean }> {
     try {
       const [firstName = '', ...lastNameParts] = (fullName || '').trim().split(' ');
 
+      // WorkOS SDK v10 createUser returns the user object directly (not { user: ... })
       const created = await this.um.createUser({
         email,
         password,
         firstName,
         lastName: lastNameParts.join(' ') || '',
         emailVerified: false,
-      });
+      }) as unknown as WorkosUserLike;
 
-      // Send verification email
-      if (created.user?.id) {
+      // Send verification email — WorkOS SDK v10 returns user directly
+      let verificationSent = false;
+      const userId = created?.id;
+      if (userId) {
         try {
-          await this.um.sendVerificationEmail({ userId: created.user.id });
+          await this.um.sendVerificationEmail({ userId });
+          verificationSent = true;
         } catch (verifyError) {
-          console.warn('Failed to send verification email:', errorMessage(verifyError));
-          // Don't fail the signup if verification email fails
+          // Log the real error for debugging but don't fail signup.
+          // The user can resend from the verification screen.
+          console.error('[WorkOSAuthService] sendVerificationEmail failed:', errorMessage(verifyError));
         }
+      } else {
+        console.error('[WorkOSAuthService] createUser returned no user ID — cannot send verification email');
       }
 
       return {
         success: true,
-        user: this.formatUser(created.user),
+        user: this.formatUser(created),
+        verificationSent,
       };
     } catch (error) {
       throw this.transformError(error, 'Failed to sign up');
@@ -246,13 +254,14 @@ class WorkOSAuthService {
    */
   async createWorkosUserForClaim(email: string): Promise<{ id?: string; email: string }> {
     try {
+      // WorkOS SDK v10 createUser returns the user object directly
       const created = await this.um.createUser({
         email,
         emailVerified: true, // legacy Supabase emails were already verified
         firstName: '',
         lastName: '',
-      });
-      return { id: created.user?.id, email: created.user?.email || email };
+      }) as unknown as WorkosUserLike;
+      return { id: created?.id, email: created?.email || email };
     } catch (error) {
       // If the user already exists in WorkOS, treat as already-created.
       if (errorCode(error) === 'user_already_exists') {

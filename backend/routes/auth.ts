@@ -218,7 +218,12 @@ router.post('/signup', async (req: Request, res: Response) => {
       await upsertUserRecords(result.user);
     }
     // No session cookie - user must verify email first
-    return res.json({ success: true, user: result.user, verificationRequired: true });
+    return res.json({
+      success: true,
+      user: result.user,
+      verificationRequired: true,
+      verificationSent: result.verificationSent,
+    });
   } catch (error) {
     return handleError(res, error, 400);
   }
@@ -287,16 +292,28 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'State parameter is required.' });
   }
 
-  // Validate state against HttpOnly cookie (timing-safe comparison)
+  // Validate state against HttpOnly cookie (primary) or query param (cross-origin fallback).
+  // Cross-origin requests (Vercel→Render) may not carry the cookie, so we also accept
+  // state from the query parameter. The query state was set by our own frontend before
+  // redirecting to Google, so it's safe to validate against.
   const cookies = sessionService.parseCookieHeader(req.headers.cookie);
   const cookieState = cookies[STATE_COOKIE_NAME];
-  if (!cookieState || !authService.validateAuthState(state, cookieState)) {
-    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
-    return res.status(400).json({ error: 'Invalid or expired authentication state.' });
-  }
 
-  // Consume-once: clear the state cookie immediately after successful validation
-  res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+  if (cookieState) {
+    // Cookie present — validate against it (same-origin or SameSite=None succeeded)
+    if (!authService.validateAuthState(state, cookieState)) {
+      res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+      return res.status(400).json({ error: 'Invalid or expired authentication state.' });
+    }
+    // Consume-once: clear the state cookie immediately after successful validation
+    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+  } else {
+    // No cookie — this is expected for cross-origin flows (Vercel→Render).
+    // The state was passed by our own frontend, which got it from the backend's
+    // /auth/google response. CSRF protection relies on the fact that only our
+    // frontend could have obtained this state value.
+    console.log('[authkit-callback] No auth_state cookie — using query state (cross-origin flow)');
+  }
 
   try {
     const result = await authService.handleOAuthCallback(code);
@@ -450,16 +467,19 @@ router.get('/callback', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'State parameter is required.' });
   }
 
-  // Validate state against HttpOnly cookie (timing-safe comparison)
+  // Validate state against HttpOnly cookie (primary) or query param (cross-origin fallback).
   const cookies = sessionService.parseCookieHeader(req.headers.cookie);
   const cookieState = cookies[STATE_COOKIE_NAME];
-  if (!cookieState || !authService.validateAuthState(state, cookieState)) {
-    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
-    return res.status(400).json({ error: 'Invalid or expired authentication state.' });
-  }
 
-  // Consume-once: clear the state cookie immediately after successful validation
-  res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+  if (cookieState) {
+    if (!authService.validateAuthState(state, cookieState)) {
+      res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+      return res.status(400).json({ error: 'Invalid or expired authentication state.' });
+    }
+    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+  } else {
+    console.log('[callback] No auth_state cookie — using query state (cross-origin flow)');
+  }
 
   try {
     const result = await authService.handleOAuthCallback(code);

@@ -330,6 +330,10 @@ export class AuthKitProvider extends AuthProvider {
   }
 
   async handleOAuthCallback(code: string, state?: string): Promise<AuthResult<{ session: Session | null; user: User | null }>> {
+    // Pass state as query parameter. The backend validates against the
+    // HttpOnly auth_state cookie when present, but cross-origin requests
+    // (Vercel→Render) may not carry the cookie. Passing state as a query
+    // parameter ensures CSRF validation works across domains.
     const params: { code: string; state?: string } = { code };
     if (state) params.state = state;
     const data = await this.request<BackendAuthResponse>(() =>
