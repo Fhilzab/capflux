@@ -109,14 +109,18 @@ class SessionService {
   /**
    * Build the HttpOnly cookie configuration.
    * - Secure: true in production (HTTPS required).
-   * - SameSite: Lax (safe for top-level navigations; strict CSRF posture for
-   *   an API-only session cookie).
+   * - SameSite: None in production (cross-origin Vercel→Render), Lax in dev.
+   *   Production frontend (capflux.vercel.app) and backend (capflux.onrender.com)
+   *   are on different origins, so SameSite=None is required for the session
+   *   cookie to be sent with cross-origin AJAX requests (withCredentials: true).
+   *   SameSite=None requires Secure.
    * - Narrow path: only sent to the API backend.
    * - Explicit Max-Age.
    */
   cookieOptions(): { name: string; options: CookieOptions } {
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieSecureEnv = process.env.COOKIE_SECURE;
+    const cookieSameSiteEnv = process.env.COOKIE_SAMESITE;
     // An explicit COOKIE_SECURE value always wins. When unset, Secure is only
     // enabled in production (served over HTTPS); development stays off so that
     // http://localhost can receive/send the cookie. Relying on NODE_ENV alone
@@ -124,13 +128,19 @@ class SessionService {
     // shell, which would otherwise force Secure=true under local HTTP.
     const secure =
       cookieSecureEnv !== undefined ? cookieSecureEnv === 'true' : isProduction;
+    // SameSite: production cross-origin needs 'none'; dev keeps 'lax'.
+    // COOKIE_SAMESITE env overrides for edge cases (e.g. same-origin deploys).
+    const sameSite: 'none' | 'lax' | 'strict' =
+      cookieSameSiteEnv !== undefined
+        ? (cookieSameSiteEnv as 'none' | 'lax' | 'strict')
+        : isProduction ? 'none' : 'lax';
 
     return {
       name: SESSION_COOKIE_NAME,
       options: {
         httpOnly: true,
         secure,
-        sameSite: 'lax',
+        sameSite,
         path: '/api',
         maxAge: SESSION_MAX_AGE_SECONDS,
       },

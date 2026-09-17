@@ -443,6 +443,18 @@ class WorkOSAuthService {
         not_found: 'NOT_FOUND',
       };
       appErrorCode = errorMap[sdkCode] || 'AUTH_ERROR';
+
+      // Fallback: detect duplicate-account from the raw message if the SDK
+      // code didn't match. WorkOS may surface this as a 409 Conflict or
+      // message text like "an account with this email already exists".
+      if (appErrorCode === 'AUTH_ERROR' &&
+          (lowerRaw.includes('already exists') ||
+           lowerRaw.includes('user_already_exists') ||
+           lowerRaw.includes('duplicate') ||
+           lowerRaw.includes('email.*already') ||
+           lowerRaw.includes('account.*exist'))) {
+        appErrorCode = 'USER_ALREADY_EXISTS';
+      }
     }
 
     // WorkOS SDK exceptions expose the HTTP status on `.status` (e.g.

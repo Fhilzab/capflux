@@ -35,9 +35,14 @@ const cookieSecureEnv = process.env.COOKIE_SECURE;
 const STATE_SECURE =
   cookieSecureEnv !== undefined ? cookieSecureEnv === 'true' : isProduction;
 
+// SameSite must match the session cookie: 'none' in production for cross-origin
+// Vercel→Render flow, 'lax' in dev. SameSite=None requires Secure=true.
+const STATE_SAMESITE: 'none' | 'lax' | 'strict' =
+  isProduction ? 'none' : 'lax';
+
 const STATE_COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
-  sameSite: 'lax',
+  sameSite: STATE_SAMESITE,
   path: '/api',
   maxAge: 5 * 60 * 1000, // 5 minutes
   secure: STATE_SECURE,
@@ -132,6 +137,66 @@ router.post('/signin', async (req: Request, res: Response) => {
 
   try {
     const result = await authService.signInWithPassword(email as string, password as string);
+
+    // Provision identity for WorkOS users without an identity link
+    const workosUserId = result.user?.id;
+    if (workosUserId && workosUserId.startsWith('user_')) {
+      const { data: existingLink } = await supabase
+        .from('user_identity_links')
+        .select('capflux_user_id')
+        .eq('workos_user_id', workosUserId)
+        .eq('identity_type', 'workos_authkit')
+        .eq('status', 'ACTIVE')
+        .maybeSingle();
+
+      if (!existingLink && result.user?.email) {
+        // Find or create CAPFLUX user by email
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', result.user.email.toLowerCase())
+          .maybeSingle();
+
+        let capfluxUserId: string | null = existingUser?.id || null;
+
+        if (!capfluxUserId) {
+          const { data: newUser, error: createErr } = await supabase
+            .from('users')
+            .insert({
+              email: result.user.email.toLowerCase(),
+              auth_provider: 'workos',
+              email_verified: Boolean(result.user.emailVerified),
+            })
+            .select('id')
+            .single();
+
+          if (!createErr && newUser?.id) {
+            capfluxUserId = newUser.id;
+            await supabase
+              .from('user_profiles')
+              .insert({
+                user_id: capfluxUserId,
+                full_name: result.user.fullName || `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim() || null,
+                avatar_url: result.user.profilePictureUrl || null,
+              });
+          }
+        }
+
+        if (capfluxUserId) {
+          await supabase
+            .from('user_identity_links')
+            .insert({
+              capflux_user_id: capfluxUserId,
+              workos_user_id: workosUserId,
+              identity_type: 'workos_authkit',
+              status: 'ACTIVE',
+              migration_source: 'PASSWORD_SIGNIN_JIT',
+              verified_at: new Date().toISOString(),
+            });
+        }
+      }
+    }
+
     await upsertUserRecords(result.user);
     await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
@@ -247,8 +312,13 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
         .maybeSingle();
 
       if (!existingLink) {
-        // No identity link - check for legacy migration record
+        // No identity link found. Provision a new CAPFLUX identity:
+        // 1. Check for a legacy migration record (existing user migrating)
+        // 2. Otherwise create a new CAPFLUX user + identity link
         const workosEmail = result.user?.email;
+
+        // 1. Try legacy migration path first
+        let linked = false;
         if (workosEmail) {
           const { data: legacyRecord } = await supabase
             .from('legacy_identity_migrations')
@@ -257,10 +327,8 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
             .maybeSingle();
 
           if (legacyRecord && ['PENDING', 'INVITED', 'CLAIMED'].includes(legacyRecord.status || '')) {
-            // Legacy user migrating to WorkOS - create identity link
             const capfluxUserId = legacyRecord.legacy_user_id;
             if (capfluxUserId) {
-              // Verify the legacy user exists in CAPFLUX
               const { data: capfluxUser } = await supabase
                 .from('users')
                 .select('id')
@@ -268,7 +336,6 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
                 .maybeSingle();
 
               if (capfluxUser) {
-                // Create identity link
                 const { error: linkErr } = await supabase
                   .from('user_identity_links')
                   .insert({
@@ -281,7 +348,6 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
                   });
 
                 if (!linkErr) {
-                  // Update legacy migration record
                   await supabase
                     .from('legacy_identity_migrations')
                     .update({
@@ -291,11 +357,74 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
                     })
                     .eq('id', legacyRecord.id);
 
-                  console.log(`[authkit-callback] Linked WorkOS user ${workosUserId} to existing CAPFLUX user ${capfluxUserId} via legacy migration`);
+                  console.log(`[authkit-callback] Linked WorkOS user ${workosUserId} to legacy CAPFLUX user ${capfluxUserId}`);
+                  linked = true;
                 } else {
-                  console.error('[authkit-callback] Failed to create identity link:', errorMessage(linkErr));
+                  console.error('[authkit-callback] Failed to create legacy identity link:', errorMessage(linkErr));
                 }
               }
+            }
+          }
+        }
+
+        // 2. New user — create CAPFLUX user + identity link
+        if (!linked && workosEmail) {
+          // Try to find existing CAPFLUX user by email (e.g. from Supabase Auth)
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', workosEmail.toLowerCase())
+            .maybeSingle();
+
+          let capfluxUserId: string | null = existingUser?.id || null;
+
+          // Create new CAPFLUX user if none exists with this email
+          if (!capfluxUserId) {
+            const { data: newUser, error: createErr } = await supabase
+              .from('users')
+              .insert({
+                email: workosEmail.toLowerCase(),
+                auth_provider: 'workos',
+                email_verified: Boolean(result.user?.emailVerified),
+              })
+              .select('id')
+              .single();
+
+            if (createErr) {
+              console.error('[authkit-callback] Failed to create CAPFLUX user:', errorMessage(createErr));
+            } else {
+              capfluxUserId = newUser?.id || null;
+
+              // Create user profile
+              if (capfluxUserId) {
+                await supabase
+                  .from('user_profiles')
+                  .insert({
+                    user_id: capfluxUserId,
+                    full_name: result.user?.fullName || `${result.user?.firstName || ''} ${result.user?.lastName || ''}`.trim() || null,
+                    avatar_url: result.user?.profilePictureUrl || null,
+                  });
+              }
+            }
+          }
+
+          // Create identity link
+          if (capfluxUserId) {
+            const { error: linkErr } = await supabase
+              .from('user_identity_links')
+              .insert({
+                capflux_user_id: capfluxUserId,
+                workos_user_id: workosUserId,
+                identity_type: 'workos_authkit',
+                status: 'ACTIVE',
+                migration_source: 'OAUTH_JIT_PROVISION',
+                verified_at: new Date().toISOString(),
+              });
+
+            if (linkErr) {
+              console.error('[authkit-callback] Failed to create identity link:', errorMessage(linkErr));
+            } else {
+              console.log(`[authkit-callback] Provisioned CAPFLUX identity for WorkOS user ${workosUserId} → ${capfluxUserId}`);
             }
           }
         }
@@ -334,6 +463,69 @@ router.get('/callback', async (req: Request, res: Response) => {
 
   try {
     const result = await authService.handleOAuthCallback(code);
+
+    // Provision identity for new WorkOS users (same logic as authkit-callback)
+    const workosUserId = result.user?.id;
+    if (workosUserId && workosUserId.startsWith('user_')) {
+      const { data: existingLink } = await supabase
+        .from('user_identity_links')
+        .select('capflux_user_id')
+        .eq('workos_user_id', workosUserId)
+        .eq('identity_type', 'workos_authkit')
+        .eq('status', 'ACTIVE')
+        .maybeSingle();
+
+      if (!existingLink) {
+        const workosEmail = result.user?.email;
+        if (workosEmail) {
+          // Find or create CAPFLUX user by email
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', workosEmail.toLowerCase())
+            .maybeSingle();
+
+          let capfluxUserId: string | null = existingUser?.id || null;
+
+          if (!capfluxUserId) {
+            const { data: newUser, error: createErr } = await supabase
+              .from('users')
+              .insert({
+                email: workosEmail.toLowerCase(),
+                auth_provider: 'workos',
+                email_verified: Boolean(result.user?.emailVerified),
+              })
+              .select('id')
+              .single();
+
+            if (!createErr && newUser?.id) {
+              capfluxUserId = newUser.id;
+              await supabase
+                .from('user_profiles')
+                .insert({
+                  user_id: capfluxUserId,
+                  full_name: result.user?.fullName || `${result.user?.firstName || ''} ${result.user?.lastName || ''}`.trim() || null,
+                  avatar_url: result.user?.profilePictureUrl || null,
+                });
+            }
+          }
+
+          if (capfluxUserId) {
+            await supabase
+              .from('user_identity_links')
+              .insert({
+                capflux_user_id: capfluxUserId,
+                workos_user_id: workosUserId,
+                identity_type: 'workos_authkit',
+                status: 'ACTIVE',
+                migration_source: 'OAUTH_JIT_PROVISION',
+                verified_at: new Date().toISOString(),
+              });
+          }
+        }
+      }
+    }
+
     await upsertUserRecords(result.user);
     await setSessionCookie(res, result);
     return res.json({ success: true, ...result });

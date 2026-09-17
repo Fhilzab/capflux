@@ -58,6 +58,8 @@ app.use((_req: express.Request, res: express.Response, next: express.NextFunctio
 });
 
 // CORS: allowlist in production; configurable via env in development.
+// Production MUST set CORS_ORIGINS=https://capflux.vercel.app to allow the
+// frontend to send cookies (withCredentials) and receive Set-Cookie headers.
 const corsOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())
