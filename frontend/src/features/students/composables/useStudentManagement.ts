@@ -409,7 +409,7 @@ export function useStudentManagement() {
   }
 
   function viewFinancialRecord(student: NormalizedStudent) {
-    router.push({ name: 'BillingView', query: { student: student.id } });
+    router.push({ name: 'Billing', query: { student: student.id } });
   }
 
   function openExportDialog() {

@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useBillingStore } from '../stores/billingStore';
+import { computed, ref, onMounted } from 'vue';
+import { useBillingStore, type BillingSummaryItem } from '../stores/billingStore';
 import { useStudentStore } from '../stores/studentStore';
 import CmButton from '../components/ui/CmButton.vue';
 import CmInput from '../components/ui/CmInput.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
+import CmStatusChip from '../components/ui/CmStatusChip.vue';
+import ErrorState from '../components/ui/ErrorState.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 import { useModuleLock } from '../composables/useModuleLock';
 import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
+import { formatNairaKobo } from '../lib/ledgerSemantics';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
-const items = ref([]);
-const balance = ref(0);
-const students = ref([]);
-const reconciliation = ref({ totalCharges: 0, totalCredits: 0, netBalance: 0 });
+const items = ref<BillingSummaryItem[]>([]);
+const assessedMinor = ref(0);
+const collectedMinor = ref(0);
+const outstandingMinor = ref(0);
+const students = ref<Array<{ id: string; first_name: string; last_name: string }>>([]);
 const searchQuery = ref('');
 const form = ref({
   student_id: '',
@@ -22,20 +28,35 @@ const form = ref({
 });
 const saving = ref(false);
 const message = ref('');
+const error = ref('');
+const loading = ref(false);
 
 const billingStore = useBillingStore();
 const studentStore = useStudentStore();
 const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 
-const loadBilling = async (studentIds = []) => {
-  const result = await billingStore.getBillingSummary(DEFAULT_SCHOOL_ID, studentIds);
-  items.value = result.items;
-  balance.value = result.balance;
-  reconciliation.value = {
-    totalCharges: result.items.filter((item) => item.entry_type === 'DEBIT').reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    totalCredits: result.items.filter((item) => item.entry_type === 'CREDIT').reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    netBalance: result.balance,
-  };
+const chargeItems = computed(() =>
+  items.value.filter((item) => item.entry_type === 'CHARGE' || item.entry_type === 'DEBIT'),
+);
+const paymentItems = computed(() =>
+  items.value.filter((item) => item.entry_type === 'PAYMENT' || item.entry_type === 'CREDIT'),
+);
+const reversalItems = computed(() => items.value.filter((item) => item.entry_type === 'REVERSAL'));
+
+const loadBilling = async (studentIds: string[] = []) => {
+  loading.value = true;
+  error.value = '';
+  try {
+    const result = await billingStore.getBillingSummary(DEFAULT_SCHOOL_ID, studentIds);
+    items.value = result.items;
+    assessedMinor.value = result.summary.assessedMinor;
+    collectedMinor.value = result.summary.collectedMinor;
+    outstandingMinor.value = result.summary.outstandingMinor;
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load billing data.';
+  } finally {
+    loading.value = false;
+  }
 };
 
 const loadStudents = async () => {
@@ -114,99 +135,124 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="premium-card space-y-6">
-          <div>
-            <h2 class="text-headline mb-4">New charge</h2>
-            <p class="text-text-secondary">Record a billing charge or payment locally for a student.</p>
-          </div>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <label class="block">
-              <span class="text-sm text-text-muted">Student</span>
-              <CmSelect
-                v-model="form.student_id"
-                :options="students.map(s => ({ value: s.id, label: `${s.first_name} ${s.last_name}` }))"
-                placeholder="Select student"
-                class="mt-2"
-              />
-            </label>
-            <label class="block">
-              <span class="text-sm text-text-muted">Amount</span>
-              <CmInput v-model="form.amount" type="number" min="0" step="0.01" class="mt-2" />
-            </label>
-            <label class="block">
-              <span class="text-sm text-text-muted">Type</span>
-              <CmSelect
-                v-model="form.entry_type"
-                :options="[
-                  { value: 'DEBIT', label: 'Charge (Debit)' },
-                  { value: 'CREDIT', label: 'Payment (Credit)' },
-                ]"
-                class="mt-2"
-              />
-            </label>
-            <label class="block sm:col-span-2">
-              <span class="text-sm text-text-muted">Description</span>
-              <CmInput v-model="form.entry_description" class="mt-2" />
-            </label>
-          </div>
-          <CmButton @click="submitCharge" :disabled="saving">
-            {{ saving ? 'Saving...' : 'Save charge' }}
-          </CmButton>
-          <p v-if="message" class="text-sm text-success">{{ message }}</p>
+        <ErrorState v-if="error" :description="error" @retry="loadBilling()" />
+        <div v-else-if="loading" class="space-y-4">
+          <SkeletonLoader type="row" :count="3" />
+          <SkeletonLoader type="metric" :count="1" />
         </div>
-
-        <div class="premium-card">
-          <h2 class="text-headline mb-4">Outstanding balance</h2>
-          <p class="text-5xl font-bold text-brand">₦{{ balance.toLocaleString() }}</p>
-          <div class="mt-6 space-y-3 text-text-secondary">
-            <p>Total charges: ₦{{ reconciliation.totalCharges.toLocaleString() }}</p>
-            <p>Total payments: ₦{{ reconciliation.totalCredits.toLocaleString() }}</p>
-            <p class="text-sm">Reconciliation is computed from local ledger entries.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <div class="premium-card overflow-x-auto">
-          <h2 class="text-headline mb-4">Charges</h2>
-          <div class="overflow-x-auto">
-            <table class="w-full border-collapse text-left text-sm">
-              <thead>
-                <tr class="border-b border-divider text-text-muted">
-                  <th class="py-3">Student</th>
-                  <th class="py-3">Amount</th>
-                  <th class="py-3">Type</th>
-                  <th class="py-3">Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in items" :key="item.id" class="border-b border-divider hover:bg-surface/50">
-                  <td class="py-3">{{ item.student_name }}</td>
-                  <td class="py-3">₦{{ item.amount }}</td>
-                  <td class="py-3">{{ item.entry_type }}</td>
-                  <td class="py-3">{{ item.entry_description || '-' }}</td>
-                </tr>
-                <tr v-if="items.length === 0">
-                  <td colspan="4" class="py-8 text-center text-text-muted">No billing items available.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="premium-card">
-          <h2 class="text-headline mb-4">Payment history</h2>
-          <div class="grid gap-3">
-            <div v-for="entry in items.filter((entry) => entry.entry_type === 'CREDIT')" :key="entry.id" class="rounded-card border border-divider bg-surface p-4">
-              <div class="flex items-center justify-between gap-4">
-                <p class="font-semibold">{{ entry.student_name }}</p>
-                <p class="text-brand">₦{{ entry.amount }}</p>
-              </div>
-              <p class="text-text-secondary">{{ entry.entry_description || 'Payment received' }}</p>
+        <template v-else>
+          <div class="premium-card space-y-6">
+            <div>
+              <h2 class="text-headline mb-4">New charge</h2>
+              <p class="text-text-secondary">Record a billing charge or payment locally for a student.</p>
             </div>
-            <p v-if="items.filter((entry) => entry.entry_type === 'CREDIT').length === 0" class="text-text-muted">No payment history yet.</p>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="block">
+                <span class="text-sm text-text-muted">Student</span>
+                <CmSelect
+                  v-model="form.student_id"
+                  :options="students.map(s => ({ value: s.id, label: `${s.first_name} ${s.last_name}` }))"
+                  placeholder="Select student"
+                  class="mt-2"
+                />
+              </label>
+              <label class="block">
+                <span class="text-sm text-text-muted">Amount (₦)</span>
+                <CmInput v-model="form.amount" type="number" min="0" step="0.01" class="mt-2" />
+              </label>
+              <label class="block">
+                <span class="text-sm text-text-muted">Type</span>
+                <CmSelect
+                  v-model="form.entry_type"
+                  :options="[
+                    { value: 'DEBIT', label: 'Charge (Debit)' },
+                    { value: 'CREDIT', label: 'Payment (Credit)' },
+                  ]"
+                  class="mt-2"
+                />
+              </label>
+              <label class="block sm:col-span-2">
+                <span class="text-sm text-text-muted">Description</span>
+                <CmInput v-model="form.entry_description" class="mt-2" />
+              </label>
+            </div>
+            <CmButton @click="submitCharge" :disabled="saving">
+              {{ saving ? 'Saving...' : 'Save charge' }}
+            </CmButton>
+            <p v-if="message" class="text-sm text-success">{{ message }}</p>
           </div>
-        </div>
+
+          <div class="premium-card">
+            <h2 class="text-headline mb-4">Outstanding balance</h2>
+            <p class="text-5xl font-bold text-brand">{{ formatNairaKobo(outstandingMinor) }}</p>
+            <div class="mt-6 space-y-3 text-text-secondary">
+              <p>Total charges: {{ formatNairaKobo(assessedMinor) }}</p>
+              <p>Total payments collected: {{ formatNairaKobo(collectedMinor) }}</p>
+              <p class="text-sm">Reconciliation is computed from local ledger entries (integer kobo).</p>
+            </div>
+          </div>
+
+          <section class="grid gap-6 lg:grid-cols-[1fr_1fr]">
+            <div class="premium-card overflow-x-auto">
+              <h2 class="text-headline mb-4">Charges</h2>
+              <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr class="border-b border-divider text-text-muted">
+                      <th class="py-3">Student</th>
+                      <th class="py-3">Amount</th>
+                      <th class="py-3">Status</th>
+                      <th class="py-3">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in chargeItems" :key="item.id" class="border-b border-divider hover:bg-surface/50">
+                      <td class="py-3">{{ item.student_name }}</td>
+                      <td class="py-3">{{ formatNairaKobo(item.amount_minor) }}</td>
+                      <td class="py-3"><CmStatusChip :status="item.entry_type === 'CHARGE' ? 'success' : 'info'" :label="item.entry_type" /></td>
+                      <td class="py-3">{{ item.entry_description || '-' }}</td>
+                    </tr>
+                    <tr v-if="chargeItems.length === 0">
+                      <td colspan="4" class="py-8 text-center text-text-muted">No charges recorded yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="premium-card">
+              <h2 class="text-headline mb-4">Payment history</h2>
+              <div class="grid gap-3">
+                <div v-for="entry in paymentItems" :key="entry.id" class="rounded-card border border-divider bg-surface p-4">
+                  <div class="flex items-center justify-between gap-4">
+                    <p class="font-semibold">{{ entry.student_name }}</p>
+                    <p class="text-brand">{{ formatNairaKobo(entry.amount_minor) }}</p>
+                  </div>
+                  <p class="text-text-secondary">{{ entry.entry_description || 'Payment received' }}</p>
+                </div>
+                <p v-if="paymentItems.length === 0" class="text-text-muted">No payment history yet.</p>
+              </div>
+              <div v-if="reversalItems.length" class="mt-6">
+                <h3 class="text-headline mb-3">Reversals</h3>
+                <div class="grid gap-3">
+                  <div v-for="entry in reversalItems" :key="entry.id" class="rounded-card border border-divider bg-surface p-4">
+                    <div class="flex items-center justify-between gap-4">
+                      <p class="font-semibold">{{ entry.student_name }}</p>
+                      <p class="text-danger">{{ formatNairaKobo(entry.amount_minor) }}</p>
+                    </div>
+                    <p class="text-text-secondary">{{ entry.entry_description || 'Reversed payment' }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <EmptyState
+            v-if="items.length === 0 && !loading && !error"
+            title="No billing activity"
+            description="Charges and payments recorded locally will appear here."
+          />
+        </template>
       </section>
     </div>
   </main>

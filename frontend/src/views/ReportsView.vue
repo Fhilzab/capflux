@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useReportingStore } from '../stores/reportingStore';
 import CmButton from '../components/ui/CmButton.vue';
+import ErrorState from '../components/ui/ErrorState.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
+import { formatNairaKobo } from '../lib/ledgerSemantics';
+import { buildLedgerSchoolReport, type LedgerSchoolReport } from '../lib/ledgerReportBuilder';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
-const reportingStore = useReportingStore();
 const loading = ref(false);
-const report = ref({
-  totalCharges: 0,
-  totalPayments: 0,
-  netBalance: 0,
-  outstandingByStudent: [],
-  recentPayments: [],
-});
+const error = ref('');
+const report = ref<LedgerSchoolReport | null>(null);
 
-const formatCsvValue = (value) => {
+const formatCsvValue = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined) return '';
   const stringValue = String(value);
   if (/[,\n"]/.test(stringValue)) {
@@ -23,7 +21,7 @@ const formatCsvValue = (value) => {
   return stringValue;
 };
 
-const downloadCsv = async (filename, rows) => {
+const downloadCsv = async (filename: string, rows: Array<Array<string | number>>) => {
   const csvText = rows.map((row) => row.map(formatCsvValue).join(',')).join('\n');
   const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -37,26 +35,29 @@ const downloadCsv = async (filename, rows) => {
 };
 
 const exportOutstanding = async () => {
-  const rows = [
-    ['Student', 'Class', 'Charges', 'Payments', 'Outstanding'],
+  if (!report.value) return;
+  const rows: Array<Array<string | number>> = [
+    ['Student', 'Admission number', 'Class', 'Charges (₦)', 'Payments (₦)', 'Outstanding (₦)'],
     ...report.value.outstandingByStudent.map((item) => [
       item.student_name,
+      item.admission_number,
       item.class_name,
-      item.totalCharges,
-      item.totalPayments,
-      item.outstanding,
+      Number((item.assessedMinor / 100).toFixed(2)),
+      Number((item.collectedMinor / 100).toFixed(2)),
+      Number((item.outstandingMinor / 100).toFixed(2)),
     ]),
   ];
   await downloadCsv('outstanding_by_student.csv', rows);
 };
 
 const exportPayments = async () => {
-  const rows = [
-    ['Date', 'Student', 'Amount', 'Description'],
+  if (!report.value) return;
+  const rows: Array<Array<string | number>> = [
+    ['Date', 'Student', 'Amount (₦)', 'Description'],
     ...report.value.recentPayments.map((payment) => [
-      new Date(payment.created_at).toLocaleString(),
+      payment.occurred_at ? new Date(payment.occurred_at).toLocaleString() : '',
       payment.student_name,
-      payment.amount,
+      Number((payment.amount_minor / 100).toFixed(2)),
       payment.entry_description || 'Payment recorded',
     ]),
   ];
@@ -64,46 +65,30 @@ const exportPayments = async () => {
 };
 
 const exportSummary = async () => {
-  const rows = [
+  if (!report.value) return;
+  const rows: Array<Array<string | number>> = [
     ['Metric', 'Value'],
-    ['Total charges', report.value.totalCharges],
-    ['Total payments', report.value.totalPayments],
-    ['Net balance', report.value.netBalance],
-    ['Outstanding students', report.value.outstandingByStudent.length],
-    ['Recent payments', report.value.recentPayments.length],
+    ['Total charges (₦)', Number((report.value.assessedMinor / 100).toFixed(2))],
+    ['Total payments (₦)', Number((report.value.collectedMinor / 100).toFixed(2))],
+    ['Outstanding balance (₦)', Number((report.value.outstandingMinor / 100).toFixed(2))],
+    ['Students with balances', report.value.studentCount],
+    ['Students owing', report.value.outstandingCount],
+    ['Payments recorded', report.value.paymentCount],
   ];
   await downloadCsv('fee_summary.csv', rows);
 };
 
 const loadReport = async () => {
   loading.value = true;
-  const filter = {
-    organizationId: DEFAULT_SCHOOL_ID,
-    schoolId: DEFAULT_SCHOOL_ID,
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
-  };
-  await reportingStore.loadStudentStatement('', filter);
-  // Build report from store data
-  const statement = reportingStore.studentStatements[''];
-  if (statement) {
-    const lines = (statement as any).lines || [];
-    report.value = {
-      totalCharges: ((statement as any).metadata?.totalCharges || 0),
-      totalPayments: ((statement as any).metadata?.totalPayments || 0),
-      netBalance: ((statement as any).metadata?.totalCharges || 0) - ((statement as any).metadata?.totalPayments || 0),
-      outstandingByStudent: lines.map((line: any) => ({
-        student_id: line.studentId || '',
-        student_name: line.studentName || 'Unknown',
-        class_name: '',
-        totalCharges: line.totalCharges,
-        totalPayments: line.totalPayments,
-        outstanding: line.balance,
-      })),
-      recentPayments: [],
-    };
+  error.value = '';
+  try {
+    report.value = await buildLedgerSchoolReport(DEFAULT_SCHOOL_ID);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to build the fee report.';
+    report.value = null;
+  } finally {
+    loading.value = false;
   }
-  loading.value = false;
 };
 
 onMounted(loadReport);
@@ -118,74 +103,95 @@ onMounted(loadReport);
           <p class="text-text-secondary">Fee-first financial summaries and collections reporting.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <CmButton @click="exportOutstanding" variant="primary">
+          <CmButton @click="exportOutstanding" variant="primary" :disabled="!report">
             Export outstanding
           </CmButton>
-          <CmButton @click="exportPayments" variant="success">
+          <CmButton @click="exportPayments" variant="success" :disabled="!report">
             Export payments
           </CmButton>
-          <CmButton @click="exportSummary" variant="warning">
+          <CmButton @click="exportSummary" variant="warning" :disabled="!report">
             Export summary
           </CmButton>
         </div>
       </section>
 
-      <section class="grid gap-6 lg:grid-cols-3">
-        <div class="rounded-card bg-card p-6 shadow-card">
-          <p class="text-label">Total charges</p>
-          <p class="mt-4 text-metric text-brand">₦{{ report.totalCharges }}</p>
+      <ErrorState v-if="error" :description="error" @retry="loadReport()" />
+      <div v-else-if="loading" class="space-y-6">
+        <div class="grid gap-6 lg:grid-cols-3">
+          <SkeletonLoader type="metric" :count="3" />
         </div>
-        <div class="rounded-card bg-card p-6 shadow-card">
-          <p class="text-label">Total payments</p>
-          <p class="mt-4 text-metric text-success">₦{{ report.totalPayments }}</p>
-        </div>
-        <div class="rounded-card bg-card p-6 shadow-card">
-          <p class="text-label">Net balance</p>
-          <p class="mt-4 text-metric text-warning">₦{{ report.netBalance }}</p>
-        </div>
-      </section>
+        <SkeletonLoader type="table" :count="5" />
+      </div>
 
-      <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto">
-        <h2 class="text-headline mb-4">Outstanding by student</h2>
-        <table class="w-full border-collapse text-left text-sm text-text-primary">
-          <thead>
-            <tr class="border-b border-divider text-text-muted">
-              <th class="py-3">Student</th>
-              <th class="py-3">Class</th>
-              <th class="py-3">Charges</th>
-              <th class="py-3">Payments</th>
-              <th class="py-3">Outstanding</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in report.outstandingByStudent" :key="item.student_id" class="border-b border-divider hover:bg-surface/50">
-              <td class="py-3">{{ item.student_name }}</td>
-              <td class="py-3">{{ item.class_name }}</td>
-              <td class="py-3">₦{{ item.totalCharges }}</td>
-              <td class="py-3">₦{{ item.totalPayments }}</td>
-              <td class="py-3">₦{{ item.outstanding }}</td>
-            </tr>
-            <tr v-if="report.outstandingByStudent.length === 0">
-              <td colspan="5" class="py-8 text-center text-text-muted">No outstanding student balances yet.</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section class="rounded-card bg-card p-8 shadow-card">
-        <h2 class="text-headline mb-4">Recent payments</h2>
-        <div class="grid gap-3">
-          <div v-for="payment in report.recentPayments" :key="payment.id" class="rounded-card border border-divider bg-surface p-4">
-            <div class="flex items-center justify-between gap-4">
-              <p class="font-semibold">{{ payment.student_name }}</p>
-              <p class="text-brand">₦{{ payment.amount }}</p>
-            </div>
-            <p class="mt-2 text-text-secondary">{{ payment.entry_description || 'Payment recorded' }}</p>
-            <p class="mt-2 text-xs text-text-muted">{{ new Date(payment.created_at).toLocaleString() }}</p>
+      <template v-else-if="report">
+        <section class="grid gap-6 lg:grid-cols-3">
+          <div class="rounded-card bg-card p-6 shadow-card">
+            <p class="text-label">Total charges</p>
+            <p class="mt-4 text-metric text-brand">{{ formatNairaKobo(report.assessedMinor) }}</p>
           </div>
-          <p v-if="report.recentPayments.length === 0" class="text-text-muted">No payments recorded yet.</p>
-        </div>
-      </section>
+          <div class="rounded-card bg-card p-6 shadow-card">
+            <p class="text-label">Total payments</p>
+            <p class="mt-4 text-metric text-success">{{ formatNairaKobo(report.collectedMinor) }}</p>
+          </div>
+          <div class="rounded-card bg-card p-6 shadow-card">
+            <p class="text-label">Outstanding balance</p>
+            <p class="mt-4 text-metric text-warning">{{ formatNairaKobo(report.outstandingMinor) }}</p>
+          </div>
+        </section>
+
+        <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto">
+          <h2 class="text-headline mb-4">Outstanding by student</h2>
+          <table class="w-full border-collapse text-left text-sm text-text-primary">
+            <thead>
+              <tr class="border-b border-divider text-text-muted">
+                <th class="py-3">Student</th>
+                <th class="py-3">Admission</th>
+                <th class="py-3">Class</th>
+                <th class="py-3">Charges</th>
+                <th class="py-3">Payments</th>
+                <th class="py-3">Outstanding</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in report.outstandingByStudent" :key="item.student_id" class="border-b border-divider hover:bg-surface/50">
+                <td class="py-3">{{ item.student_name }}</td>
+                <td class="py-3">{{ item.admission_number || '-' }}</td>
+                <td class="py-3">{{ item.class_name || '-' }}</td>
+                <td class="py-3">{{ formatNairaKobo(item.assessedMinor) }}</td>
+                <td class="py-3">{{ formatNairaKobo(item.collectedMinor) }}</td>
+                <td class="py-3 font-semibold text-warning">{{ formatNairaKobo(item.outstandingMinor) }}</td>
+              </tr>
+              <tr v-if="report.outstandingByStudent.length === 0">
+                <td colspan="6" class="py-8 text-center text-text-muted">No student balances yet.</td>
+              </tr>
+            </tbody>
+          </table>
+          <EmptyState
+            v-if="report.outstandingByStudent.length === 0"
+            title="No outstanding balances"
+            description="Charges and payments recorded in the ledger will appear here."
+          />
+        </section>
+
+        <section class="rounded-card bg-card p-8 shadow-card">
+          <h2 class="text-headline mb-4">Recent payments</h2>
+          <div class="grid gap-3">
+            <div v-for="payment in report.recentPayments" :key="payment.id" class="rounded-card border border-divider bg-surface p-4">
+              <div class="flex items-center justify-between gap-4">
+                <p class="font-semibold">{{ payment.student_name }}</p>
+                <p class="text-brand">{{ formatNairaKobo(payment.amount_minor) }}</p>
+              </div>
+              <p class="mt-2 text-text-secondary">{{ payment.entry_description || 'Payment recorded' }}</p>
+              <p v-if="payment.occurred_at" class="mt-2 text-xs text-text-muted">{{ new Date(payment.occurred_at).toLocaleString() }}</p>
+            </div>
+            <EmptyState
+              v-if="report.recentPayments.length === 0"
+              title="No payments recorded yet"
+              description="Confirmed payment credits will appear here."
+            />
+          </div>
+        </section>
+      </template>
     </div>
   </main>
 </template>

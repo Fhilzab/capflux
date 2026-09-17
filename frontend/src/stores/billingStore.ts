@@ -4,7 +4,20 @@ import { LedgerRepository } from '../shared/repositories/LedgerRepository';
 import { StudentRepository } from '../shared/repositories/StudentRepository';
 import type { BillingProfile, StudentCharge } from '../shared/billing/types';
 import type { LedgerEntry } from '../shared/ledger/types';
+import { getEntryAmountMinor, getEntryDate, isChargeEntry, isPaymentCreditEntry, summarizeLedger, type LedgerRowLike, type LedgerSummaryMinor } from '../lib/ledgerSemantics';
 import { useSchoolStore } from './schoolStore';
+
+export interface BillingSummaryItem {
+  id: string;
+  student_id: string;
+  student_name: string;
+  amount_minor: number;
+  entry_type: string;
+  entry_direction?: string;
+  entry_category: string;
+  entry_description?: string;
+  occurred_at?: string;
+}
 
 export const useBillingStore = defineStore('billing', {
   state: () => ({
@@ -102,19 +115,13 @@ export const useBillingStore = defineStore('billing', {
 
     /**
      * Get billing summary for a school (optionally filtered by student IDs).
-     * Delegates to LedgerRepository for local data.
+     * Delegates to LedgerRepository for local data. Amounts follow the
+     * canonical integer-kobo ledger semantics (CHARGE debits vs PAYMENT
+     * credits net of reversal debits), matching the dashboard compound chart.
      */
     async getBillingSummary(schoolId: string, studentIds: string[] = []): Promise<{
-      items: Array<{
-        id: string;
-        student_id: string;
-        student_name: string;
-        amount: number;
-        entry_type: string;
-        entry_category: string;
-        entry_description: string | undefined;
-      }>;
-      balance: number;
+      items: BillingSummaryItem[];
+      summary: LedgerSummaryMinor;
     }> {
       this.loading = true;
       this.error = null;
@@ -124,41 +131,37 @@ export const useBillingStore = defineStore('billing', {
           ? await StudentRepository.getStudentsByIds(studentIds)
           : await StudentRepository.getStudentsBySchool(schoolId);
 
-        const items: Array<{
-          id: string;
-          student_id: string;
-          student_name: string;
-          amount: number;
-          entry_type: string;
-          entry_category: string;
-          entry_description: string | undefined;
-        }> = [];
-        let balance = 0;
+        const items: BillingSummaryItem[] = [];
+        let assessedMinor = 0;
+        let collectedMinor = 0;
+        let outstandingMinor = 0;
 
         for (const student of students) {
-          const studentEntries = await LedgerRepository.getEntriesByStudent(student.id);
-          const studentBalance = studentEntries.reduce((total, entry) => {
-            const amount = Number(entry.amount || 0);
-            return total + (entry.entry_type === 'DEBIT' ? amount : -amount);
-          }, 0);
+          const rows = (await LedgerRepository.getEntriesByStudent(student.id)) as LedgerRowLike[];
+          const { assessedMinor: a, collectedMinor: c, outstandingMinor: o } = summarizeLedger(rows);
+          assessedMinor += a;
+          collectedMinor += c;
+          outstandingMinor += o;
 
-          items.push(...studentEntries.map((entry) => ({
-            id: entry.id,
-            student_id: student.id,
-            student_name: `${student.first_name} ${student.last_name}`,
-            amount: entry.amount,
-            entry_type: entry.entry_type,
-            entry_description: entry.entry_description,
-            entry_category: entry.entry_category,
-          })));
-
-          balance += studentBalance;
+          items.push(
+            ...rows.map((entry) => ({
+              id: entry.id,
+              student_id: student.id,
+              student_name: `${student.first_name} ${student.last_name}`,
+              amount_minor: getEntryAmountMinor(entry),
+              entry_type: entry.entry_type ?? (isPaymentCreditEntry(entry) ? 'PAYMENT' : isChargeEntry(entry) ? 'CHARGE' : 'UNKNOWN'),
+              entry_direction: entry.entry_direction ?? (isChargeEntry(entry) ? 'DEBIT' : isPaymentCreditEntry(entry) ? 'CREDIT' : ''),
+              entry_category: entry.entry_category ?? '',
+              entry_description: entry.entry_description,
+              occurred_at: getEntryDate(entry),
+            })),
+          );
         }
 
-        return { items, balance };
-      } catch (e: any) {
-        this.error = e?.message || 'Failed to load billing summary';
-        return { items: [], balance: 0 };
+        return { items, summary: { assessedMinor, collectedMinor, outstandingMinor } };
+      } catch (e) {
+        this.error = e instanceof Error ? e.message : 'Failed to load billing summary';
+        return { items: [], summary: { assessedMinor: 0, collectedMinor: 0, outstandingMinor: 0 } };
       } finally {
         this.loading = false;
       }

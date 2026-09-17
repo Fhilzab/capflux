@@ -41,7 +41,16 @@ const collapsed = computed({
   set: (value: boolean) => emit('update:collapsed', value),
 });
 
-const isActive = (name: string) => route.name === name;
+// Active state: top-level route names light up their item; nested detail
+// routes (e.g. /students/:id, /guardians/:id, /students/academic-structure)
+// keep their parent item highlighted.
+const isActive = (name: string): boolean => {
+  if (route.name === name) return true;
+  const path = route.path ?? '';
+  if (name === 'Students') return path.startsWith('/students');
+  if (name === 'Guardians') return path.startsWith('/guardians');
+  return false;
+};
 
 // Mobile detection — hover logic only applies on desktop
 const isMobile = ref(false);

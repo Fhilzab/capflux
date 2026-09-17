@@ -1,58 +1,48 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useReportingStore } from '../stores/reportingStore';
 import { useModuleLock } from '../composables/useModuleLock';
 import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
 import CmButton from '../components/ui/CmButton.vue';
+import CmInput from '../components/ui/CmInput.vue';
+import ErrorState from '../components/ui/ErrorState.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
+import { formatNairaKobo } from '../lib/ledgerSemantics';
+import { buildDailyCollections, type DailyCollectionRow } from '../lib/ledgerReportBuilder';
 
-const DEFAULT_SCHOOL_ID = 'demo-school';
-const reportingStore = useReportingStore();
 const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 const loading = ref(false);
+const error = ref('');
 const startDate = ref('');
 const endDate = ref('');
-const collections = ref([]);
+const collections = ref<DailyCollectionRow[]>([]);
 
-const totalCollected = computed(() => {
-  return collections.value.reduce((sum, item) => sum + item.total, 0);
+const filteredCollections = computed(() => {
+  return collections.value.filter((item) => {
+    if (startDate.value && item.date < startDate.value) return false;
+    if (endDate.value && item.date > endDate.value) return false;
+    return true;
+  });
+});
+
+const totalCollectedMinor = computed(() => {
+  return filteredCollections.value.reduce((sum, item) => sum + item.collectedMinor, 0);
 });
 
 const loadCollections = async () => {
   loading.value = true;
+  error.value = '';
   try {
-    const filter = {
-      organizationId: DEFAULT_SCHOOL_ID,
-      schoolId: DEFAULT_SCHOOL_ID,
-      startDate: startDate.value || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      endDate: endDate.value || new Date().toISOString().split('T')[0],
-    };
-    await reportingStore.loadCashBook(filter);
-    const cashBook = reportingStore.cashBook;
-    if (cashBook) {
-      const entries = (cashBook as any).entries || [];
-      const grouped: Record<string, { count: number; total: number }> = {};
-      for (const entry of entries) {
-        const date = (entry as any).postingDate || (entry as any).occurredAt;
-        if (!date) continue;
-        const dateStr = new Date(date).toISOString().split('T')[0];
-        if (startDate.value && dateStr < startDate.value) continue;
-        if (endDate.value && dateStr > endDate.value) continue;
-        if (!grouped[dateStr]) grouped[dateStr] = { count: 0, total: 0 };
-        grouped[dateStr].count += 1;
-        grouped[dateStr].total += ((entry as any).amountMinor || 0) / 100;
-      }
-      collections.value = Object.entries(grouped)
-        .map(([date, data]) => ({ date, count: data.count, total: data.total }))
-        .sort((a: any, b: any) => b.date.localeCompare(a.date));
-    }
-  } catch (err) {
-    console.error('Failed to load daily collections:', err);
+    collections.value = await buildDailyCollections('demo-school');
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load daily collections.';
+    collections.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-const formatCsvValue = (value) => {
+const formatCsvValue = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined) return '';
   const stringValue = String(value);
   if (/[,\n"]/.test(stringValue)) {
@@ -62,12 +52,12 @@ const formatCsvValue = (value) => {
 };
 
 const downloadCsv = async () => {
-  const rows = [
+  const rows: Array<Array<string | number>> = [
     ['Date', 'Payments Count', 'Total Collected (₦)'],
-    ...collections.value.map((item) => [
+    ...filteredCollections.value.map((item) => [
       item.date,
       item.count,
-      item.total,
+      Number((item.collectedMinor / 100).toFixed(2)),
     ]),
   ];
   const csvText = rows.map((row) => row.map(formatCsvValue).join(',')).join('\n');
@@ -92,78 +82,83 @@ onMounted(loadCollections);
     <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
     <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
     <template v-else>
-    <div class="max-w-6xl mx-auto space-y-6">
-      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 class="text-4xl font-semibold mb-2 text-text-primary">Daily Collections</h1>
-            <p class="text-text-muted">View payments collected per day with date range filtering.</p>
+      <div class="max-w-6xl mx-auto space-y-6">
+        <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h1 class="text-headline mb-2 text-text-primary">Daily Collections</h1>
+              <p class="text-text-muted">View payments collected per day with date range filtering.</p>
+            </div>
+            <CmButton
+              @click="downloadCsv"
+              :disabled="filteredCollections.length === 0"
+              variant="primary"
+            >
+              Export CSV
+            </CmButton>
           </div>
-          <CmButton
-            @click="downloadCsv"
-            :disabled="collections.length === 0"
-            variant="primary"
-          >
-            Export CSV
-          </CmButton>
+        </section>
+
+        <ErrorState v-if="error" :description="error" @retry="loadCollections()" />
+        <div v-else-if="loading" class="space-y-6">
+          <SkeletonLoader type="metric" :count="1" />
+          <SkeletonLoader type="table" :count="5" />
         </div>
-      </section>
 
-      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <label class="block">
-              <span class="text-sm text-text-muted">Start date</span>
-              <input
-                v-model="startDate"
-                type="date"
-                class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow"
-              />
-            </label>
-            <label class="block">
-              <span class="text-sm text-text-muted">End date</span>
-              <input
-                v-model="endDate"
-                type="date"
-                class="mt-2 w-full rounded-button border border-border bg-surface px-4 py-3 text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-glow transition-shadow"
-              />
-            </label>
-          </div>
-          <CmButton @click="loadCollections" variant="primary">
-            Filter
-          </CmButton>
-        </div>
-      </section>
+        <template v-else>
+          <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label class="block">
+                  <span class="text-sm text-text-muted">Start date</span>
+                  <CmInput v-model="startDate" type="date" class="mt-2" />
+                </label>
+                <label class="block">
+                  <span class="text-sm text-text-muted">End date</span>
+                  <CmInput v-model="endDate" type="date" class="mt-2" />
+                </label>
+              </div>
+              <CmButton @click="loadCollections" variant="primary">
+                Filter
+              </CmButton>
+            </div>
+          </section>
 
-      <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
-        <h2 class="text-2xl font-semibold mb-4 text-text-primary">Total collected</h2>
-        <p class="text-5xl font-bold text-success">₦{{ totalCollected.toLocaleString() }}</p>
-        <p class="mt-2 text-text-muted">{{ collections.length }} days with payments</p>
-      </section>
+          <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
+            <h2 class="text-headline mb-4 text-text-primary">Total collected</h2>
+            <p class="text-5xl font-bold text-success">{{ formatNairaKobo(totalCollectedMinor) }}</p>
+            <p class="mt-2 text-text-muted">{{ filteredCollections.length }} day(s) with payments</p>
+          </section>
 
-      <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto transition-colors duration-200">
-        <h2 class="text-2xl font-semibold mb-4 text-text-primary">Collections by day</h2>
-        <table class="w-full border-collapse text-left text-sm">
-          <thead>
-            <tr class="border-b border-divider text-text-muted">
-              <th class="py-3 text-xs font-bold uppercase tracking-wider">Date</th>
-              <th class="py-3 text-xs font-bold uppercase tracking-wider">Payments</th>
-              <th class="py-3 text-xs font-bold uppercase tracking-wider">Total collected</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in collections" :key="item.date" class="border-b border-divider hover:bg-card/50 transition-colors">
-              <td class="py-3 text-text-secondary">{{ item.date }}</td>
-              <td class="py-3 text-text-secondary">{{ item.count }}</td>
-              <td class="py-3 font-semibold text-success">₦{{ item.total.toLocaleString() }}</td>
-            </tr>
-            <tr v-if="collections.length === 0">
-              <td colspan="3" class="py-8 text-center text-text-muted">No collections found for the selected period.</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-    </div>
+          <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto transition-colors duration-200">
+            <h2 class="text-headline mb-4 text-text-primary">Collections by day</h2>
+            <table class="w-full border-collapse text-left text-sm">
+              <thead>
+                <tr class="border-b border-divider text-text-muted">
+                  <th class="py-3 text-xs font-bold uppercase tracking-wider">Date</th>
+                  <th class="py-3 text-xs font-bold uppercase tracking-wider">Payments</th>
+                  <th class="py-3 text-xs font-bold uppercase tracking-wider">Total collected</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in filteredCollections" :key="item.date" class="border-b border-divider hover:bg-card/50 transition-colors">
+                  <td class="py-3 text-text-secondary">{{ item.date }}</td>
+                  <td class="py-3 text-text-secondary">{{ item.count }}</td>
+                  <td class="py-3 font-semibold text-success">{{ formatNairaKobo(item.collectedMinor) }}</td>
+                </tr>
+                <tr v-if="filteredCollections.length === 0">
+                  <td colspan="3" class="py-8 text-center text-text-muted">No collections found for the selected period.</td>
+                </tr>
+              </tbody>
+            </table>
+            <EmptyState
+              v-if="filteredCollections.length === 0"
+              title="No collections in this period"
+              description="Daily payment totals recorded in the ledger will appear here."
+            />
+          </section>
+        </template>
+      </div>
     </template>
   </main>
 </template>

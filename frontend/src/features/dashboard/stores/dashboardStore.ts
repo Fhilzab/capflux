@@ -6,6 +6,7 @@ import { PaymentAccountRepository } from '../../../shared/repositories/PaymentAc
 import { NotificationRepository } from '../../../shared/repositories/NotificationRepository';
 import { ReportService } from '../../../shared/services/ReportService';
 import { useSyncStore } from '../../../stores/syncStore';
+import { getEntryAmountMinor, getEntryDate, isChargeEntry, isPaymentCreditEntry, isReversalDebitEntry } from '../../../lib/ledgerSemantics';
 import dayjs from 'dayjs';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
@@ -173,46 +174,24 @@ export const useDashboardStore = defineStore('dashboard', {
   actions: {
     /** Derive kobo integer from either amount_minor or legacy amount. */
     _getAmountMinor(entry: LedgerEntry): number {
-      const raw = (entry as Record<string, unknown>).amount_minor ??
-                  (entry as Record<string, unknown>).amountMinor;
-      if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw);
-      if (typeof raw === 'string' && raw !== '') {
-        const n = Number(raw);
-        if (Number.isFinite(n)) return Math.trunc(n);
-      }
-      const amt = Number(entry.amount ?? 0);
-      if (!Number.isFinite(amt)) return 0;
-      return Math.round(amt * 100);
+      return getEntryAmountMinor(entry);
     },
 
     /** Event date — seed writes occurred_at & created_at identically. */
     _getEntryDate(entry: LedgerEntry): string | undefined {
-      const e = entry as Record<string, unknown>;
-      return (e.occurred_at as string) ?? (e.posting_date as string) ?? entry.created_at;
+      return getEntryDate(entry);
     },
 
     _isCharge(entry: LedgerEntry): boolean {
-      const t = String(entry.entry_type ?? '').toUpperCase();
-      const d = String((entry.entry_direction ?? '')).toUpperCase();
-      // Canonical: CHARGE + DEBIT. Legacy fallback: entry_type==='DEBIT' or amount sign.
-      if (t === 'CHARGE') return d === 'DEBIT' || d === '';
-      if (!t && d === 'DEBIT' && entry.entry_category) return false; // ambiguous legacy
-      return false;
+      return isChargeEntry(entry);
     },
 
     _isPaymentCredit(entry: LedgerEntry): boolean {
-      const t = String(entry.entry_type ?? '').toUpperCase();
-      const d = String((entry.entry_direction ?? '')).toUpperCase();
-      if (t === 'PAYMENT' && d === 'CREDIT') return true;
-      // Legacy fallback: some callers still write CREDIT as type-less credit
-      if (t === 'CREDIT' && (d === 'CREDIT' || d === '')) return true;
-      return false;
+      return isPaymentCreditEntry(entry);
     },
 
     _isReversalDebit(entry: LedgerEntry): boolean {
-      const t = String(entry.entry_type ?? '').toUpperCase();
-      const d = String((entry.entry_direction ?? '')).toUpperCase();
-      return t === 'REVERSAL' && d === 'DEBIT';
+      return isReversalDebitEntry(entry);
     },
 
     async fetchDashboardData() {
