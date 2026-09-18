@@ -8,6 +8,11 @@
  *   workos_primary— alias of dual (explicit cutover intent, same behavior).
  *   workos_only   — WorkOS AuthKit JWT only (cutover end state).
  *
+ * Sandbox demo tokens: when CAPFLUX_MODE=sandbox, tokens carrying
+ * `sandbox:true` and `demo:true` unverified claims are routed to
+ * requireAuthDemo, which validates the HMAC signature and resolves the
+ * demo persona. Demo tokens are NEVER accepted in production.
+ *
  * Fail-closed: an invalid AUTH_PROVIDER_MODE value returns 500 and serves no
  * traffic. An unset value preserves pre-cutover behavior (supabase_only) so
  * that deploying this code alone never flips production authentication.
@@ -27,6 +32,7 @@ import { decodeJwt } from 'jose';
 import { supabase } from '../supabaseClient.js';
 import { errorMessage } from '../types/http.js';
 import type { AuthUser } from '../types/http.js';
+import { requireAuthDemo } from './requireAuthDemo.js';
 import { requireAuthSupabase } from './requireAuthSupabase.js';
 import { tryAuthenticateWorkOS } from './requireAuthWorkOS.js';
 
@@ -73,6 +79,21 @@ function looksLikeWorkOSJwt(token: string): boolean {
   }
 }
 
+/**
+ * Unverified routing hint: true when the token looks like a CAPFLUX sandbox
+ * demo session JWT (sandbox:true + demo:true claims). Only delegated to
+ * requireAuthDemo when CAPFLUX_MODE=sandbox — production never accepts
+ * demo tokens.
+ */
+function looksLikeDemoToken(token: string): boolean {
+  try {
+    const claims = decodeJwt(token);
+    return claims.sandbox === true && claims.demo === true;
+  } catch {
+    return false;
+  }
+}
+
 function bearerToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
   if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
@@ -83,6 +104,15 @@ function bearerToken(req: Request): string | null {
 }
 
 export async function requireAuthProvider(req: Request, res: Response, next: NextFunction): Promise<void | Response> {
+  // Sandbox demo token fast-path: detect before the provider-mode switch so
+  // demo sessions work regardless of AUTH_PROVIDER_MODE setting. The token
+  // is fully verified by requireAuthDemo (HMAC signature + persona lookup).
+  // Production never accepts demo tokens — the check requires CAPFLUX_MODE=sandbox.
+  const token = bearerToken(req);
+  if (token && looksLikeDemoToken(token) && process.env.CAPFLUX_MODE?.toLowerCase() === 'sandbox') {
+    return requireAuthDemo(req, res, next);
+  }
+
   const modeResolution = getAuthProviderMode();
 
   if (typeof modeResolution !== 'string') {
@@ -103,12 +133,12 @@ export async function requireAuthProvider(req: Request, res: Response, next: Nex
     }
 
     // dual / workos_primary: try the hinted validator first, fall back once.
-    const token = bearerToken(req);
-    if (!token) {
+    const dualToken = bearerToken(req);
+    if (!dualToken) {
       return res.status(401).json({ error: 'Unauthorized: Bearer token required.' });
     }
 
-    const tryWorkOSFirst = looksLikeWorkOSJwt(token);
+    const tryWorkOSFirst = looksLikeWorkOSJwt(dualToken);
 
     if (tryWorkOSFirst) {
       const workosUser = await tryAuthenticateWorkOS(req);
