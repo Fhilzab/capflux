@@ -266,10 +266,10 @@ export class WorkOSWebhookService {
    * Creates the CAPFLUX user, profile, and identity link.
    * Uses application-level provisioning (no database RPC dependency).
    *
-   * CRITICAL: Non-critical provisioning failures must NOT cause the webhook
-   * to return 500, which triggers endless WorkOS retries. The webhook always
-   * returns 200 after accepting the event — provisioning errors are logged
-   * and can be resolved via the auth routes on next login.
+   * If provisioning fails, returns failure so WorkOS retries the event.
+   * The root fix is that CAPFLUX signup itself creates the records — the
+   * webhook should find them already existing (idempotent). A provisioning
+   * failure here means something is fundamentally broken and must be visible.
    */
   async handleUserCreated(event: WorkOSEvent): Promise<EventProcessingResult> {
     const eventId = event.id;
@@ -287,7 +287,7 @@ export class WorkOSWebhookService {
       let capfluxUserId: string;
 
       if (existingCapfluxUserId) {
-        // Identity already exists - this is an idempotent retry or duplicate event
+        // Identity already exists — idempotent retry or duplicate event
         capfluxUserId = existingCapfluxUserId;
         console.log(`[workos-webhook] Existing identity found for user.created: workos_user_id=${userData.id} -> capflux_user_id=${capfluxUserId}`);
 
@@ -297,16 +297,10 @@ export class WorkOSWebhookService {
           return { success: false, eventId, eventType, error: result.error };
         }
       } else {
-        // No existing identity - provision via application-level logic
-        try {
-          capfluxUserId = await this.provisionCAPFLUXUserFromWorkOS(userData);
-        } catch (provisionErr) {
-          // Non-critical: the user can still authenticate via the auth routes
-          // which will JIT-provision the identity on next login.
-          // Return success to avoid endless webhook retries.
-          console.error('[workos-webhook] Provisioning failed (will JIT-provision on next login):', errorMessage(provisionErr));
-          return { success: true, eventId, eventType };
-        }
+        // No existing identity — provision. This should rarely happen because
+        // CAPFLUX signup creates the records before WorkOS fires the webhook.
+        // If it does happen, it's a real failure that must be visible.
+        capfluxUserId = await this.provisionCAPFLUXUserFromWorkOS(userData);
       }
 
       console.log(`[workos-webhook] received event=user.created id=${eventId} workos_user_id=${userData.id} capflux_user_id=${capfluxUserId}`);
