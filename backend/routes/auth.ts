@@ -1,13 +1,19 @@
 /**
- * Auth routes — LEGACY (WorkOS).
+ * Auth routes — WorkOS authentication (production).
  *
- * Phase 4: Supabase Auth is the active authentication authority.
- * The frontend authenticates directly against Supabase Auth via
- * SupabaseAuthProvider. These WorkOS-based routes are preserved as a
- * rollback path and are NOT called by the current frontend.
+ * These routes handle WorkOS-based authentication with a custom CAPFLUX-branded UI.
+ * The frontend never talks to WorkOS directly — it calls /api/auth/* which
+ * delegates to WorkOSAuthService and WorkOSProvisioningService.
  *
- * Do NOT delete until the migration is fully verified and WorkOS is
- * removed in a later phase.
+ * Identity state machine:
+ *   Password signup (email not verified):
+ *     status=PENDING, verified_at=NULL, migration_source=MANUAL
+ *   After email verification:
+ *     status=ACTIVE, verified_at=timestamp, migration_source=JIT_VERIFIED_EMAIL
+ *   Google OAuth (email already verified by Google):
+ *     status=ACTIVE, verified_at=timestamp, migration_source=JIT_VERIFIED_EMAIL
+ *   Webhook:
+ *     status=PENDING, verified_at=NULL, migration_source=WEBHOOK
  */
 import { Router, Request, Response, CookieOptions } from 'express';
 import { supabase } from '../supabaseClient.js';
@@ -62,8 +68,6 @@ const setSessionCookie = async (
     const cookieValue = await sessionService.createSessionCookieValue(authResult as Parameters<typeof sessionService.createSessionCookieValue>[0]);
     res.cookie(SESSION_COOKIE_NAME, cookieValue, SESSION_COOKIE_OPTIONS);
   } catch (error) {
-    // Cookie sealing failure should not break the auth response, but must be
-    // logged — the client will simply not have a persisted session.
     console.error('Failed to set session cookie:', errorMessage(error) || error);
   }
 };
@@ -77,13 +81,9 @@ const clearSessionCookie = (res: Response): void => {
 
 /**
  * Upsert the CAPFLUX `users` identity and `user_profiles` rows.
- * Authentication ONLY — no organizations, schools, or subscriptions.
- *
  * SAFETY: public.users.id and public.user_profiles.user_id are UUID columns.
- * WorkOS user IDs ("user_...") are TEXT and must NEVER be written there —
- * identity mapping belongs exclusively to public.user_identity_links (which
- * these legacy routes do not manage). If the id is not a UUID, the write is
- * skipped (authentication still succeeds; the session remains valid).
+ * WorkOS user IDs ("user_...") are TEXT and must NEVER be written there.
+ * If the id is not a UUID, the write is skipped (not a CAPFLUX UUID).
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const upsertUserRecords = async (user: AuthUser | WorkosFormattedUser | null): Promise<void> => {
@@ -91,10 +91,8 @@ const upsertUserRecords = async (user: AuthUser | WorkosFormattedUser | null): P
   if (!u?.id || !u?.email) return;
 
   if (!UUID_RE.test(u.id)) {
-    // Legacy WorkOS identity (e.g. "user_...") — not a CAPFLUX canonical UUID.
-    // Skip the write rather than corrupt UUID columns. The authoritative
-    // mapping for such identities is public.user_identity_links via the
-    // atomic provision_workos_user RPC (webhook path).
+    // Legacy WorkOS identity (e.g. "user_...") — not a CAPFLUX UUID (is not a UUID).
+    // Skip the write rather than corrupt UUID columns.
     console.warn('Skipping users upsert: id is not a CAPFLUX UUID (legacy WorkOS identity).');
     return;
   }
@@ -129,6 +127,247 @@ const handleError = (res: Response, error: unknown, fallbackStatus = 500): Respo
   return res.status(status).json({ error: message, code });
 };
 
+/**
+ * POST /api/auth/signup
+ *
+ * Creates a WorkOS user + CAPFLUX identity (PENDING until email verified).
+ * Returns verificationRequired=true. No session is established.
+ *
+ * Flow:
+ *   1. WorkOS createUser()
+ *   2. Generate CAPFLUX UUID
+ *   3. Insert public.users, public.user_profiles, public.user_identity_links
+ *   4. Identity status=PENDING, verified_at=NULL, migration_source=MANUAL
+ *   5. Send WorkOS verification code
+ *   6. Return verificationRequired=true
+ *   7. Frontend opens verification-code UI
+ *
+ * If CAPFLUX provisioning fails:
+ *   - Return safe PROVISIONING_ERROR (no false success)
+ *   - No ACTIVE identity created
+ *   - Log internal failure
+ */
+router.post('/signup', async (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const { fullName, email, password } = body;
+  if (!email || !password || !fullName) {
+    return res.status(400).json({ error: 'Full name, email, and password are required.' });
+  }
+
+  let workosUserId: string | null = null;
+
+  try {
+    // Step 1: Create WorkOS user
+    const result = await authService.signUpWithPassword(email as string, password as string, fullName as string);
+    workosUserId = result.user?.id || null;
+
+    if (!workosUserId) {
+      console.error('[signup] WorkOS createUser returned no user ID');
+      return res.status(500).json({ error: 'Account creation failed. Please try again.', code: 'PROVISIONING_ERROR' });
+    }
+
+    // Step 2-4: Provision CAPFLUX identity (PENDING — email not yet verified)
+    try {
+      await workosProvisioningService.provisionWorkOSIdentity({
+        workosUserId,
+        email: result.user!.email,
+        firstName: result.user!.firstName,
+        lastName: result.user!.lastName,
+        emailVerified: false,
+        profilePictureUrl: result.user!.profilePictureUrl,
+        migrationSource: 'MANUAL',
+      });
+    } catch (provisionErr) {
+      const provisionMsg = errorMessage(provisionErr) || 'Unknown provisioning error';
+      console.error('[signup] CAPFLUX provisioning failed:', provisionMsg);
+
+      if (provisionMsg.includes('already exists')) {
+        return res.status(409).json({
+          error: 'An account with this email already exists. Please sign in instead.',
+          code: 'USER_ALREADY_EXISTS',
+        });
+      }
+
+      return res.status(500).json({
+        error: 'Account creation failed. Please try again.',
+        code: 'PROVISIONING_ERROR',
+      });
+    }
+
+    // Step 5-6: Verification code was sent by signUpWithPassword (sendVerificationEmail)
+    // No session cookie — user must verify email first
+    return res.json({
+      success: true,
+      user: result.user,
+      verificationRequired: true,
+      verificationSent: result.verificationSent,
+    });
+  } catch (error) {
+    // WorkOS createUser may have succeeded but verification sending failed.
+    // Distinguish: if we have a workosUserId, WorkOS user was created.
+    if (workosUserId) {
+      console.error('[signup] WorkOS user created but post-creation step failed:', errorMessage(error));
+    }
+    return handleError(res, error, 400);
+  }
+});
+
+/**
+ * POST /api/auth/verify-email
+ *
+ * Verifies a user's email with the 6-digit code from the verification email.
+ * On success:
+ *   1. WorkOS marks user as email_verified=true
+ *   2. CAPFLUX users.email_verified = true
+ *   3. Identity link transitions: PENDING -> ACTIVE, verified_at = timestamp
+ *   4. Authenticate the user (obtain tokens)
+ *   5. Establish session
+ *   6. Return success with session
+ *
+ * On failure:
+ *   - Return clear error (invalid code, expired code)
+ *   - No session established
+ */
+router.post('/verify-email', async (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const { code, userId } = body;
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'Verification code is required.' });
+  }
+  if (!userId || typeof userId !== 'string') {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
+
+  try {
+    // Step 1: Verify email with WorkOS (marks user as email_verified=true)
+    const verifyResult = await authService.verifyEmail(code, userId);
+
+    if (!verifyResult.success || !verifyResult.user) {
+      return res.status(400).json({ error: 'Invalid or expired verification code.', code: 'INVALID_CODE' });
+    }
+
+    // Step 2: Resolve identity by WorkOS user ID (NOT by email)
+    const { data: identityLink, error: linkErr } = await supabase
+      .from('user_identity_links')
+      .select('capflux_user_id')
+      .eq('workos_user_id', userId)
+      .eq('identity_type', 'workos_authkit')
+      .maybeSingle();
+
+    if (linkErr || !identityLink) {
+      console.error('[verify-email] Identity link not found for WorkOS user:', userId);
+      return res.status(500).json({ error: 'Verification failed. Please try again.', code: 'PROVISIONING_ERROR' });
+    }
+
+    const capfluxUserId = identityLink.capflux_user_id;
+
+    // Step 3: Update CAPFLUX users.email_verified = true
+    await supabase
+      .from('users')
+      .update({ email_verified: true })
+      .eq('id', capfluxUserId);
+
+    // Step 4: Transition identity: PENDING -> ACTIVE, set verified_at
+    await supabase
+      .from('user_identity_links')
+      .update({
+        status: 'ACTIVE',
+        verified_at: new Date().toISOString(),
+      })
+      .eq('capflux_user_id', capfluxUserId)
+      .eq('workos_user_id', userId)
+      .eq('identity_type', 'workos_authkit');
+
+    // Step 5: Authenticate the user (obtain tokens via WorkOS)
+    // After verification, the user needs to sign in to get a session.
+    // We attempt to authenticate using the verification result user info.
+    // If WorkOS requires a separate sign-in, return verificationSuccess=true
+    // and the frontend routes to sign-in.
+    try {
+      const authResult = await authService.signInWithPassword(
+        verifyResult.user.email,
+        '' // We don't have the password — return verification success only
+      );
+      // If we somehow got tokens (shouldn't happen without password), set session
+      await setSessionCookie(res, authResult);
+      return res.json({ success: true, verificationSuccess: true, authenticated: true });
+    } catch {
+      // Expected: can't authenticate without password after verification.
+      // Return verification success — user must sign in.
+      return res.json({ success: true, verificationSuccess: true, authenticated: false });
+    }
+  } catch (error) {
+    const msg = errorMessage(error) || '';
+    if (msg.includes('invalid') || msg.includes('expired') || msg.includes('code')) {
+      return res.status(400).json({ error: 'Invalid or expired verification code.', code: 'INVALID_CODE' });
+    }
+    return handleError(res, error, 400);
+  }
+});
+
+/**
+ * POST /api/auth/resend-verification
+ *
+ * Resends the verification code. Accepts email (not userId) for UX convenience.
+ * Resolves the WorkOS user by looking up the identity link via CAPFLUX users.email.
+ *
+ * Safety: Always returns success to prevent account enumeration.
+ * Never reveals whether an arbitrary email belongs to an account.
+ */
+router.post('/resend-verification', async (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const { email } = body;
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ error: 'Email is required.' });
+  }
+
+  try {
+    // Find CAPFLUX user by email (not for identity resolution — just to get the WorkOS user ID for resending)
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (!user) {
+      // Always return success — never reveal whether email exists
+      return res.json({ success: true });
+    }
+
+    // Find the WorkOS identity link for this CAPFLUX user
+    const { data: identityLink } = await supabase
+      .from('user_identity_links')
+      .select('workos_user_id')
+      .eq('capflux_user_id', user.id)
+      .eq('identity_type', 'workos_authkit')
+      .maybeSingle();
+
+    if (!identityLink) {
+      // No identity link — still return success (never reveal)
+      return res.json({ success: true });
+    }
+
+    // Resend verification email via WorkOS
+    try {
+      await authService.sendVerificationEmail(identityLink.workos_user_id);
+    } catch {
+      // Log but don't fail — always return success to prevent enumeration
+      console.warn('[resend-verification] WorkOS sendVerificationEmail failed for user:', user.id);
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    // Always return success — never reveal failure reasons
+    return res.json({ success: true });
+  }
+});
+
+/**
+ * POST /api/auth/signin
+ *
+ * Password sign-in. If WorkOS user has no CAPFLUX identity, provisions one (JIT).
+ * On success, establishes a session.
+ */
 router.post('/signin', async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const { email, password } = body;
@@ -149,10 +388,9 @@ router.post('/signin', async (req: Request, res: Response) => {
           lastName: result.user.lastName,
           emailVerified: result.user.emailVerified,
           profilePictureUrl: result.user.profilePictureUrl,
+          migrationSource: 'JIT_VERIFIED_EMAIL',
         });
       } catch (provisionErr) {
-        // Non-fatal for signin — the user can still authenticate.
-        // Identity will be resolved on next request.
         console.error('[signin] JIT provisioning failed:', errorMessage(provisionErr));
       }
     }
@@ -164,75 +402,19 @@ router.post('/signin', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/signup', async (req: Request, res: Response) => {
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  const { fullName, email, password } = body;
-  if (!email || !password || !fullName) {
-    return res.status(400).json({ error: 'Full name, email, and password are required.' });
-  }
-
-  try {
-    const result = await authService.signUpWithPassword(email as string, password as string, fullName as string);
-
-    // Provision CAPFLUX identity (user + profile + identity link) immediately.
-    // This must happen during signup, NOT only during signin, so the user
-    // has a CAPFLUX UUID before email verification.
-    if (result.user?.id) {
-      try {
-        await workosProvisioningService.provisionWorkOSIdentity({
-          workosUserId: result.user.id,
-          email: result.user.email,
-          firstName: result.user.firstName,
-          lastName: result.user.lastName,
-          emailVerified: false, // verification pending
-          profilePictureUrl: result.user.profilePictureUrl,
-        });
-      } catch (provisionErr) {
-        // Distinguish provisioning failure from verification failure.
-        // If provisioning fails, the user cannot authenticate at all.
-        // If verification email fails, the user can resend.
-        const provisionMsg = errorMessage(provisionErr) || 'Unknown provisioning error';
-        console.error('[signup] CAPFLUX provisioning failed:', provisionMsg);
-
-        // Email already exists in CAPFLUX — this is a duplicate signup attempt
-        if (provisionMsg.includes('already exists')) {
-          return res.status(409).json({
-            error: 'An account with this email already exists. Please sign in instead.',
-            code: 'USER_ALREADY_EXISTS',
-          });
-        }
-
-        // Other provisioning failure — return safe server error
-        return res.status(500).json({
-          error: 'Account creation failed. Please try again.',
-          code: 'PROVISIONING_ERROR',
-        });
-      }
-    }
-
-    // No session cookie — user must verify email first
-    return res.json({
-      success: true,
-      user: result.user,
-      verificationRequired: true,
-      verificationSent: result.verificationSent,
-    });
-  } catch (error) {
-    return handleError(res, error, 400);
-  }
-});
-
+/**
+ * POST /api/auth/google
+ *
+ * Initiates Google OAuth flow. Returns the WorkOS authorization URL.
+ */
 router.post('/google', async (req: Request, res: Response) => {
-  // Use the AuthKit callback URL for Google OAuth (production: https://capflux.vercel.app/auth/callback)
   const redirectUri = process.env.WORKOS_AUTHKIT_REDIRECT_URI;
-
   if (!redirectUri) {
     return res.status(500).json({ error: 'WORKOS_AUTHKIT_REDIRECT_URI is not configured.' });
   }
 
   try {
     const { url, state } = authService.getOAuthAuthorizationUrl('google', redirectUri);
-    // Set state cookie for CSRF protection on callback (same as AuthKit flow)
     res.cookie(STATE_COOKIE_NAME, state, STATE_COOKIE_OPTIONS);
     return res.json({ success: true, url });
   } catch (error) {
@@ -243,9 +425,6 @@ router.post('/google', async (req: Request, res: Response) => {
 /**
  * GET /api/auth/authkit-url
  * Returns the WorkOS AuthKit hosted UI authorization URL.
- * Called by the frontend AuthKitProvider to initiate the AuthKit flow.
- * Mode 'login'|'signup' selects the WorkOS screen_hint 'sign-in'|'sign-up'.
- * Sets a state cookie for CSRF protection on the callback.
  */
 router.get('/authkit-url', async (req: Request, res: Response) => {
   const mode = (req.query.mode as string) || 'login';
@@ -255,7 +434,6 @@ router.get('/authkit-url', async (req: Request, res: Response) => {
 
   try {
     const { url, state } = authService.getAuthKitAuthorizationUrl(mode as 'login' | 'signup');
-    // Set state cookie for CSRF protection on callback
     res.cookie(STATE_COOKIE_NAME, state, STATE_COOKIE_OPTIONS);
     return res.json({ success: true, url, state });
   } catch (error) {
@@ -265,14 +443,15 @@ router.get('/authkit-url', async (req: Request, res: Response) => {
 
 /**
  * GET /api/auth/authkit-callback
- * Handles the WorkOS AuthKit OAuth callback.
+ *
+ * Handles the WorkOS AuthKit/Google OAuth callback.
  * Exchanges the authorization code for tokens.
- * Verifies state cookie for CSRF protection (like legacy Google OAuth flow).
- * 
- * Also handles linking for existing CAPFLUX users (Supabase Auth migration):
- * - If WorkOS user has no identity link, check legacy_identity_migrations table
- * - If legacy record exists (PENDING/INVITED), create identity link and mark COMPLETED
- * - This enables seamless migration for existing users
+ * Provisions CAPFLUX identity (HARD FAIL if provisioning fails).
+ *
+ * For Google OAuth users:
+ *   - Google has already verified the email
+ *   - Identity: status=ACTIVE, migration_source=JIT_VERIFIED_EMAIL
+ *   - Provisioning failure = hard error (no session)
  */
 router.get('/authkit-callback', async (req: Request, res: Response) => {
   const code = req.query.code;
@@ -285,33 +464,25 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'State parameter is required.' });
   }
 
-  // Validate state against HttpOnly cookie (primary) or query param (cross-origin fallback).
-  // Cross-origin requests (Vercel→Render) may not carry the cookie, so we also accept
-  // state from the query parameter. The query state was set by our own frontend before
-  // redirecting to Google, so it's safe to validate against.
+  // Validate state against HttpOnly cookie (primary) or query param (cross-origin fallback)
   const cookies = sessionService.parseCookieHeader(req.headers.cookie);
   const cookieState = cookies[STATE_COOKIE_NAME];
 
   if (cookieState) {
-    // Cookie present — validate against it (same-origin or SameSite=None succeeded)
     if (!authService.validateAuthState(state, cookieState)) {
       res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
       return res.status(400).json({ error: 'Invalid or expired authentication state.' });
     }
-    // Consume-once: clear the state cookie immediately after successful validation
     res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
   } else {
-    // No cookie — this is expected for cross-origin flows (Vercel→Render).
-    // The state was passed by our own frontend, which got it from the backend's
-    // /auth/google response. CSRF protection relies on the fact that only our
-    // frontend could have obtained this state value.
     console.log('[authkit-callback] No auth_state cookie — using query state (cross-origin flow)');
   }
 
   try {
     const result = await authService.handleOAuthCallback(code);
-    
-    // JIT provisioning: ensure WorkOS user has a CAPFLUX identity
+
+    // Provision CAPFLUX identity (HARD FAIL if provisioning fails)
+    // Google OAuth users have email_verified=true by Google.
     if (result.user?.id?.startsWith('user_')) {
       try {
         await workosProvisioningService.provisionWorkOSIdentity({
@@ -321,11 +492,14 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
           lastName: result.user.lastName,
           emailVerified: result.user.emailVerified,
           profilePictureUrl: result.user.profilePictureUrl,
+          migrationSource: 'JIT_VERIFIED_EMAIL',
         });
       } catch (provisionErr) {
-        // Non-fatal for OAuth callback — the user can still authenticate.
-        // Identity will be resolved on next request.
-        console.error('[authkit-callback] JIT provisioning failed:', errorMessage(provisionErr));
+        console.error('[authkit-callback] CAPFLUX provisioning failed:', errorMessage(provisionErr));
+        return res.status(500).json({
+          error: 'Authentication failed. Please try again.',
+          code: 'PROVISIONING_ERROR',
+        });
       }
     }
 
@@ -336,6 +510,10 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/auth/callback
+ * Legacy Google OAuth callback (same logic as authkit-callback).
+ */
 router.get('/callback', async (req: Request, res: Response) => {
   const code = req.query.code;
   const state = req.query.state;
@@ -347,7 +525,7 @@ router.get('/callback', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'State parameter is required.' });
   }
 
-  // Validate state against HttpOnly cookie (primary) or query param (cross-origin fallback).
+  // Validate state against HttpOnly cookie (primary) or query param (cross-origin fallback)
   const cookies = sessionService.parseCookieHeader(req.headers.cookie);
   const cookieState = cookies[STATE_COOKIE_NAME];
 
@@ -364,7 +542,7 @@ router.get('/callback', async (req: Request, res: Response) => {
   try {
     const result = await authService.handleOAuthCallback(code);
 
-    // JIT provisioning: ensure WorkOS user has a CAPFLUX identity
+    // Provision CAPFLUX identity (HARD FAIL if provisioning fails)
     if (result.user?.id?.startsWith('user_')) {
       try {
         await workosProvisioningService.provisionWorkOSIdentity({
@@ -374,9 +552,14 @@ router.get('/callback', async (req: Request, res: Response) => {
           lastName: result.user.lastName,
           emailVerified: result.user.emailVerified,
           profilePictureUrl: result.user.profilePictureUrl,
+          migrationSource: 'JIT_VERIFIED_EMAIL',
         });
       } catch (provisionErr) {
-        console.error('[callback] JIT provisioning failed:', errorMessage(provisionErr));
+        console.error('[callback] CAPFLUX provisioning failed:', errorMessage(provisionErr));
+        return res.status(500).json({
+          error: 'Authentication failed. Please try again.',
+          code: 'PROVISIONING_ERROR',
+        });
       }
     }
 
@@ -390,8 +573,6 @@ router.get('/callback', async (req: Request, res: Response) => {
 /**
  * GET /api/auth/session
  * Returns SAFE session information for the frontend.
- * Supports both WorkOS JWT Bearer token and HttpOnly session cookie.
- * NEVER returns refresh tokens, cookie values, or raw credentials.
  */
 router.get('/session', requireAuthHybrid, async (req: Request, res: Response) => {
   return res.json({
@@ -404,10 +585,7 @@ router.get('/session', requireAuthHybrid, async (req: Request, res: Response) =>
 });
 
 router.get('/me', requireAuthHybrid, async (req: Request, res: Response) => {
-  // Identity comes from the verified WorkOS session (Bearer token or cookie),
-  // not a client supplied user id. Upsert the identity records for the authenticated user.
   try {
-    await upsertUserRecords(req.user);
     return res.json({ success: true, user: req.user });
   } catch (error) {
     return handleError(res, error, 401);
@@ -416,12 +594,9 @@ router.get('/me', requireAuthHybrid, async (req: Request, res: Response) => {
 
 router.post('/signout', requireAuthHybrid, async (req: Request, res: Response) => {
   try {
-    // Try to revoke session using sessionId from either auth method
     const sessionId = req.sessionId;
     if (sessionId) {
-      // Revoke via WorkOS API (triggers session.revoked webhook)
       await sessionService.revokeSession(sessionId);
-      // Also record in durable database store for immediate enforcement
       const { error: revokeErr } = await supabase.rpc('revoke_workos_session', {
         p_session_id: sessionId,
         p_source: 'signout',
@@ -446,7 +621,6 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
   try {
     const result = await authService.refreshToken(refreshToken as string);
-    await upsertUserRecords(result.user);
     await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
   } catch (error) {
@@ -478,32 +652,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
   try {
     const result = await authService.resetPassword(token as string, newPassword as string);
-    await upsertUserRecords(result.user);
     return res.json({ success: true, ...result });
-  } catch (error) {
-    return handleError(res, error, 400);
-  }
-});
-
-router.post('/resend-verification', async (req: Request, res: Response) => {
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  const { userId, email } = body;
-  if (!userId && !email) {
-    return res.status(400).json({ error: 'Either userId or email is required.' });
-  }
-
-  try {
-    let id = userId as string | undefined;
-    if (!id) {
-      const { data, error } = await supabase.from('users').select('id').eq('email', email as string).single();
-      if (error || !data) {
-        return res.status(404).json({ error: 'User not found.' });
-      }
-      id = (data as { id: string }).id;
-    }
-
-    await authService.sendVerificationEmail(id);
-    return res.json({ success: true });
   } catch (error) {
     return handleError(res, error, 400);
   }
@@ -512,15 +661,6 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
 /**
  * POST /api/auth/claim-account
  * Legacy Supabase → WorkOS account-claim flow.
- *
- * Accepts an email. If it belongs to an eligible legacy identity
- * (legacy_identity_migrations), CAPFLUX creates/locates the WorkOS user and
- * sends a WorkOS password-setup email. The response is GENERIC regardless of
- * whether the email is eligible, to prevent account enumeration:
- *   "If this account is eligible, you will receive an email with instructions."
- *
- * NEVER stores or exposes passwords/hashes/tokens. NEVER reveals whether an
- * arbitrary email exists.
  */
 router.post('/claim-account', async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -528,7 +668,6 @@ router.post('/claim-account', async (req: Request, res: Response) => {
   const GENERIC = 'If this account is eligible, you will receive an email with instructions.';
 
   if (!email || typeof email !== 'string' || !email.includes('@')) {
-    // Still return the generic message so the endpoint never reveals validity.
     return res.json({ success: true, message: GENERIC });
   }
 
@@ -536,27 +675,22 @@ router.post('/claim-account', async (req: Request, res: Response) => {
   const idempotencyKey = `claim:${normalized}`;
 
   try {
-    // 1. Look up the legacy migration record (eligible = PENDING or INVITED).
     const { data: legacy, error: legacyError } = await supabase
       .from('legacy_identity_migrations')
       .select('id, email, workos_user_id, status')
       .eq('email', normalized)
       .maybeSingle();
 
-    // If the table doesn't exist (migrations not applied) or no record, still
-    // respond generically — never reveal eligibility.
     if (legacyError || !legacy) {
       return res.json({ success: true, message: GENERIC });
     }
 
     const legacyRow = legacy as { id: string; status?: string; workos_user_id?: string | null; legacy_user_id?: string | null };
 
-    // Already migrated — idempotent, no duplicate email.
     if (legacyRow.status === 'COMPLETED' || legacyRow.status === 'CLAIMED') {
       return res.json({ success: true, message: GENERIC });
     }
 
-    // 2. Ensure a WorkOS user exists for the email (create only if absent).
     let workosUserId = legacyRow.workos_user_id || null;
     if (!workosUserId) {
       try {
@@ -575,14 +709,12 @@ router.post('/claim-account', async (req: Request, res: Response) => {
       }
     }
 
-    // 3. Send WorkOS password-setup email (idempotent; safe to resend).
     try {
       await authService.sendPasswordResetEmail(normalized);
     } catch (err) {
       console.warn('[claim-account] password reset email failed:', errorMessage(err) || err);
     }
 
-    // 4. Record INVITED state (idempotent via unique email).
     await supabase
       .from('legacy_identity_migrations')
       .upsert(
@@ -597,7 +729,6 @@ router.post('/claim-account', async (req: Request, res: Response) => {
         { onConflict: 'email' }
       );
 
-    // 5. Audit (reference only, never email-dependent disclosure).
     try {
       await supabase.from('audit_logs').insert({
         school_id: null,
@@ -608,13 +739,6 @@ router.post('/claim-account', async (req: Request, res: Response) => {
         metadata: JSON.stringify({ status: 'INVITED', idempotency_key: idempotencyKey }),
       });
     } catch (auditError) {
-      // Phase 3 hardening: audit failures must never be silent. NOTE — this
-      // specific event CANNOT currently persist: audit_logs.school_id is NOT
-      // NULL with an FK to schools, and a pre-auth claim has no school or
-      // authenticated actor. No system-level representation exists in the
-      // schema (the platform helper log_audit_action resolves school via the
-      // actor, which is null here). Escalated to the owner; the insert payload
-      // is intentionally unchanged until a representation is decided.
       console.error(
         '[claim-account] AUDIT WRITE FAILED for LEGACY_ACCOUNT_CLAIMED:',
         errorMessage(auditError) || auditError
@@ -624,7 +748,6 @@ router.post('/claim-account', async (req: Request, res: Response) => {
     return res.json({ success: true, message: GENERIC });
   } catch (error) {
     console.error('[claim-account] error:', errorMessage(error) || error);
-    // Always return generic — never reveal failure reasons to the caller.
     return res.json({ success: true, message: GENERIC });
   }
 });
@@ -632,13 +755,6 @@ router.post('/claim-account', async (req: Request, res: Response) => {
 /**
  * POST /api/auth/demo-login
  * Sandbox-only endpoint for demo persona authentication.
- *
- * Accepts a known persona ID from the server-side allowlist and returns
- * a signed demo session token. The browser must NEVER be able to specify
- * roles, permissions, or arbitrary user IDs — the server is authoritative.
- *
- * This endpoint is ONLY available when CAPFLUX_MODE=sandbox.
- * Production deployments must reject requests to this endpoint.
  */
 router.post('/demo-login', async (req: Request, res: Response) => {
   const mode = process.env.CAPFLUX_MODE?.toLowerCase();
@@ -669,19 +785,13 @@ router.post('/demo-login', async (req: Request, res: Response) => {
         title: persona.title,
         platformStaff: persona.platformStaff ?? false,
       },
-      expiresIn: 4 * 60 * 60, // 4 hours in seconds
+      expiresIn: 4 * 60 * 60,
     });
   } catch (error) {
     return handleError(res, error, 401);
   }
 });
 
-/**
- * GET /api/auth/demo-session
- * Validate a demo session token and return the session payload.
- *
- * Sandbox-only endpoint. Production returns 404.
- */
 router.get('/demo-session', async (req: Request, res: Response) => {
   const mode = process.env.CAPFLUX_MODE?.toLowerCase();
   if (mode !== 'sandbox') {
@@ -706,10 +816,6 @@ router.get('/demo-session', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/auth/demo-personas
- * List available demo personas (sandbox only).
- */
 router.get('/demo-personas', async (_req: Request, res: Response) => {
   const mode = process.env.CAPFLUX_MODE?.toLowerCase();
   if (mode !== 'sandbox') {

@@ -15,10 +15,12 @@
  * - Idempotent: preserves existing identity links
  * - Fails safely: throws on unrecoverable errors
  *
- * Identity resolution hierarchy (no email fallback):
- * 1. Look up ACTIVE identity link by WorkOS user ID
- * 2. If found → return existing CAPFLUX UUID
- * 3. If not found → create new CAPFLUX user + identity link
+ * Identity state machine:
+ * - Password signup (email not verified): status=PENDING, verified_at=NULL
+ * - After email verification: status=ACTIVE, verified_at=timestamp
+ * - Google OAuth (email already verified): status=ACTIVE, verified_at=timestamp
+ *
+ * Valid migration_source values: PREIMPORT, JIT_VERIFIED_EMAIL, MANUAL, WEBHOOK
  */
 
 import { supabase } from '../supabaseClient.js';
@@ -35,6 +37,8 @@ export interface WorkOSIdentityInput {
   lastName?: string;
   emailVerified?: boolean;
   profilePictureUrl?: string | null;
+  /** migration_source for the identity link. Must be one of: PREIMPORT, JIT_VERIFIED_EMAIL, MANUAL, WEBHOOK */
+  migrationSource?: string;
 }
 
 /**
@@ -59,7 +63,11 @@ export class WorkOSProvisioningService {
    * If no identity link exists, creates:
    *   1. public.users row with generated UUID
    *   2. public.user_profiles row
-   *   3. public.user_identity_links row (ACTIVE)
+   *   3. public.user_identity_links row
+   *
+   * Identity state:
+   * - If emailVerified=false: status=PENDING, verified_at=NULL
+   * - If emailVerified=true: status=ACTIVE, verified_at=timestamp
    *
    * @param input - WorkOS user data
    * @returns ProvisionResult with capfluxUserId and isNew flag
@@ -67,6 +75,7 @@ export class WorkOSProvisioningService {
    */
   async provisionWorkOSIdentity(input: WorkOSIdentityInput): Promise<ProvisionResult> {
     const { workosUserId, email, firstName, lastName, emailVerified, profilePictureUrl } = input;
+    const migrationSource = input.migrationSource || 'MANUAL';
 
     // Validate WorkOS ID format
     if (!workosUserId || typeof workosUserId !== 'string') {
@@ -76,13 +85,12 @@ export class WorkOSProvisioningService {
       throw new Error(`Invalid WorkOS user ID format: ${workosUserId}`);
     }
 
-    // Step 1: Check for existing ACTIVE identity link (resolution only — no email)
+    // Step 1: Check for existing identity link (ACTIVE or PENDING) by WorkOS user ID
     const { data: existingLink, error: linkErr } = await supabase
       .from('user_identity_links')
-      .select('capflux_user_id')
+      .select('capflux_user_id, status')
       .eq('workos_user_id', workosUserId)
       .eq('identity_type', 'workos_authkit')
-      .eq('status', 'ACTIVE')
       .maybeSingle();
 
     if (linkErr) {
@@ -91,7 +99,7 @@ export class WorkOSProvisioningService {
 
     if (existingLink) {
       // Identity already exists — idempotent, return existing UUID
-      console.log(`[provisioning] Existing identity resolved: workos_user_id=${workosUserId} -> capflux_user_id=${existingLink.capflux_user_id}`);
+      console.log(`[provisioning] Existing identity resolved: workos_user_id=${workosUserId} -> capflux_user_id=${existingLink.capflux_user_id} (status=${existingLink.status})`);
       return { capfluxUserId: existingLink.capflux_user_id, isNew: false };
     }
 
@@ -123,8 +131,7 @@ export class WorkOSProvisioningService {
 
     if (userErr) {
       // Unique constraint violation (email) — email already exists in CAPFLUX.
-      // Do NOT perform email-based identity resolution. The auth routes will
-      // handle JIT provisioning on next login. Throw so caller can handle.
+      // Do NOT perform email-based identity resolution. Throw so caller can handle.
       if (userErr.code === '23505') {
         throw new Error(`Email ${normalizedEmail} already exists — will JIT-provision on next login`);
       }
@@ -146,16 +153,21 @@ export class WorkOSProvisioningService {
       // Non-fatal — profile can be created on next login
     }
 
-    // Step 5: Create identity link (ACTIVE)
+    // Step 5: Create identity link with correct state
+    // - If email verified: status=ACTIVE, verified_at=timestamp
+    // - If email not verified: status=PENDING, verified_at=NULL
+    const identityStatus = emailVerified ? 'ACTIVE' : 'PENDING';
+    const verifiedAt = emailVerified ? new Date().toISOString() : null;
+
     const { error: identityErr } = await supabase
       .from('user_identity_links')
       .insert({
         capflux_user_id: capfluxUserId,
         workos_user_id: workosUserId,
         identity_type: 'workos_authkit',
-        status: 'ACTIVE',
-        migration_source: 'WORKOS_PROVISIONING',
-        verified_at: emailVerified ? new Date().toISOString() : null,
+        status: identityStatus,
+        migration_source: migrationSource,
+        verified_at: verifiedAt,
       });
 
     if (identityErr) {
@@ -168,7 +180,6 @@ export class WorkOSProvisioningService {
           .select('capflux_user_id')
           .eq('workos_user_id', workosUserId)
           .eq('identity_type', 'workos_authkit')
-          .eq('status', 'ACTIVE')
           .maybeSingle();
 
         if (existingAfterDup) {
@@ -181,7 +192,7 @@ export class WorkOSProvisioningService {
       throw new Error(`Failed to create identity link: ${errorMessage(identityErr)}`);
     }
 
-    console.log(`[provisioning] New CAPFLUX identity provisioned: workos_user_id=${workosUserId} -> capflux_user_id=${capfluxUserId}`);
+    console.log(`[provisioning] New CAPFLUX identity provisioned: workos_user_id=${workosUserId} -> capflux_user_id=${capfluxUserId} (status=${identityStatus}, source=${migrationSource})`);
     return { capfluxUserId, isNew: true };
   }
 }

@@ -438,8 +438,18 @@ export class AuthKitProvider extends AuthProvider {
     return { data: null, error: null };
   }
 
-  async resendVerification(userId: string): Promise<AuthResult<void>> {
-    await this.request(() => this.http.post('/auth/resend-verification', { userId }));
+  async resendVerification(email: string): Promise<AuthResult<void>> {
+    await this.request(() => this.http.post('/auth/resend-verification', { email }));
     return { data: null, error: null };
+  }
+
+  async verifyEmail(code: string, userId: string): Promise<AuthResult<{ verificationSuccess: boolean }>> {
+    const data = await this.request<BackendAuthResponse & { verificationSuccess?: boolean }>(() =>
+      this.http.post('/auth/verify-email', { code, userId })
+    );
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    return { data: { verificationSuccess: Boolean(data.verificationSuccess) }, error: null };
   }
 }

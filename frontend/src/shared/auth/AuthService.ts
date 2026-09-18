@@ -205,14 +205,32 @@ export const AuthService = {
   },
 
   /**
-   * Resend the email verification
+   * Resend the email verification code
    */
-  async resendVerification(userId: string): Promise<{ error: AuthErrorData | null }> {
+  async resendVerification(email: string): Promise<{ error: AuthErrorData | null }> {
     try {
-      const result = await this._provider.resendVerification(userId);
+      const result = await this._provider.resendVerification(email);
       return { error: result.error };
     } catch (rawError) {
       return { error: mapProviderError(rawError) };
+    }
+  },
+
+  /**
+   * Verify email with 6-digit code
+   */
+  async verifyEmail(code: string, userId: string): Promise<{ data: { verificationSuccess: boolean } | null; error: AuthErrorData | null }> {
+    try {
+      const result = await (this._provider as AuthKitProvider).verifyEmail(code, userId);
+      return {
+        data: result.data ?? null,
+        error: result.error,
+      };
+    } catch (rawError) {
+      return {
+        data: null,
+        error: mapProviderError(rawError),
+      };
     }
   },
 

@@ -269,5 +269,37 @@ export const useAuthStore = defineStore('auth', {
       this.organizationInitialized = false;
       this.adminStatus = 'ACTIVE';
     },
+
+    async resendVerification(email: string) {
+      this.loading = true;
+      this.error = null;
+
+      const { error } = await AuthService.resendVerification(email);
+
+      this.loading = false;
+
+      if (error) {
+        this.error = error.message;
+        return { error: error.message };
+      }
+
+      return { error: null };
+    },
+
+    async verifyEmail(code: string, userId: string) {
+      this.loading = true;
+      this.error = null;
+
+      const { data, error } = await AuthService.verifyEmail(code, userId);
+
+      this.loading = false;
+
+      if (error) {
+        this.error = error.message;
+        return { error: error.message };
+      }
+
+      return { data, error: null };
+    },
   },
 });

@@ -58,8 +58,8 @@ const transition = (newState: AuthState) => {
 };
 
 // Handle OAuth callback (Google OAuth redirect with authorization code).
-// Supabase client with detectSessionInUrl may have already exchanged the
-// code automatically; handleOAuthCallback falls back to getSession() if so.
+// Single responsibility: when code+state are present, exchange them once.
+// On success → dashboard. On failure → stay with visible error.
 watch(
   () => route.query,
   async (query) => {
@@ -70,16 +70,13 @@ watch(
       if (success) {
         router.push({ name: 'Home' });
       }
+      // On failure, authStore.error is set and displayed via CmAlert.
+      // User stays on AuthView — no silent redirect to login.
     }
   },
   { immediate: true },
 );
 
-// WorkOS AuthKit: no hosted UI redirect for email/password.
-// When entering login or signup mode (and no OAuth callback code is present),
-// we render the inline form components directly instead of redirecting to
-// a provider-hosted page. Skipped entirely in sandbox mode: sandbox auth
-// is persona-first and must never initiate credential or OAuth flows.
 onMounted(() => {
   if (runtimeEnvironment.isSandbox) return;
   const mode = currentMode.value;
@@ -88,24 +85,7 @@ onMounted(() => {
   const code = getQueryParam(route.query.code);
   if (code) return; // Callback flow is already handled by the watch above.
 
-  // initiateAuthKit returns an empty URL for custom WorkOS AuthKit — forms
-  // render inline, no redirect needed.
   authStore.initiateAuthKit(mode);
-});
-
-// If the URL contains ?provider=google (Google OAuth redirect), auto-click
-// the Google button so the flow completes seamlessly.
-// Never in sandbox mode: sandbox renders no Google surface at all.
-onMounted(() => {
-  if (runtimeEnvironment.isSandbox) return;
-  if (props.provider === 'google') {
-    setTimeout(() => {
-      const googleButton = document.querySelector('[data-google-auth]');
-      if (googleButton) {
-        (googleButton as HTMLElement).click();
-      }
-    }, 100);
-  }
 });
 </script>
 

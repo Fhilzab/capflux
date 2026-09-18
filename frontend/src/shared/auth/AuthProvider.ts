@@ -60,9 +60,9 @@ export abstract class AuthProvider {
   abstract resetPassword(token: string, newPassword: string): Promise<AuthResult<void>>;
 
   /**
-   * Resend email verification
+   * Resend email verification code
    */
-  abstract resendVerification(userId: string): Promise<AuthResult<void>>;
+  abstract resendVerification(email: string): Promise<AuthResult<void>>;
 
   /**
    * Sign out and clear session

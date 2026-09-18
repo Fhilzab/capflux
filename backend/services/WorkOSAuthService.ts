@@ -67,6 +67,7 @@ interface UserManagementApi {
   createPasswordReset(opts: { email: string }): Promise<unknown>;
   resetPassword(opts: { token: string; newPassword: string }): Promise<{ user?: WorkosUserLike | null }>;
   sendVerificationEmail(opts: { userId: string }): Promise<unknown>;
+  verifyEmail(opts: { code: string; userId: string }): Promise<{ user?: WorkosUserLike }>;
   getUser(opts: { userId: string }): Promise<{ user?: WorkosUserLike | null } & Record<string, unknown>>;
   listUsers(opts: { email: string; limit?: number }): Promise<{ data?: WorkosUserLike[] } & Record<string, unknown>>;
   getAuthorizationUrl(opts: Record<string, unknown>): string;
@@ -302,7 +303,7 @@ class WorkOSAuthService {
   }
 
   /**
-   * Send email verification email.
+   * Send email verification email (contains a 6-digit one-time code).
    */
   async sendVerificationEmail(userId: string): Promise<{ success: boolean }> {
     try {
@@ -310,6 +311,19 @@ class WorkOSAuthService {
       return { success: true };
     } catch (error) {
       throw this.transformError(error, 'Failed to send verification email');
+    }
+  }
+
+  /**
+   * Verify a user's email with the 6-digit code from the verification email.
+   * On success, WorkOS marks the user as email_verified=true.
+   */
+  async verifyEmail(code: string, userId: string): Promise<{ success: boolean; user: WorkosFormattedUser | null }> {
+    try {
+      const result = await this.um.verifyEmail({ code, userId });
+      return { success: true, user: this.formatUser(result.user) };
+    } catch (error) {
+      throw this.transformError(error, 'Email verification failed');
     }
   }
 
