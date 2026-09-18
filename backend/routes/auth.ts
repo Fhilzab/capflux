@@ -12,6 +12,7 @@
 import { Router, Request, Response, CookieOptions } from 'express';
 import { supabase } from '../supabaseClient.js';
 import WorkOSAuthService from '../services/WorkOSAuthService.js';
+import { workosProvisioningService } from '../services/WorkOSProvisioningService.js';
 import sessionService from '../services/SessionService.js';
 import { DemoAuthService, type DemoPersona, type DemoSessionPayload } from '../services/DemoAuthService.js';
 import requireAuth from '../middleware/requireAuth.js';
@@ -138,66 +139,24 @@ router.post('/signin', async (req: Request, res: Response) => {
   try {
     const result = await authService.signInWithPassword(email as string, password as string);
 
-    // Provision identity for WorkOS users without an identity link
-    const workosUserId = result.user?.id;
-    if (workosUserId && workosUserId.startsWith('user_')) {
-      const { data: existingLink } = await supabase
-        .from('user_identity_links')
-        .select('capflux_user_id')
-        .eq('workos_user_id', workosUserId)
-        .eq('identity_type', 'workos_authkit')
-        .eq('status', 'ACTIVE')
-        .maybeSingle();
-
-      if (!existingLink && result.user?.email) {
-        // Find or create CAPFLUX user by email
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', result.user.email.toLowerCase())
-          .maybeSingle();
-
-        let capfluxUserId: string | null = existingUser?.id || null;
-
-        if (!capfluxUserId) {
-          const { data: newUser, error: createErr } = await supabase
-            .from('users')
-            .insert({
-              email: result.user.email.toLowerCase(),
-              auth_provider: 'workos',
-              email_verified: Boolean(result.user.emailVerified),
-            })
-            .select('id')
-            .single();
-
-          if (!createErr && newUser?.id) {
-            capfluxUserId = newUser.id;
-            await supabase
-              .from('user_profiles')
-              .insert({
-                user_id: capfluxUserId,
-                full_name: result.user.fullName || `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim() || null,
-                avatar_url: result.user.profilePictureUrl || null,
-              });
-          }
-        }
-
-        if (capfluxUserId) {
-          await supabase
-            .from('user_identity_links')
-            .insert({
-              capflux_user_id: capfluxUserId,
-              workos_user_id: workosUserId,
-              identity_type: 'workos_authkit',
-              status: 'ACTIVE',
-              migration_source: 'PASSWORD_SIGNIN_JIT',
-              verified_at: new Date().toISOString(),
-            });
-        }
+    // JIT provisioning: ensure WorkOS user has a CAPFLUX identity
+    if (result.user?.id?.startsWith('user_')) {
+      try {
+        await workosProvisioningService.provisionWorkOSIdentity({
+          workosUserId: result.user.id,
+          email: result.user.email,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          emailVerified: result.user.emailVerified,
+          profilePictureUrl: result.user.profilePictureUrl,
+        });
+      } catch (provisionErr) {
+        // Non-fatal for signin — the user can still authenticate.
+        // Identity will be resolved on next request.
+        console.error('[signin] JIT provisioning failed:', errorMessage(provisionErr));
       }
     }
 
-    await upsertUserRecords(result.user);
     await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
   } catch (error) {
@@ -214,10 +173,44 @@ router.post('/signup', async (req: Request, res: Response) => {
 
   try {
     const result = await authService.signUpWithPassword(email as string, password as string, fullName as string);
-    if (result.user) {
-      await upsertUserRecords(result.user);
+
+    // Provision CAPFLUX identity (user + profile + identity link) immediately.
+    // This must happen during signup, NOT only during signin, so the user
+    // has a CAPFLUX UUID before email verification.
+    if (result.user?.id) {
+      try {
+        await workosProvisioningService.provisionWorkOSIdentity({
+          workosUserId: result.user.id,
+          email: result.user.email,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          emailVerified: false, // verification pending
+          profilePictureUrl: result.user.profilePictureUrl,
+        });
+      } catch (provisionErr) {
+        // Distinguish provisioning failure from verification failure.
+        // If provisioning fails, the user cannot authenticate at all.
+        // If verification email fails, the user can resend.
+        const provisionMsg = errorMessage(provisionErr) || 'Unknown provisioning error';
+        console.error('[signup] CAPFLUX provisioning failed:', provisionMsg);
+
+        // Email already exists in CAPFLUX — this is a duplicate signup attempt
+        if (provisionMsg.includes('already exists')) {
+          return res.status(409).json({
+            error: 'An account with this email already exists. Please sign in instead.',
+            code: 'USER_ALREADY_EXISTS',
+          });
+        }
+
+        // Other provisioning failure — return safe server error
+        return res.status(500).json({
+          error: 'Account creation failed. Please try again.',
+          code: 'PROVISIONING_ERROR',
+        });
+      }
     }
-    // No session cookie - user must verify email first
+
+    // No session cookie — user must verify email first
     return res.json({
       success: true,
       user: result.user,
@@ -318,137 +311,24 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
   try {
     const result = await authService.handleOAuthCallback(code);
     
-    // Check if WorkOS user has an existing identity link
-    const workosUserId = result.user?.id;
-    if (workosUserId && workosUserId.startsWith('user_')) {
-      const { data: existingLink } = await supabase
-        .from('user_identity_links')
-        .select('capflux_user_id, status')
-        .eq('workos_user_id', workosUserId)
-        .eq('identity_type', 'workos_authkit')
-        .maybeSingle();
-
-      if (!existingLink) {
-        // No identity link found. Provision a new CAPFLUX identity:
-        // 1. Check for a legacy migration record (existing user migrating)
-        // 2. Otherwise create a new CAPFLUX user + identity link
-        const workosEmail = result.user?.email;
-
-        // 1. Try legacy migration path first
-        let linked = false;
-        if (workosEmail) {
-          const { data: legacyRecord } = await supabase
-            .from('legacy_identity_migrations')
-            .select('id, legacy_user_id, status, workos_user_id')
-            .eq('email', workosEmail.toLowerCase())
-            .maybeSingle();
-
-          if (legacyRecord && ['PENDING', 'INVITED', 'CLAIMED'].includes(legacyRecord.status || '')) {
-            const capfluxUserId = legacyRecord.legacy_user_id;
-            if (capfluxUserId) {
-              const { data: capfluxUser } = await supabase
-                .from('users')
-                .select('id')
-                .eq('id', capfluxUserId)
-                .maybeSingle();
-
-              if (capfluxUser) {
-                const { error: linkErr } = await supabase
-                  .from('user_identity_links')
-                  .insert({
-                    capflux_user_id: capfluxUserId,
-                    workos_user_id: workosUserId,
-                    identity_type: 'workos_authkit',
-                    status: 'ACTIVE',
-                    migration_source: 'JIT_VERIFIED_EMAIL',
-                    verified_at: new Date().toISOString(),
-                  });
-
-                if (!linkErr) {
-                  await supabase
-                    .from('legacy_identity_migrations')
-                    .update({
-                      status: 'COMPLETED',
-                      workos_user_id: workosUserId,
-                      completed_at: new Date().toISOString(),
-                    })
-                    .eq('id', legacyRecord.id);
-
-                  console.log(`[authkit-callback] Linked WorkOS user ${workosUserId} to legacy CAPFLUX user ${capfluxUserId}`);
-                  linked = true;
-                } else {
-                  console.error('[authkit-callback] Failed to create legacy identity link:', errorMessage(linkErr));
-                }
-              }
-            }
-          }
-        }
-
-        // 2. New user — create CAPFLUX user + identity link
-        if (!linked && workosEmail) {
-          // Try to find existing CAPFLUX user by email (e.g. from Supabase Auth)
-          const { data: existingUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', workosEmail.toLowerCase())
-            .maybeSingle();
-
-          let capfluxUserId: string | null = existingUser?.id || null;
-
-          // Create new CAPFLUX user if none exists with this email
-          if (!capfluxUserId) {
-            const { data: newUser, error: createErr } = await supabase
-              .from('users')
-              .insert({
-                email: workosEmail.toLowerCase(),
-                auth_provider: 'workos',
-                email_verified: Boolean(result.user?.emailVerified),
-              })
-              .select('id')
-              .single();
-
-            if (createErr) {
-              console.error('[authkit-callback] Failed to create CAPFLUX user:', errorMessage(createErr));
-            } else {
-              capfluxUserId = newUser?.id || null;
-
-              // Create user profile
-              if (capfluxUserId) {
-                await supabase
-                  .from('user_profiles')
-                  .insert({
-                    user_id: capfluxUserId,
-                    full_name: result.user?.fullName || `${result.user?.firstName || ''} ${result.user?.lastName || ''}`.trim() || null,
-                    avatar_url: result.user?.profilePictureUrl || null,
-                  });
-              }
-            }
-          }
-
-          // Create identity link
-          if (capfluxUserId) {
-            const { error: linkErr } = await supabase
-              .from('user_identity_links')
-              .insert({
-                capflux_user_id: capfluxUserId,
-                workos_user_id: workosUserId,
-                identity_type: 'workos_authkit',
-                status: 'ACTIVE',
-                migration_source: 'OAUTH_JIT_PROVISION',
-                verified_at: new Date().toISOString(),
-              });
-
-            if (linkErr) {
-              console.error('[authkit-callback] Failed to create identity link:', errorMessage(linkErr));
-            } else {
-              console.log(`[authkit-callback] Provisioned CAPFLUX identity for WorkOS user ${workosUserId} → ${capfluxUserId}`);
-            }
-          }
-        }
+    // JIT provisioning: ensure WorkOS user has a CAPFLUX identity
+    if (result.user?.id?.startsWith('user_')) {
+      try {
+        await workosProvisioningService.provisionWorkOSIdentity({
+          workosUserId: result.user.id,
+          email: result.user.email,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          emailVerified: result.user.emailVerified,
+          profilePictureUrl: result.user.profilePictureUrl,
+        });
+      } catch (provisionErr) {
+        // Non-fatal for OAuth callback — the user can still authenticate.
+        // Identity will be resolved on next request.
+        console.error('[authkit-callback] JIT provisioning failed:', errorMessage(provisionErr));
       }
     }
 
-    await upsertUserRecords(result.user);
     await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
   } catch (error) {
@@ -484,69 +364,22 @@ router.get('/callback', async (req: Request, res: Response) => {
   try {
     const result = await authService.handleOAuthCallback(code);
 
-    // Provision identity for new WorkOS users (same logic as authkit-callback)
-    const workosUserId = result.user?.id;
-    if (workosUserId && workosUserId.startsWith('user_')) {
-      const { data: existingLink } = await supabase
-        .from('user_identity_links')
-        .select('capflux_user_id')
-        .eq('workos_user_id', workosUserId)
-        .eq('identity_type', 'workos_authkit')
-        .eq('status', 'ACTIVE')
-        .maybeSingle();
-
-      if (!existingLink) {
-        const workosEmail = result.user?.email;
-        if (workosEmail) {
-          // Find or create CAPFLUX user by email
-          const { data: existingUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', workosEmail.toLowerCase())
-            .maybeSingle();
-
-          let capfluxUserId: string | null = existingUser?.id || null;
-
-          if (!capfluxUserId) {
-            const { data: newUser, error: createErr } = await supabase
-              .from('users')
-              .insert({
-                email: workosEmail.toLowerCase(),
-                auth_provider: 'workos',
-                email_verified: Boolean(result.user?.emailVerified),
-              })
-              .select('id')
-              .single();
-
-            if (!createErr && newUser?.id) {
-              capfluxUserId = newUser.id;
-              await supabase
-                .from('user_profiles')
-                .insert({
-                  user_id: capfluxUserId,
-                  full_name: result.user?.fullName || `${result.user?.firstName || ''} ${result.user?.lastName || ''}`.trim() || null,
-                  avatar_url: result.user?.profilePictureUrl || null,
-                });
-            }
-          }
-
-          if (capfluxUserId) {
-            await supabase
-              .from('user_identity_links')
-              .insert({
-                capflux_user_id: capfluxUserId,
-                workos_user_id: workosUserId,
-                identity_type: 'workos_authkit',
-                status: 'ACTIVE',
-                migration_source: 'OAUTH_JIT_PROVISION',
-                verified_at: new Date().toISOString(),
-              });
-          }
-        }
+    // JIT provisioning: ensure WorkOS user has a CAPFLUX identity
+    if (result.user?.id?.startsWith('user_')) {
+      try {
+        await workosProvisioningService.provisionWorkOSIdentity({
+          workosUserId: result.user.id,
+          email: result.user.email,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          emailVerified: result.user.emailVerified,
+          profilePictureUrl: result.user.profilePictureUrl,
+        });
+      } catch (provisionErr) {
+        console.error('[callback] JIT provisioning failed:', errorMessage(provisionErr));
       }
     }
 
-    await upsertUserRecords(result.user);
     await setSessionCookie(res, result);
     return res.json({ success: true, ...result });
   } catch (error) {

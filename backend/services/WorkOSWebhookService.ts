@@ -26,6 +26,7 @@
 import { supabase } from '../supabaseClient.js';
 import { WorkOS } from '@workos-inc/node';
 import { errorMessage } from '../types/http.js';
+import { workosProvisioningService } from './WorkOSProvisioningService.js';
 
 /**
  * Normalized WorkOS user data for internal use.
@@ -158,84 +159,28 @@ export class WorkOSWebhookService {
   }
 
   /**
-   * Provision a new CAPFLUX user from WorkOS identity using application-level logic.
+   * Provision a new CAPFLUX user from WorkOS identity.
+   * Delegates to the shared WorkOSProvisioningService.
    *
-   * Creates the user, profile, and identity link without relying on database RPCs.
-   * This reuses the same provisioning logic as the auth routes (authkit-callback, signin).
-   *
-   * IMPORTANT: This method does NOT perform email-based lookups.
-   * If the email already exists (unique constraint violation), the error is logged
-   * and the auth routes will JIT-provision the identity on the user's next login.
-   *
-   * @param userData - Normalized WorkOS user data
-   * @returns CAPFLUX canonical UUID
-   * @throws Error if provisioning fails
+   * CRITICAL: Non-critical provisioning failures must NOT cause the webhook
+   * to return 500, which triggers endless WorkOS retries. The webhook always
+   * returns 200 after accepting the event — provisioning errors are logged
+   * and can be resolved via the auth routes on next login.
    */
   private async provisionCAPFLUXUserFromWorkOS(userData: WorkOSUserData): Promise<string> {
     console.log(`[workos-webhook] Provisioning new CAPFLUX user for WorkOS ID: ${userData.id}`);
 
-    // Create new CAPFLUX user — email is used only as a unique constraint,
-    // NOT for identity resolution. If the email already exists (unique constraint
-    // violation), the auth routes will JIT-provision on the user's next login.
-    const { data: newUser, error: createErr } = await supabase
-      .from('users')
-      .insert({
-        email: userData.email.toLowerCase(),
-        auth_provider: 'workos',
-        email_verified: userData.emailVerified,
-      })
-      .select('id')
-      .single();
+    const result = await workosProvisioningService.provisionWorkOSIdentity({
+      workosUserId: userData.id,
+      email: userData.email,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      emailVerified: userData.emailVerified,
+      profilePictureUrl: userData.profilePictureUrl,
+    });
 
-    if (createErr) {
-      // Unique constraint violation — user with this email already exists.
-      // The auth routes will handle JIT provisioning on next login.
-      // Do NOT perform email-based lookups here (security requirement).
-      if (createErr.code === '23505') {
-        throw new Error('Email already exists — will JIT-provision on next login');
-      }
-      throw new Error(`Failed to create CAPFLUX user: ${errorMessage(createErr)}`);
-    }
-
-    const capfluxUserId = newUser?.id || null;
-
-    if (!capfluxUserId) {
-      throw new Error('Failed to obtain CAPFLUX user ID');
-    }
-
-    // Create user profile
-    const fullName = `${userData.firstName} ${userData.lastName}`.trim();
-    await supabase
-      .from('user_profiles')
-      .insert({
-        user_id: capfluxUserId,
-        full_name: fullName || null,
-        avatar_url: userData.profilePictureUrl || null,
-      });
-
-    // Create identity link (idempotent — insert only if not exists)
-    const { error: linkErr } = await supabase
-      .from('user_identity_links')
-      .insert({
-        capflux_user_id: capfluxUserId,
-        workos_user_id: userData.id,
-        identity_type: 'workos_authkit',
-        status: 'ACTIVE',
-        migration_source: 'WEBHOOK_JIT_PROVISION',
-        verified_at: new Date().toISOString(),
-      });
-
-    if (linkErr) {
-      // If duplicate key (already exists), that's fine — idempotent
-      if (linkErr.code === '23505') {
-        console.log(`[workos-webhook] Identity link already exists for WorkOS user ${userData.id}`);
-      } else {
-        throw new Error(`Failed to create identity link: ${errorMessage(linkErr)}`);
-      }
-    }
-
-    console.log(`[workos-webhook] Provisioned CAPFLUX user: workos_user_id=${userData.id} -> capflux_user_id=${capfluxUserId}`);
-    return capfluxUserId;
+    console.log(`[workos-webhook] Provisioned CAPFLUX user: workos_user_id=${userData.id} -> capflux_user_id=${result.capfluxUserId}`);
+    return result.capfluxUserId;
   }
 
   /**
