@@ -102,6 +102,27 @@ onMounted(loadOutstanding);
             <div>
               <h1 class="text-headline mb-2 text-text-primary">Outstanding Fees</h1>
               <p class="text-text-muted">Drill down by class and student to see outstanding balances.</p>
+              <nav class="mt-3 flex flex-wrap gap-2" aria-label="Reports sections">
+                <RouterLink
+                  :to="{ name: 'Reports' }"
+                  class="rounded-button border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary"
+                >
+                  Reports Overview
+                </RouterLink>
+                <RouterLink
+                  :to="{ name: 'DailyCollections' }"
+                  class="rounded-button border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary"
+                >
+                  Daily Collections
+                </RouterLink>
+                <RouterLink
+                  :to="{ name: 'OutstandingFees' }"
+                  class="rounded-button border border-brand/20 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand"
+                  aria-current="page"
+                >
+                  Outstanding Fees
+                </RouterLink>
+              </nav>
             </div>
             <CmButton
               @click="downloadCsv"

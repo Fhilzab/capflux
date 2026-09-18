@@ -88,6 +88,27 @@ onMounted(loadCollections);
             <div>
               <h1 class="text-headline mb-2 text-text-primary">Daily Collections</h1>
               <p class="text-text-muted">View payments collected per day with date range filtering.</p>
+              <nav class="mt-3 flex flex-wrap gap-2" aria-label="Reports sections">
+                <RouterLink
+                  :to="{ name: 'Reports' }"
+                  class="rounded-button border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary"
+                >
+                  Reports Overview
+                </RouterLink>
+                <RouterLink
+                  :to="{ name: 'DailyCollections' }"
+                  class="rounded-button border border-brand/20 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand"
+                  aria-current="page"
+                >
+                  Daily Collections
+                </RouterLink>
+                <RouterLink
+                  :to="{ name: 'OutstandingFees' }"
+                  class="rounded-button border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary"
+                >
+                  Outstanding Fees
+                </RouterLink>
+              </nav>
             </div>
             <CmButton
               @click="downloadCsv"

@@ -95,15 +95,23 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/students/:id',
-    name: 'StudentDetail',
-    component: () => import('../views/StudentDetailView.vue'),
+    // Canonical academic-structure configuration lives under Settings.
+    // Must be declared BEFORE /students/:id so "academic-structure" is not
+    // captured as a student id.
+    path: '/settings/academic-structure',
+    name: 'AcademicStructure',
+    component: () => import('../features/students/components/academic/AcademicStructureView.vue'),
     meta: { requiresAuth: true },
   },
   {
+    // Legacy path preserved as a redirect for bookmarks/deep links.
     path: '/students/academic-structure',
-    name: 'AcademicStructure',
-    component: () => import('../features/students/components/academic/AcademicStructureView.vue'),
+    redirect: { name: 'AcademicStructure' },
+  },
+  {
+    path: '/students/:id',
+    name: 'StudentDetail',
+    component: () => import('../views/StudentDetailView.vue'),
     meta: { requiresAuth: true },
   },
   {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useBillingStore, type BillingSummaryItem } from '../stores/billingStore';
 import { useStudentStore } from '../stores/studentStore';
 import CmButton from '../components/ui/CmButton.vue';
@@ -33,7 +34,13 @@ const loading = ref(false);
 
 const billingStore = useBillingStore();
 const studentStore = useStudentStore();
+const route = useRoute();
 const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
+
+/** Student context preserved from Student Detail (?student=<id>). */
+const scopedStudentId = computed(() =>
+  typeof route.query.student === 'string' && route.query.student ? route.query.student : '',
+);
 
 const chargeItems = computed(() =>
   items.value.filter((item) => item.entry_type === 'CHARGE' || item.entry_type === 'DEBIT'),
@@ -107,7 +114,19 @@ const submitCharge = async () => {
 
 onMounted(async () => {
   await loadStudents();
-  await loadBilling();
+  if (scopedStudentId.value) {
+    form.value.student_id = scopedStudentId.value;
+    await loadBilling([scopedStudentId.value]);
+  } else {
+    await loadBilling();
+  }
+});
+
+watch(scopedStudentId, async (id) => {
+  if (id) {
+    form.value.student_id = id;
+    await loadBilling([id]);
+  }
 });
 </script>
 
@@ -121,6 +140,10 @@ onMounted(async () => {
       <section class="rounded-card bg-card p-8 shadow-card">
         <h1 class="text-headline mb-2">Billing</h1>
         <p class="text-text-secondary">Local billing summary, payment history, and ledger reconciliation.</p>
+        <p v-if="scopedStudentId" class="mt-2 text-sm text-text-secondary">
+          Scoped to student <span class="font-mono text-xs">{{ scopedStudentId }}</span>
+          — <button type="button" class="font-medium text-brand hover:underline" @click="$router.push({ name: 'StudentDetail', params: { id: scopedStudentId } })">back to student</button>
+        </p>
       </section>
 
       <section class="premium-card p-8 space-y-6">

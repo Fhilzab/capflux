@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { usePaymentsStore } from '@/stores/paymentsStore';
 import { useModuleLock } from '@/composables/useModuleLock';
 import ModuleLockOverlay from '@/features/onboarding/ModuleLockOverlay.vue';
@@ -11,9 +12,22 @@ import ErrorState from '@/components/ui/ErrorState.vue';
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue';
 
 const store = usePaymentsStore();
+const route = useRoute();
 const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 
-const payments = computed(() => store.payments);
+/** Student context preserved from Student Detail (?student=<id>). */
+const scopedStudentId = computed(() =>
+  typeof route.query.student === 'string' && route.query.student ? route.query.student : '',
+);
+
+function paymentStudentId(p: any): string {
+  return p.student_id ?? p.studentId ?? p.students?.id ?? '';
+}
+
+const payments = computed(() => {
+  if (!scopedStudentId.value) return store.payments;
+  return store.payments.filter((p: any) => paymentStudentId(p) === scopedStudentId.value);
+});
 const loading = computed(() => store.loading);
 const error = computed(() => store.error);
 
@@ -35,11 +49,30 @@ function statusChip(status: string) {
 }
 
 const retryLoad = () => {
-  void store.loadAll();
+  if (scopedStudentId.value) {
+    void store.loadPayments(scopedStudentId.value);
+  } else {
+    void store.loadAll();
+  }
 };
 
+async function loadScoped() {
+  if (scopedStudentId.value) {
+    await Promise.allSettled([
+      store.loadPayments(scopedStudentId.value),
+      store.loadPaymentSummary(),
+    ]);
+  } else {
+    await Promise.allSettled([store.loadAll(), store.loadPaymentSummary()]);
+  }
+}
+
+watch(scopedStudentId, () => {
+  void loadScoped();
+});
+
 onMounted(async () => {
-  await Promise.allSettled([store.loadAll(), store.loadPaymentSummary()]);
+  await loadScoped();
 });
 </script>
 
@@ -52,6 +85,9 @@ onMounted(async () => {
     <div>
       <h1 class="text-headline">Payments</h1>
       <p class="text-slate-500">Real-time payment collections, verified by the payment gateway.</p>
+      <p v-if="scopedStudentId" class="mt-1 text-sm text-slate-500">
+        Filtered to this student — <RouterLink class="font-medium text-brand hover:underline" :to="{ name: 'StudentDetail', params: { id: scopedStudentId } }">back to student</RouterLink>
+      </p>
     </div>
 
     <ErrorState v-if="error" title="Unable to load payments" :description="error" @retry="retryLoad" />

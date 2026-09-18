@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { GraduationCap } from '@lucide/vue';
 import { useThemeStore } from '../stores/themeStore';
 import { useAuthStore } from '../stores/authStore';
 import { useSchoolStore } from '../stores/schoolStore';
 import { usePermission } from '../shared/rbac/usePermission';
 import { PERMISSIONS } from '../shared/rbac/permissions';
 import CmStatusChip from '../components/ui/CmStatusChip.vue';
+
+const router = useRouter();
 
 const themeStore = useThemeStore();
 const authStore = useAuthStore();
@@ -59,6 +63,25 @@ onMounted(async () => {
     </div>
 
     <div class="max-w-2xl space-y-6">
+      <div class="premium-card p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-title mb-1">Academic Structure</h2>
+            <p class="text-sm text-text-secondary">
+              Sessions, sections and academic levels. Levels drive student placement, movement and promotion.
+            </p>
+          </div>
+          <GraduationCap class="h-5 w-5 shrink-0 text-brand" />
+        </div>
+        <button
+          type="button"
+          class="mt-4 inline-flex min-h-[44px] items-center rounded-button bg-surface px-4 py-2.5 text-sm font-medium text-text-secondary border border-border hover:bg-surface/80 focus-ring transition-colors"
+          @click="router.push({ name: 'AcademicStructure' })"
+        >
+          Manage academic structure
+        </button>
+      </div>
+
       <div class="premium-card p-6">
         <h2 class="text-title mb-4">Appearance</h2>
         <div class="space-y-4">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { usePaymentsStore } from '@/stores/paymentsStore';
 import { useStudentStore } from '@/stores/studentStore';
 import { useModuleLock } from '@/composables/useModuleLock';
@@ -13,9 +14,21 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue';
 
 const store = usePaymentsStore();
 const studentStore = useStudentStore();
+const route = useRoute();
 const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
 
-const accounts = computed(() => store.dvAccounts);
+/** Student context preserved from Student Detail (?student=<id>). */
+const scopedStudentId = computed(() =>
+  typeof route.query.student === 'string' && route.query.student ? route.query.student : '',
+);
+
+const accounts = computed(() => {
+  if (!scopedStudentId.value) return store.dvAccounts;
+  return store.dvAccounts.filter((a: any) => {
+    const sid = a.student_id ?? a.studentId ?? a.students?.id ?? '';
+    return sid === scopedStudentId.value;
+  });
+});
 const loading = computed(() => store.loading);
 const error = computed(() => store.error);
 const students = computed(() => studentStore.students);
@@ -56,6 +69,11 @@ async function provision() {
 onMounted(() => {
   store.loadDVAccounts();
   studentStore.loadStudents();
+  if (scopedStudentId.value) selectedStudentId.value = scopedStudentId.value;
+});
+
+watch(scopedStudentId, (id) => {
+  if (id) selectedStudentId.value = id;
 });
 </script>
 
@@ -69,6 +87,9 @@ onMounted(() => {
       <div class="mb-6">
         <h1 class="text-headline">Virtual Accounts</h1>
         <p class="text-slate-500">Student dedicated virtual accounts (DVA), provisioned by CAPFLUX.</p>
+        <p v-if="scopedStudentId" class="mt-1 text-sm text-slate-500">
+          Filtered to this student — <RouterLink class="font-medium text-brand hover:underline" :to="{ name: 'StudentDetail', params: { id: scopedStudentId } }">back to student</RouterLink>
+        </p>
       </div>
 
       <ErrorState

@@ -2,14 +2,20 @@
   <div class="flex min-h-[calc(100vh-56px)] flex-col bg-background">
     <div class="border-b border-divider bg-card px-6 py-4">
       <div>
-        <h1 class="text-2xl font-semibold text-text-primary">Academic Structure</h1>
+        <button
+          type="button"
+          class="text-sm font-medium text-brand hover:underline focus:outline-none focus:ring-2 focus:ring-brand/50 rounded"
+          @click="$router.push({ name: 'Settings' })"
+        >
+          &larr; Settings
+        </button>
+        <h1 class="mt-1 text-2xl font-semibold text-text-primary">Academic Structure</h1>
         <p class="mt-1 text-sm text-text-secondary">
           Configure sessions, sections and academic levels. Levels drive placement, movement and
           promotion.
         </p>
       </div>
     </div>
-    <StudentsAreaNav />
 
     <div class="flex-1 overflow-y-auto">
       <div class="p-6 space-y-6">
@@ -328,7 +334,6 @@ import CmModal from '@/components/ui/CmModal.vue';
 import CmAlert from '@/components/ui/CmAlert.vue';
 import CmToast from '@/components/ui/CmToast.vue';
 import CmStatusChip from '@/components/ui/CmStatusChip.vue';
-import StudentsAreaNav from '@/features/students/components/StudentsAreaNav.vue';
 import BulkStudentMovementModal from '@/features/students/components/BulkStudentMovementModal.vue';
 import { useAcademicStore } from '@/stores/academicStore';
 import { useDivisionStore } from '@/stores/divisionStore';

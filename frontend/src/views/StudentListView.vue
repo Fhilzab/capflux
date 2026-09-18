@@ -1,7 +1,10 @@
 <template>
   <div class="flex min-h-[calc(100vh-56px)] flex-col bg-background">
-    <StudentPageHeader @import="openImportDialog" @add="management.addStudent" />
-    <StudentsAreaNav />
+    <StudentPageHeader
+      :hide-actions="management.students.length === 0 && !management.loading && !management.error"
+      @import="openImportDialog"
+      @add="management.addStudent"
+    />
 
     <div class="flex-1 overflow-y-auto">
       <div class="p-6">
@@ -146,7 +149,6 @@
 import { ref, computed, defineAsyncComponent, onMounted } from 'vue';
 import { useStudentManagement } from '@/features/students/composables/useStudentManagement';
 import StudentPageHeader from '@/features/students/components/StudentPageHeader.vue';
-import StudentsAreaNav from '@/features/students/components/StudentsAreaNav.vue';
 import StudentStats from '@/features/students/components/StudentStats.vue';
 import StudentToolbar from '@/features/students/components/StudentToolbar.vue';
 import StudentTable from '@/features/students/components/StudentTable.vue';
