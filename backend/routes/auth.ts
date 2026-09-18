@@ -216,56 +216,80 @@ router.post('/signup', async (req: Request, res: Response) => {
  * POST /api/auth/verify-email
  *
  * Verifies a user's email with the 6-digit code from the verification email.
+ * Accepts email (not userId) — the backend resolves the WorkOS user ID
+ * server-side via the identity bridge. No WorkOS ID is exposed to the client.
+ *
  * On success:
  *   1. WorkOS marks user as email_verified=true
  *   2. CAPFLUX users.email_verified = true
  *   3. Identity link transitions: PENDING -> ACTIVE, verified_at = timestamp
- *   4. Authenticate the user (obtain tokens)
- *   5. Establish session
- *   6. Return success with session
+ *   4. Return verificationSuccess (user must sign in separately)
  *
  * On failure:
  *   - Return clear error (invalid code, expired code)
  *   - No session established
+ *   - Identity remains PENDING
  */
 router.post('/verify-email', async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
-  const { code, userId } = body;
+  const { code, email } = body;
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ error: 'Verification code is required.' });
   }
-  if (!userId || typeof userId !== 'string') {
-    return res.status(400).json({ error: 'User ID is required.' });
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ error: 'Email is required.' });
   }
 
   try {
-    // Step 1: Verify email with WorkOS (marks user as email_verified=true)
-    const verifyResult = await authService.verifyEmail(code, userId);
+    // Step 1: Resolve WorkOS user ID from email via the identity bridge.
+    // email -> CAPFLUX users.id -> user_identity_links.workos_user_id
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const { data: capfluxUser, error: userErr } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (userErr || !capfluxUser) {
+      console.error('[verify-email] CAPFLUX user not found for email:', normalizedEmail);
+      return res.status(400).json({ error: 'Invalid or expired verification code.', code: 'INVALID_CODE' });
+    }
+
+    const { data: identityLink, error: linkErr } = await supabase
+      .from('user_identity_links')
+      .select('workos_user_id, status')
+      .eq('capflux_user_id', capfluxUser.id)
+      .eq('identity_type', 'workos_authkit')
+      .maybeSingle();
+
+    if (linkErr || !identityLink) {
+      console.error('[verify-email] Identity link not found for CAPFLUX user:', capfluxUser.id);
+      return res.status(400).json({ error: 'Invalid or expired verification code.', code: 'INVALID_CODE' });
+    }
+
+    // Guard: only PENDING identities can be verified
+    if (identityLink.status !== 'PENDING') {
+      if (identityLink.status === 'ACTIVE') {
+        return res.json({ success: true, verificationSuccess: true, authenticated: false });
+      }
+      return res.status(400).json({ error: 'Invalid or expired verification code.', code: 'INVALID_CODE' });
+    }
+
+    const workosUserId = identityLink.workos_user_id;
+
+    // Step 2: Verify email with WorkOS (marks user as email_verified=true)
+    const verifyResult = await authService.verifyEmail(code, workosUserId);
 
     if (!verifyResult.success || !verifyResult.user) {
       return res.status(400).json({ error: 'Invalid or expired verification code.', code: 'INVALID_CODE' });
     }
 
-    // Step 2: Resolve identity by WorkOS user ID (NOT by email)
-    const { data: identityLink, error: linkErr } = await supabase
-      .from('user_identity_links')
-      .select('capflux_user_id')
-      .eq('workos_user_id', userId)
-      .eq('identity_type', 'workos_authkit')
-      .maybeSingle();
-
-    if (linkErr || !identityLink) {
-      console.error('[verify-email] Identity link not found for WorkOS user:', userId);
-      return res.status(500).json({ error: 'Verification failed. Please try again.', code: 'PROVISIONING_ERROR' });
-    }
-
-    const capfluxUserId = identityLink.capflux_user_id;
-
     // Step 3: Update CAPFLUX users.email_verified = true
     await supabase
       .from('users')
       .update({ email_verified: true })
-      .eq('id', capfluxUserId);
+      .eq('id', capfluxUser.id);
 
     // Step 4: Transition identity: PENDING -> ACTIVE, set verified_at
     await supabase
@@ -274,28 +298,13 @@ router.post('/verify-email', async (req: Request, res: Response) => {
         status: 'ACTIVE',
         verified_at: new Date().toISOString(),
       })
-      .eq('capflux_user_id', capfluxUserId)
-      .eq('workos_user_id', userId)
+      .eq('capflux_user_id', capfluxUser.id)
+      .eq('workos_user_id', workosUserId)
       .eq('identity_type', 'workos_authkit');
 
-    // Step 5: Authenticate the user (obtain tokens via WorkOS)
-    // After verification, the user needs to sign in to get a session.
-    // We attempt to authenticate using the verification result user info.
-    // If WorkOS requires a separate sign-in, return verificationSuccess=true
-    // and the frontend routes to sign-in.
-    try {
-      const authResult = await authService.signInWithPassword(
-        verifyResult.user.email,
-        '' // We don't have the password — return verification success only
-      );
-      // If we somehow got tokens (shouldn't happen without password), set session
-      await setSessionCookie(res, authResult);
-      return res.json({ success: true, verificationSuccess: true, authenticated: true });
-    } catch {
-      // Expected: can't authenticate without password after verification.
-      // Return verification success — user must sign in.
-      return res.json({ success: true, verificationSuccess: true, authenticated: false });
-    }
+    // Step 5: Return verification success — user must sign in separately.
+    // WorkOS requires a password-based sign-in to obtain tokens.
+    return res.json({ success: true, verificationSuccess: true, authenticated: false });
   } catch (error) {
     const msg = errorMessage(error) || '';
     if (msg.includes('invalid') || msg.includes('expired') || msg.includes('code')) {

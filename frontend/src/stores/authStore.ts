@@ -286,11 +286,11 @@ export const useAuthStore = defineStore('auth', {
       return { error: null };
     },
 
-    async verifyEmail(code: string, userId: string) {
+    async verifyEmail(code: string, email: string) {
       this.loading = true;
       this.error = null;
 
-      const { data, error } = await AuthService.verifyEmail(code, userId);
+      const { data, error } = await AuthService.verifyEmail(code, email);
 
       this.loading = false;
 

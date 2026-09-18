@@ -9,7 +9,6 @@ import type { AuthState } from '../useAuthState';
 
 interface Props {
   email: string;
-  userId?: string;
 }
 
 interface Emits {
@@ -50,12 +49,15 @@ const handleResend = async () => {
 };
 
 const handleVerify = async () => {
-  if (!code.value || code.value.length !== 6 || !props.userId) return;
+  if (!code.value || code.value.length !== 6 || !props.email) {
+    verificationError.value = 'Verification session expired. Please request a new verification code.';
+    return;
+  }
 
   isVerifying.value = true;
   verificationError.value = '';
 
-  const result = await authStore.verifyEmail(code.value, props.userId);
+  const result = await authStore.verifyEmail(code.value, props.email);
 
   isVerifying.value = false;
 
@@ -74,6 +76,10 @@ const handleVerify = async () => {
 };
 
 onMounted(() => {
+  if (!props.email) {
+    verificationError.value = 'Verification session expired. Please request a new verification code.';
+    return;
+  }
   startCountdown();
 });
 

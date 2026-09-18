@@ -219,9 +219,9 @@ export const AuthService = {
   /**
    * Verify email with 6-digit code
    */
-  async verifyEmail(code: string, userId: string): Promise<{ data: { verificationSuccess: boolean } | null; error: AuthErrorData | null }> {
+  async verifyEmail(code: string, email: string): Promise<{ data: { verificationSuccess: boolean } | null; error: AuthErrorData | null }> {
     try {
-      const result = await (this._provider as AuthKitProvider).verifyEmail(code, userId);
+      const result = await (this._provider as AuthKitProvider).verifyEmail(code, email);
       return {
         data: result.data ?? null,
         error: result.error,

@@ -443,9 +443,9 @@ export class AuthKitProvider extends AuthProvider {
     return { data: null, error: null };
   }
 
-  async verifyEmail(code: string, userId: string): Promise<AuthResult<{ verificationSuccess: boolean }>> {
+  async verifyEmail(code: string, email: string): Promise<AuthResult<{ verificationSuccess: boolean }>> {
     const data = await this.request<BackendAuthResponse & { verificationSuccess?: boolean }>(() =>
-      this.http.post('/auth/verify-email', { code, userId })
+      this.http.post('/auth/verify-email', { code, email })
     );
     if (data.error) {
       throw new Error(data.error);
