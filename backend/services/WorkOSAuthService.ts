@@ -328,13 +328,15 @@ class WorkOSAuthService {
   }
 
   /**
-   * Build the OAuth authorization URL for a provider (e.g. google).
+   * Build the OAuth authorization URL for a provider (e.g. GoogleOAuth).
    * Generates a cryptographically random state for CSRF protection.
    *
-   * For Google OAuth, uses `connectionId` (the WorkOS connection identifier)
-   * instead of `provider` because `provider: 'google'` is rejected by the
-   * WorkOS API at /user_management/authorize. The connectionId is obtained
-   * from the WorkOS dashboard after configuring the Google OAuth connection.
+   * The provider identifier must match WorkOS API expectations exactly:
+   * - Google OAuth: 'GoogleOAuth' (PascalCase, not 'google')
+   * - AuthKit hosted UI: 'authkit'
+   *
+   * The SDK passes the provider string as-is to /user_management/authorize.
+   * Server-side validation at WorkOS rejects unrecognized providers.
    */
   getOAuthAuthorizationUrl(provider: string, redirectUri?: string): { url: string; state: string } {
     try {
@@ -343,21 +345,10 @@ class WorkOSAuthService {
       if (!resolvedRedirectUri) {
         throw new Error('No redirect URI configured for OAuth');
       }
-
-      // Google OAuth requires connectionId (not provider) for the WorkOS
-      // /user_management/authorize endpoint. The connection ID is obtained
-      // from the WorkOS dashboard after configuring the Google connection.
-      const googleConnectionId = process.env.WORKOS_GOOGLE_CONNECTION_ID;
-      if (provider === 'google' && !googleConnectionId) {
-        throw new Error('Google OAuth is not configured. Set WORKOS_GOOGLE_CONNECTION_ID in the environment.');
-      }
-
       const url = this.um.getAuthorizationUrl({
         clientId: this.clientId,
         redirectUri: resolvedRedirectUri,
-        ...(provider === 'google' && googleConnectionId
-          ? { connectionId: googleConnectionId }
-          : { provider }),
+        provider,
         state,
       });
       return { url, state };

@@ -423,7 +423,7 @@ router.post('/google', async (req: Request, res: Response) => {
   }
 
   try {
-    const { url, state } = authService.getOAuthAuthorizationUrl('google', redirectUri);
+    const { url, state } = authService.getOAuthAuthorizationUrl('GoogleOAuth', redirectUri);
     res.cookie(STATE_COOKIE_NAME, state, STATE_COOKIE_OPTIONS);
     return res.json({ success: true, url });
   } catch (error) {
@@ -457,6 +457,10 @@ router.get('/authkit-url', async (req: Request, res: Response) => {
  * Exchanges the authorization code for tokens.
  * Provisions CAPFLUX identity (HARD FAIL if provisioning fails).
  *
+ * State validation: FAIL CLOSED. The auth_state cookie is set when the
+ * OAuth flow is initiated. If the cookie is missing or mismatched, the
+ * callback is rejected. No fallback to trusting arbitrary query state.
+ *
  * For Google OAuth users:
  *   - Google has already verified the email
  *   - Identity: status=ACTIVE, migration_source=JIT_VERIFIED_EMAIL
@@ -473,19 +477,28 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'State parameter is required.' });
   }
 
-  // Validate state against HttpOnly cookie (primary) or query param (cross-origin fallback)
+  // Validate state against HttpOnly cookie — FAIL CLOSED if cookie missing.
+  // The auth_state cookie is set when the OAuth flow is initiated via
+  // POST /api/auth/google. A missing cookie means:
+  //   - Cookie was blocked by the browser (third-party cookie restriction)
+  //   - State was never set (invalid flow / CSRF attempt)
+  //   - Cookie expired (unlikely given short auth flow)
+  // In all cases, reject the callback to prevent CSRF attacks.
   const cookies = sessionService.parseCookieHeader(req.headers.cookie);
   const cookieState = cookies[STATE_COOKIE_NAME];
 
-  if (cookieState) {
-    if (!authService.validateAuthState(state, cookieState)) {
-      res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
-      return res.status(400).json({ error: 'Invalid or expired authentication state.' });
-    }
-    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
-  } else {
-    console.log('[authkit-callback] No auth_state cookie — using query state (cross-origin flow)');
+  if (!cookieState) {
+    console.warn('[authkit-callback] Missing auth_state cookie — rejecting callback (possible CSRF or cookie blocked)');
+    return res.status(400).json({ error: 'Authentication state is missing. Please try again.' });
   }
+
+  if (!authService.validateAuthState(state, cookieState)) {
+    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+    return res.status(400).json({ error: 'Invalid or expired authentication state.' });
+  }
+
+  // State validated — clear the cookie
+  res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
 
   try {
     const result = await authService.handleOAuthCallback(code);
@@ -521,7 +534,7 @@ router.get('/authkit-callback', async (req: Request, res: Response) => {
 
 /**
  * GET /api/auth/callback
- * Legacy Google OAuth callback (same logic as authkit-callback).
+ * Legacy Google OAuth callback (same hardened logic as authkit-callback).
  */
 router.get('/callback', async (req: Request, res: Response) => {
   const code = req.query.code;
@@ -534,19 +547,22 @@ router.get('/callback', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'State parameter is required.' });
   }
 
-  // Validate state against HttpOnly cookie (primary) or query param (cross-origin fallback)
+  // Validate state against HttpOnly cookie — FAIL CLOSED if cookie missing.
   const cookies = sessionService.parseCookieHeader(req.headers.cookie);
   const cookieState = cookies[STATE_COOKIE_NAME];
 
-  if (cookieState) {
-    if (!authService.validateAuthState(state, cookieState)) {
-      res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
-      return res.status(400).json({ error: 'Invalid or expired authentication state.' });
-    }
-    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
-  } else {
-    console.log('[callback] No auth_state cookie — using query state (cross-origin flow)');
+  if (!cookieState) {
+    console.warn('[callback] Missing auth_state cookie — rejecting callback (possible CSRF or cookie blocked)');
+    return res.status(400).json({ error: 'Authentication state is missing. Please try again.' });
   }
+
+  if (!authService.validateAuthState(state, cookieState)) {
+    res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
+    return res.status(400).json({ error: 'Invalid or expired authentication state.' });
+  }
+
+  // State validated — clear the cookie
+  res.clearCookie(STATE_COOKIE_NAME, STATE_COOKIE_OPTIONS);
 
   try {
     const result = await authService.handleOAuthCallback(code);
