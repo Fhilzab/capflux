@@ -205,6 +205,55 @@ describe('WorkOS identity bridge safety', () => {
     });
   });
 
+  describe('session.revoked event parsing (camelCase fix)', () => {
+    it('handleSessionRevoked reads userId (camelCase) not user_id (snake_case)', () => {
+      const src = webhookService();
+      // The WorkOS SDK constructEvent() returns camelCase-parsed events.
+      // event.data.userId is the correct field; event.data.user_id is undefined.
+      assert.match(src, /event\.data\.userId/, 'must read camelCase userId from SDK-parsed event');
+      assert.ok(
+        !/event\.data\.user_id\b/.test(src),
+        'must not read snake_case user_id (SDK parses to camelCase)'
+      );
+    });
+
+    it('handleSessionRevoked succeeds when userId is missing but sessionId is present', () => {
+      const src = webhookService();
+      // The handler must NOT require userId — revoke_workos_session only needs p_session_id.
+      // A valid session.revoked event always has a session ID; userId may be absent in edge cases.
+      assert.match(
+        src,
+        /!workosUserId && !sessionId/,
+        'must fail-closed only when BOTH userId and sessionId are missing'
+      );
+      assert.ok(
+        !/if \(!workosUserId\)/.test(src) || /if \(!workosUserId && !sessionId\)/.test(src),
+        'must not fail-closed on missing userId alone'
+      );
+    });
+
+    it('revoke_workos_session RPC is called with p_session_id and p_source only', () => {
+      const src = webhookService();
+      // The RPC signature is revoke_workos_session(p_session_id TEXT, p_source TEXT DEFAULT 'webhook')
+      // It does NOT take a user_id parameter — revocation is by session ID only.
+      assert.match(
+        src,
+        /revoke_workos_session/,
+        'must call the revoke_workos_session RPC'
+      );
+      assert.match(
+        src,
+        /p_session_id: sessionId/,
+        'must pass the session ID to the RPC'
+      );
+      assert.match(
+        src,
+        /p_source: 'webhook'/,
+        'must pass source as webhook'
+      );
+    });
+  });
+
   describe('identity bridge is service-controlled', () => {
     it('user_identity_links has deny-by-default RLS with no client policies', () => {
       const sql = readMigration('202608230002_user_identity_links.sql');

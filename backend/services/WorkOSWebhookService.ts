@@ -438,14 +438,16 @@ export class WorkOSWebhookService {
     const eventType = 'session.revoked';
 
     try {
-      const workosUserId = event.data.user_id as string | undefined;
+      // WorkOS SDK constructEvent() parses to camelCase: data.userId, data.id
+      const workosUserId = event.data.userId as string | undefined;
       const sessionId = event.data.id as string | undefined;
 
-      if (!workosUserId) {
-        return { success: false, eventId, eventType, error: 'Missing user_id in session.revoked event' };
+      if (!workosUserId && !sessionId) {
+        return { success: false, eventId, eventType, error: 'Missing userId and sessionId in session.revoked event' };
       }
 
       // Revoke the session ID if present using durable database store
+      // revoke_workos_session only needs p_session_id and p_source — no CAPFLUX UUID required
       if (sessionId) {
         const { error: revokeErr } = await supabase.rpc('revoke_workos_session', {
           p_session_id: sessionId,
@@ -454,14 +456,14 @@ export class WorkOSWebhookService {
         if (revokeErr) {
           console.error('[workos-webhook] Failed to revoke session in database:', errorMessage(revokeErr));
         } else {
-          console.log(`[workos-webhook] Revoked session in database: session_id=${sessionId} for workos_user_id=${workosUserId}`);
+          console.log(`[workos-webhook] Revoked session in database: session_id=${sessionId} for workos_user_id=${workosUserId || 'unknown'}`);
         }
       } else {
-        console.log(`[workos-webhook] Received session.revoked without session ID: workos_user_id=${workosUserId}`);
+        console.warn(`[workos-webhook] Received session.revoked without session ID: workos_user_id=${workosUserId || 'unknown'} — cannot revoke`);
       }
 
       // Log the session revocation for audit purposes
-      console.log(`[workos-webhook] received event=session.revoked id=${eventId} workos_user_id=${workosUserId} session_id=${sessionId || 'unknown'}`);
+      console.log(`[workos-webhook] received event=session.revoked id=${eventId} workos_user_id=${workosUserId || 'unknown'} session_id=${sessionId || 'unknown'}`);
 
       return { success: true, eventId, eventType };
     } catch (error) {
