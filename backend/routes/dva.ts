@@ -27,6 +27,7 @@ import requirePaymentReady from '../middleware/requirePaymentReady.js';
 import dvaService from '../services/DVAService.js';
 import { audit } from '../services/auditService.js'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { errorMessage, errorStatusCode } from '../types/http.js';
+import { isDemoRequest, demoDvaList } from '../helpers/sandboxDemo.js';
 
 const router = Router();
 // Auth cutover: provider switch (AUTH_PROVIDER_MODE). supabase_only preserves
@@ -83,6 +84,9 @@ router.post('/provision', requirePaymentReady, async (req: Request, res: Respons
   }
 
   try {
+    // Sandbox demo: reject write operations — demo users cannot provision real DVAs.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'DVA provisioning is not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -107,6 +111,9 @@ router.post('/provision', requirePaymentReady, async (req: Request, res: Respons
 // POST /api/dva/bulk-provision
 router.post('/bulk-provision', requirePaymentReady, async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: reject write operations — demo users cannot bulk-provision real DVAs.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'Bulk DVA provisioning is not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -149,6 +156,9 @@ router.post('/bulk-provision', requirePaymentReady, async (req: Request, res: Re
 // GET /api/dva — list DVAs for the caller's school
 router.get('/', async (_req: Request, res: Response) => {
   try {
+    // Sandbox demo: return empty list — demo users have no real DVA rows.
+    if (isDemoRequest(_req)) return res.json(demoDvaList());
+
     const schoolId = await getCallerSchool(_req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -175,6 +185,9 @@ router.get('/', async (_req: Request, res: Response) => {
 // GET /api/dva/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: no real DVA rows exist for demo users.
+    if (isDemoRequest(req)) return res.status(404).json({ error: 'Payment account not found.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -204,6 +217,9 @@ router.get('/:id', async (req: Request, res: Response) => {
 // POST /api/dva/:id/deactivate
 router.post('/:id/deactivate', requirePaymentReady, async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: reject write operations — demo users cannot deactivate real DVAs.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'DVA deactivation is not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 

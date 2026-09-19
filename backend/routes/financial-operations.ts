@@ -11,6 +11,7 @@ import { requireStaff } from '../middleware/staffAuth.js';
 import { reconciliationService } from '../services/ReconciliationService.js';
 import SettlementService from '../services/SettlementService.js';
 import { errorMessage, errorStatusCode } from '../types/http.js';
+import { isDemoRequest, demoReconciliationStatus, demoSettlementsList, demoSettlementSummary } from '../helpers/sandboxDemo.js';
 
 const router = Router();
 // Auth cutover: provider switch (AUTH_PROVIDER_MODE). supabase_only preserves
@@ -52,6 +53,9 @@ router.post('/reconciliation/run', requireStaff('payments.reconcile'), async (re
   }
 
   try {
+    // Sandbox demo: reject write operations — demo users cannot run real reconciliation.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'Reconciliation runs are not available in sandbox demo mode.' });
+
     const result = await reconciliationService.reconcilePayments({
       schoolId: schoolId as string,
       startDate: startDate as string,
@@ -68,6 +72,9 @@ router.post('/reconciliation/run', requireStaff('payments.reconcile'), async (re
 // GET /api/reconciliation — status + open issues for the caller's school
 router.get('/reconciliation', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return empty reconciliation status — demo users have no real runs.
+    if (isDemoRequest(req)) return res.json(demoReconciliationStatus());
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -81,6 +88,9 @@ router.get('/reconciliation', async (req: Request, res: Response) => {
 // POST /api/reconciliation/issues/:id/resolve — staff resolves an issue
 router.post('/reconciliation/issues/:id/resolve', requireStaff('payments.reconcile'), async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: reject write operations — demo users cannot resolve real issues.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'Issue resolution is not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -98,6 +108,9 @@ router.post('/reconciliation/issues/:id/resolve', requireStaff('payments.reconci
 // GET /api/settlements — history for the caller's school
 router.get('/settlements', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return empty list — demo users have no real settlement rows.
+    if (isDemoRequest(req)) return res.json(demoSettlementsList());
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -111,6 +124,9 @@ router.get('/settlements', async (req: Request, res: Response) => {
 // GET /api/settlements/summary
 router.get('/settlements/summary', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return zero summary — demo users have no real settlement rows.
+    if (isDemoRequest(req)) return res.json(demoSettlementSummary());
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -124,6 +140,9 @@ router.get('/settlements/summary', async (req: Request, res: Response) => {
 // GET /api/settlements/:id
 router.get('/settlements/:id', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: no real settlement rows exist for demo users.
+    if (isDemoRequest(req)) return res.status(404).json({ error: 'Settlement not found.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 

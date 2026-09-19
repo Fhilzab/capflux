@@ -23,6 +23,7 @@ import requirePaymentReady from '../middleware/requirePaymentReady.js';
 // the evident intent; it is used here so the documented contract works.
 import dvaService from '../services/DVAService.js';
 import { errorMessage, errorStatusCode } from '../types/http.js';
+import { isDemoRequest, demoDvaList } from '../helpers/sandboxDemo.js';
 
 const router = Router();
 // Auth cutover: provider switch (AUTH_PROVIDER_MODE). supabase_only preserves
@@ -65,6 +66,9 @@ async function verifyStudent(schoolId: string, studentId: unknown): Promise<bool
 // GET /api/payment-accounts
 router.get('/', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return empty list — demo users have no real payment account rows.
+    if (isDemoRequest(req)) return res.json(demoDvaList());
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -90,6 +94,9 @@ router.get('/', async (req: Request, res: Response) => {
 // GET /api/payment-accounts/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: no real payment account rows exist for demo users.
+    if (isDemoRequest(req)) return res.status(404).json({ error: 'Payment account not found.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -123,6 +130,9 @@ router.post('/provision', requirePaymentReady, async (req: Request, res: Respons
   if (!student_id) return res.status(400).json({ error: 'student_id is required' });
 
   try {
+    // Sandbox demo: reject write operations — demo users cannot provision real payment accounts.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'Payment account provisioning is not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -146,6 +156,9 @@ router.post('/provision', requirePaymentReady, async (req: Request, res: Respons
 // POST /api/payment-accounts/bulk-provision
 router.post('/bulk-provision', requirePaymentReady, async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: reject write operations — demo users cannot bulk-provision real payment accounts.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'Bulk payment account provisioning is not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -183,6 +196,9 @@ router.post('/bulk-provision', requirePaymentReady, async (req: Request, res: Re
 // POST /api/payment-accounts/:id/deactivate
 router.post('/:id/deactivate', requirePaymentReady, async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: reject write operations — demo users cannot deactivate real payment accounts.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'Payment account deactivation is not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 

@@ -31,6 +31,7 @@ import settlementVerificationService from '../services/SettlementVerificationSer
 import { compareIdentityAgainstSubmission, sanitizeIdentityResult, evaluateSettlementEligibility } from '../services/verification-matching.js';
 import paymentActivationService from '../services/PaymentActivationService.js';
 import { errorMessage } from '../types/http.js';
+import { isDemoRequest } from '../helpers/sandboxDemo.js';
 
 const router = Router();
 
@@ -49,6 +50,10 @@ router.use(requireAuthProvider);
  * Get the user's school ID from school_members
  */
 async function getUserSchoolId(userId: string): Promise<string | null> {
+  // Sandbox demo: demo user IDs start with "demo-" and have no school_members row.
+  if (userId.startsWith('demo-')) {
+    return process.env.CAPFLUX_MODE?.toLowerCase() === 'sandbox' ? 'demo-school' : null;
+  }
   const { data, error } = await supabase
     .from('school_members')
     .select('school_id')
@@ -85,6 +90,43 @@ async function logKycAccess(schoolId: string, userId: string, action: string, me
 // ==========================================================
 router.get('/status', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return a verified KYC status so module locks don't block demo users.
+    if (isDemoRequest(req)) {
+      return res.json({
+        success: true,
+        data: {
+          kyc: {
+            id: 'demo-kyc',
+            status: 'APPROVED',
+            submitted_at: new Date().toISOString(),
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: null,
+            rejection_reason: null,
+            bvn_last4: '0000',
+            bvn_masked: '***0000',
+            bvn_verification_status: 'MATCH',
+            nin_last4: '0000',
+            nin_verification_status: 'MATCH',
+            verification_provider: 'sandbox',
+            official_email: null,
+            official_phone: null,
+            cac_registration_number: null,
+            cac_document_mime_type: null,
+            cac_document_uploaded_at: null,
+            cac_document_status: null,
+            identity_document_type: null,
+            identity_match_states: null,
+            verification_reference: null,
+          },
+          school: {
+            status: 'ACTIVE',
+            payment_status: 'READY',
+            business_type: 'PRIVATE_SCHOOL',
+          },
+        },
+      });
+    }
+
     const schoolId = await getUserSchoolId(req.user.id);
     if (!schoolId) {
       return res.status(400).json({ error: 'No school found. Complete onboarding first.' });

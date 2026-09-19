@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient.js';
 import requireAuthProvider from '../middleware/requireAuthProvider.js';
 import { normalizeLegacyBusinessType, isValidBusinessType } from '../services/validators.js';
 import { errorMessage } from '../types/http.js';
+import { isDemoRequest } from '../helpers/sandboxDemo.js';
 
 const router = Router();
 
@@ -24,6 +25,28 @@ router.use(requireAuthProvider);
 // ==========================================================
 router.get('/status', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return a complete onboarding status so module locks don't block demo users.
+    if (isDemoRequest(req)) {
+      return res.json({
+        success: true,
+        data: {
+          has_school: true,
+          has_profile: true,
+          has_organization: true,
+          school_id: 'demo-school',
+          organization_id: 'demo-org',
+          status: 'ACTIVE',
+          payment_status: 'READY',
+          requires_setup: false,
+          requires_kyc: false,
+          requires_settlement: false,
+          business_type: 'PRIVATE_SCHOOL',
+          cac_number: null,
+          tax_identification_number: null,
+        },
+      });
+    }
+
     const { data, error } = await supabase.rpc('get_onboarding_status', {
       p_user_id: req.user.id,
     });

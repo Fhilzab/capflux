@@ -19,6 +19,7 @@ import { requireStaff } from '../middleware/staffAuth.js';
 import PaymentService from '../services/PaymentService.js';
 import { errorMessage, errorStatusCode } from '../types/http.js';
 import type { PaymentTransactionRow, StudentRow } from '../types/db.js';
+import { isDemoRequest, demoPaymentsList, demoPaymentSummary } from '../helpers/sandboxDemo.js';
 
 const router = Router();
 
@@ -51,6 +52,9 @@ async function getCallerSchool(userId: string): Promise<string | null> {
 // GET /api/payments
 router.get('/', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return empty list — demo users have no real payment rows.
+    if (isDemoRequest(req)) return res.json(demoPaymentsList());
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -68,6 +72,9 @@ router.get('/', async (req: Request, res: Response) => {
 // GET /api/payments/summary
 router.get('/summary', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return zero summary — demo users have no real payment rows.
+    if (isDemoRequest(req)) return res.json(demoPaymentSummary());
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -81,6 +88,9 @@ router.get('/summary', async (req: Request, res: Response) => {
 // GET /api/payments/student/:studentId
 router.get('/student/:studentId', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: return empty list — demo users have no real payment rows.
+    if (isDemoRequest(req)) return res.json(demoPaymentsList());
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -103,6 +113,9 @@ router.get('/student/:studentId', async (req: Request, res: Response) => {
 // GET /api/payments/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: no real payment rows exist for demo users.
+    if (isDemoRequest(req)) return res.status(404).json({ error: 'Payment not found.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -137,6 +150,9 @@ router.post('/intent', requirePaymentReady, async (req: Request, res: Response) 
   }
 
   try {
+    // Sandbox demo: reject write operations — demo users cannot create real payment intents.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'Payment intents are not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
@@ -167,6 +183,9 @@ router.post('/intent', requirePaymentReady, async (req: Request, res: Response) 
 // POST /api/payments/:id/reverse — reverse a SUCCESS payment (staff only)
 router.post('/:id/reverse', requireStaff('payment.reconcile'), async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: reject write operations — demo users cannot reverse real payments.
+    if (isDemoRequest(req)) return res.status(403).json({ error: 'Payment reversal is not available in sandbox demo mode.' });
+
     const schoolId = await getCallerSchool(req.user.id);
     if (!schoolId) return res.status(403).json({ error: 'No active school membership.' });
 
