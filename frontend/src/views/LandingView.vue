@@ -660,8 +660,8 @@ onMounted(() => {
             <ul class="space-y-3">
               <li><a href="#" class="text-text-secondary hover:text-text-primary transition-colors text-sm">About</a></li>
               <li><a href="#" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Contact</a></li>
-              <li><a href="#" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Privacy</a></li>
-              <li><a href="#" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Terms</a></li>
+              <li><a href="/privacy" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Privacy</a></li>
+              <li><a href="/terms" class="text-text-secondary hover:text-text-primary transition-colors text-sm">Terms</a></li>
             </ul>
           </div>
 

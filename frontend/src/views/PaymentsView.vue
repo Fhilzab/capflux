@@ -78,7 +78,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
     <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
     <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
     <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
@@ -99,7 +99,7 @@ onMounted(async () => {
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block">
               <span class="text-sm text-text-muted">Student</span>
-              <CmSelect v-model="form.student_id" :options="students.map(s => ({ value: s.id, label: `${s.first_name} ${s.last_name}` }))" 
+              <CmSelect v-model="form.student_id" :options="students.map(s => ({ value: s.id, label: `${s.firstName} ${s.lastName}` }))" 
                 placeholder="Select student" class="mt-2" />
             </label>
 

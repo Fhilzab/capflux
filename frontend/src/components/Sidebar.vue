@@ -43,6 +43,9 @@ const collapsed = computed({
   set: (value: boolean) => emit('update:collapsed', value),
 });
 
+// When mobile drawer is open, always show labels (override collapsed state)
+const effectiveCollapsed = computed(() => props.mobileOpen ? false : collapsed.value);
+
 // Active state: top-level route names light up their item; nested detail
 // routes (e.g. /students/:id, /guardians/:id) keep their parent item
 // highlighted. Report children (/reports/*) highlight the Reports group and
@@ -243,7 +246,7 @@ function groupOpen(name: string): boolean {
     class="fixed inset-y-0 left-0 z-sticky flex flex-col bg-sidebar border-r border-divider transition-all duration-300"
     :class="[
       mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-      collapsed ? 'lg:w-20 w-72' : 'w-[188px]',
+      mobileOpen ? 'w-[188px]' : (collapsed ? 'lg:w-20 w-72' : 'w-[188px]'),
       'lg:top-[50px]',
     ]"
     @mouseenter="handleMouseEnter"
@@ -280,7 +283,7 @@ function groupOpen(name: string): boolean {
             <!-- Label (fades in/out beside the fixed icon column) -->
             <span
               class="truncate transition-opacity duration-200"
-              :class="{ 'opacity-0': collapsed, 'opacity-100': !collapsed }"
+              :class="{ 'opacity-0': effectiveCollapsed, 'opacity-100': !effectiveCollapsed }"
             >
               {{ item.label }}
             </span>
@@ -308,20 +311,20 @@ function groupOpen(name: string): boolean {
               />
               <span
                 class="truncate transition-opacity duration-200"
-                :class="{ 'opacity-0': collapsed, 'opacity-100': !collapsed }"
+                :class="{ 'opacity-0': effectiveCollapsed, 'opacity-100': !effectiveCollapsed }"
               >
                 {{ item.label }}
               </span>
               <component
                 :is="iconComponents['chevron']"
                 class="ml-auto h-4 w-4 flex-shrink-0 transition-transform duration-200"
-                :class="{ 'rotate-180': groupOpen(item.name), 'opacity-0': collapsed, 'opacity-100': !collapsed }"
+                :class="{ 'rotate-180': groupOpen(item.name), 'opacity-0': effectiveCollapsed, 'opacity-100': !effectiveCollapsed }"
                 stroke-width="2"
               />
             </button>
             <!-- Children stay mounted (v-show) so keyboard/screen-reader order is stable -->
             <div
-              v-show="!collapsed && groupOpen(item.name)"
+              v-show="!effectiveCollapsed && groupOpen(item.name)"
               class="mt-1 space-y-1 border-l border-divider ml-7 pl-2"
               role="group"
               :aria-label="item.label + ' submenu'"
@@ -347,7 +350,7 @@ function groupOpen(name: string): boolean {
                   stroke-width="2"
                 />
                 <span class="truncate transition-opacity duration-200"
-                  :class="{ 'opacity-0': collapsed, 'opacity-100': !collapsed }">
+                  :class="{ 'opacity-0': effectiveCollapsed, 'opacity-100': !effectiveCollapsed }">
                   {{ child.label }}
                 </span>
               </button>

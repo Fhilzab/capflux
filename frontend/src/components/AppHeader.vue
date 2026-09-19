@@ -53,7 +53,7 @@ const syncStatus = computed(() => {
   return { label: 'Online', color: 'bg-success', dot: true };
 });
 
-const openNotifications = () => emit('open-notifications');
+const openNotifications = () => router.push({ name: 'Notifications' });
 </script>
 
 <template>
@@ -175,6 +175,7 @@ const openNotifications = () => emit('open-notifications');
           data-testid="ai-assistant-button"
           class="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-surface/50 border border-divider text-text-muted hover:text-text-primary hover:bg-surface focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors"
           aria-label="AI Assistant"
+          title="AI Assistant — coming soon"
         >
           <Sparkles class="h-8 w-8" stroke-width="2" />
         </button>

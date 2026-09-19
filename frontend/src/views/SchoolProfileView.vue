@@ -41,7 +41,7 @@ const saveSettings = async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
     <div class="max-w-4xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card">
         <h1 class="text-headline mb-2">School Settings</h1>

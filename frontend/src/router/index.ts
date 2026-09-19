@@ -256,6 +256,19 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../features/admin/kyc/KycReviewDetail.vue'),
     meta: { requiresAuth: true, permission: PERMISSIONS.KYC.VIEW },
   },
+  // Legal pages (placeholder — coming soon)
+  {
+    path: '/terms',
+    name: 'Terms',
+    component: () => import('../views/LegalPlaceholder.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: '/privacy',
+    name: 'Privacy',
+    component: () => import('../views/LegalPlaceholder.vue'),
+    meta: { requiresAuth: false },
+  },
   // Catch-all 404
   {
     path: '/:pathMatch(.*)*',

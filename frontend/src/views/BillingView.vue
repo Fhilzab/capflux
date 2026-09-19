@@ -19,7 +19,7 @@ const items = ref<BillingSummaryItem[]>([]);
 const assessedMinor = ref(0);
 const collectedMinor = ref(0);
 const outstandingMinor = ref(0);
-const students = ref<Array<{ id: string; first_name: string; last_name: string }>>([]);
+const students = ref<Array<{ id: string; firstName: string; lastName: string }>>([]);
 const searchQuery = ref('');
 const form = ref({
   student_id: '',
@@ -131,7 +131,7 @@ watch(scopedStudentId, async (id) => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
     <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
     <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
     <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
@@ -174,7 +174,7 @@ watch(scopedStudentId, async (id) => {
                 <span class="text-sm text-text-muted">Student</span>
                 <CmSelect
                   v-model="form.student_id"
-                  :options="students.map(s => ({ value: s.id, label: `${s.first_name} ${s.last_name}` }))"
+                  :options="students.map(s => ({ value: s.id, label: `${s.firstName} ${s.lastName}` }))"
                   placeholder="Select student"
                   class="mt-2"
                 />

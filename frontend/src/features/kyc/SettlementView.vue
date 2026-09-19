@@ -70,7 +70,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
     <div class="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 class="text-4xl font-semibold mb-2">Settlement Account</h1>

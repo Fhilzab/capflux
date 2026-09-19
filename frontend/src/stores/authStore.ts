@@ -75,7 +75,10 @@ export const useAuthStore = defineStore('auth', {
         this.session = sessionUpdate;
         this.user = sessionUpdate?.user ?? null;
         if (sessionUpdate) {
-          this.loadOrganization();
+          // Avoid double-calling loadOrganization when signIn() also awaits it.
+          if (!this.loading) {
+            this.loadOrganization();
+          }
         } else {
           this.schoolId = null;
           this.organization = null;

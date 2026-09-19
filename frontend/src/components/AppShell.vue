@@ -48,11 +48,11 @@ const mainMarginClass = computed(() => {
 
     <!-- Main Content -->
     <div
-      class="flex flex-col flex-1 pt-[50px] transition-all duration-300"
+      class="flex flex-col flex-1 min-w-0 pt-[50px] transition-all duration-300 overflow-x-hidden"
       :class="mainMarginClass"
     >
       <SandboxBanner v-if="runtimeEnvironment.isSandbox" />
-      <main class="flex-1 overflow-y-auto">
+      <main class="flex-1 overflow-y-auto overflow-x-hidden">
         <slot />
       </main>
     </div>

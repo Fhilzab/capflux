@@ -76,7 +76,7 @@ onMounted(loadCollections);
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8 transition-colors duration-200">
     <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
     <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
     <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
@@ -153,7 +153,7 @@ onMounted(loadCollections);
 
           <section class="rounded-card bg-card p-8 shadow-card overflow-x-auto transition-colors duration-200">
             <h2 class="text-headline mb-4 text-text-primary">Collections by day</h2>
-            <table class="w-full border-collapse text-left text-sm">
+            <table class="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr class="border-b border-divider text-text-muted">
                   <th class="py-3 text-xs font-bold uppercase tracking-wider">Date</th>

@@ -66,7 +66,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
     <div class="max-w-5xl mx-auto space-y-6">
       <div class="flex items-center justify-between">
         <div>

@@ -16,6 +16,12 @@ import type { SchoolMemberRow, SchoolRow } from '../types/db.js';
 
 export async function requirePaymentReady(req: Request, res: Response, next: NextFunction): Promise<void | Response> {
   try {
+    // Sandbox demo: bypass payment-readiness checks for demo users.
+    if (req.user.id.startsWith('demo-') && process.env.CAPFLUX_MODE?.toLowerCase() === 'sandbox') {
+      req.schoolId = 'demo-school';
+      return next();
+    }
+
     const { data: member, error } = await supabase
       .from('school_members')
       .select('school_id')

@@ -34,6 +34,10 @@ const handleError = (res: Response, error: unknown, fallbackStatus = 500): Respo
 };
 
 async function getCallerSchool(userId: string): Promise<string | null> {
+  // Sandbox demo: demo user IDs start with "demo-" and have no school_members row.
+  if (userId.startsWith('demo-')) {
+    return process.env.CAPFLUX_MODE?.toLowerCase() === 'sandbox' ? 'demo-school' : null;
+  }
   const { data, error } = await supabase
     .from('school_members')
     .select('school_id')

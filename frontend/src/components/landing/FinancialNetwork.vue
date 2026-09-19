@@ -10,7 +10,7 @@ defineProps<{
     <div class="absolute inset-0 bg-gradient-to-br from-brand/[0.02] via-transparent to-success/[0.02] animate-gradient-shift"></div>
     
     <!-- Floating payment cards (desktop only - decorative) -->
-    <div class="absolute inset-0 pointer-events-none hidden sm:block">
+    <div class="absolute inset-0 pointer-events-none hidden sm:block opacity-40 lg:opacity-60">
       <div
         v-for="(card, index) in 6"
         :key="index"

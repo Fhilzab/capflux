@@ -31,7 +31,7 @@ const payments = computed(() => {
 const loading = computed(() => store.loading);
 const error = computed(() => store.error);
 
-const fmtNaira = (minor: number) => `₦${(minor / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+const fmtNaira = (minor: number) => (minor / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 });
 
 const todayNaira = computed(() => fmtNaira(store.paymentSummary?.today_collections_minor || 0));
 const monthNaira = computed(() => fmtNaira(store.paymentSummary?.month_collections_minor || 0));

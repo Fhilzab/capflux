@@ -90,7 +90,7 @@ onMounted(loadOutstanding);
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8 transition-colors duration-200">
     <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
     <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
     <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />

@@ -57,7 +57,7 @@ const onStudentSelect = () => {
   const student = students.value.find((s) => s.id === form.value.student_id);
   if (student) {
     form.value.recipient_phone = student.guardian_phone || '';
-    selectedStudentName.value = `${student.first_name} ${student.last_name}`;
+    selectedStudentName.value = `${student.firstName} ${student.lastName}`;
     selectedTemplate.value = '';
   }
 };
@@ -135,7 +135,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
     <div class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card">
         <h1 class="text-display mb-2">Notifications</h1>
@@ -155,7 +155,7 @@ onMounted(async () => {
               <CmSelect
                 v-model="form.student_id"
                 @change="onStudentSelect"
-                :options="students.map(s => ({ value: s.id, label: `${s.first_name} ${s.last_name}` }))"
+                :options="students.map(s => ({ value: s.id, label: `${s.firstName} ${s.lastName}` }))"
                 placeholder="Select student"
                 class="mt-2"
               />

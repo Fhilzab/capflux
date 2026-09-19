@@ -19,6 +19,12 @@ router.use(requireAuthProvider);
  * School scope is derived from membership — never from client headers.
  */
 async function getCallerSchool(userId: string): Promise<{ schoolId: string; role: string | null } | null> {
+  // Sandbox demo: demo user IDs start with "demo-" and have no school_members row.
+  if (userId.startsWith('demo-')) {
+    return process.env.CAPFLUX_MODE?.toLowerCase() === 'sandbox'
+      ? { schoolId: 'demo-school', role: 'OWNER' }
+      : null;
+  }
   const { data, error } = await supabase
     .from('school_members')
     .select('school_id, role_id, roles!inner(system_role)')

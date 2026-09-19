@@ -95,7 +95,7 @@ onMounted(loadReport);
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
     <div class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>

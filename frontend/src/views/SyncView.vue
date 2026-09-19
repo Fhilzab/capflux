@@ -61,7 +61,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-background text-text-primary p-8 transition-colors duration-200">
+  <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8 transition-colors duration-200">
     <div class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
