@@ -446,25 +446,28 @@ export class WorkOSWebhookService {
         return { success: false, eventId, eventType, error: 'Missing userId and sessionId in session.revoked event' };
       }
 
-      // Revoke the session ID if present using durable database store
-      // revoke_workos_session only needs p_session_id and p_source — no CAPFLUX UUID required
-      if (sessionId) {
-        const { error: revokeErr } = await supabase.rpc('revoke_workos_session', {
-          p_session_id: sessionId,
-          p_source: 'webhook',
-        });
-        if (revokeErr) {
-          console.error('[workos-webhook] Failed to revoke session in database:', errorMessage(revokeErr));
-        } else {
-          console.log(`[workos-webhook] Revoked session in database: session_id=${sessionId} for workos_user_id=${workosUserId || 'unknown'}`);
-        }
-      } else {
-        console.warn(`[workos-webhook] Received session.revoked without session ID: workos_user_id=${workosUserId || 'unknown'} — cannot revoke`);
+      // No session ID means we cannot durably revoke anything — fail closed
+      if (!sessionId) {
+        const msg = `session.revoked event missing sessionId: workos_user_id=${workosUserId || 'unknown'}`;
+        console.error(`[workos-webhook] ${msg}`);
+        return { success: false, eventId, eventType, error: msg };
       }
 
-      // Log the session revocation for audit purposes
-      console.log(`[workos-webhook] received event=session.revoked id=${eventId} workos_user_id=${workosUserId || 'unknown'} session_id=${sessionId || 'unknown'}`);
+      // Revoke the session ID durably via database RPC.
+      // revoke_workos_session is idempotent (INSERT ... ON CONFLICT DO UPDATE).
+      // A revocation failure MUST NOT result in success — WorkOS must retry.
+      const { error: revokeErr } = await supabase.rpc('revoke_workos_session', {
+        p_session_id: sessionId,
+        p_source: 'webhook',
+      });
 
+      if (revokeErr) {
+        const msg = `Failed to revoke session ${sessionId}: ${errorMessage(revokeErr)}`;
+        console.error(`[workos-webhook] ${msg}`);
+        return { success: false, eventId, eventType, error: msg };
+      }
+
+      console.log(`[workos-webhook] Revoked session in database: session_id=${sessionId} workos_user_id=${workosUserId || 'unknown'}`);
       return { success: true, eventId, eventType };
     } catch (error) {
       console.error('[workos-webhook] Error handling session.revoked:', errorMessage(error));
@@ -559,6 +562,21 @@ export class WorkOSWebhookService {
             details: completeErr.details,
             hint: completeErr.hint,
           });
+          // The handler succeeded but we cannot confirm durable completion.
+          // Mark as FAILED so WorkOS retries. On retry, the idempotent
+          // handler will produce the same result and completion will be
+          // attempted again.
+          const { error: failErr } = await supabase.rpc('workos_webhook_event_fail', {
+            p_workos_event_id: eventId,
+            p_error: `Handler succeeded but completion write failed: ${completeErr.message}`,
+          });
+          if (failErr) {
+            console.error('[workos-webhook] Failed to mark event as failed after completion write failure:', {
+              message: failErr.message,
+              code: failErr.code,
+            });
+          }
+          return { success: false, eventId, eventType, error: `Handler succeeded but completion write failed: ${completeErr.message}` };
         }
 
         console.log(`[workos-webhook] received event=${eventType} id=${eventId} (${duration}ms)`);

@@ -217,18 +217,14 @@ describe('WorkOS identity bridge safety', () => {
       );
     });
 
-    it('handleSessionRevoked succeeds when userId is missing but sessionId is present', () => {
+    it('handleSessionRevoked fails when sessionId is missing (fail closed)', () => {
       const src = webhookService();
-      // The handler must NOT require userId — revoke_workos_session only needs p_session_id.
-      // A valid session.revoked event always has a session ID; userId may be absent in edge cases.
+      // Without a sessionId, no durable revocation can occur.
+      // The handler must return failure — not silently succeed.
       assert.match(
         src,
-        /!workosUserId && !sessionId/,
-        'must fail-closed only when BOTH userId and sessionId are missing'
-      );
-      assert.ok(
-        !/if \(!workosUserId\)/.test(src) || /if \(!workosUserId && !sessionId\)/.test(src),
-        'must not fail-closed on missing userId alone'
+        /!sessionId/,
+        'must check for missing sessionId'
       );
     });
 
@@ -250,6 +246,42 @@ describe('WorkOS identity bridge safety', () => {
         src,
         /p_source: 'webhook'/,
         'must pass source as webhook'
+      );
+    });
+  });
+
+  describe('session.revoked error propagation', () => {
+    it('revocation RPC failure returns success:false (never silently succeeds)', () => {
+      const src = webhookService();
+      // After the revoke RPC call, the handler must check for errors and
+      // return failure if the revocation did not durably persist.
+      assert.match(
+        src,
+        /revokeErr/,
+        'must check revokeErr from revoke_workos_session RPC'
+      );
+      // The error path must return success: false — not fall through to success.
+      const revokedErrBlock = src.match(/revokeErr[\s\S]*?return\s*\{[^}]*success:\s*false/);
+      assert.ok(
+        revokedErrBlock,
+        'revocation error must return success: false to prevent COMPLETED marking'
+      );
+    });
+
+    it('completion RPC failure marks event as FAILED (not silently success)', () => {
+      const src = webhookService();
+      // When workos_webhook_event_complete fails, the dispatcher must not
+      // return success. It must mark the event as FAILED for retry.
+      assert.match(
+        src,
+        /completeErr[\s\S]*?workos_webhook_event_fail/,
+        'completion failure must trigger workos_webhook_event_fail'
+      );
+      // After marking failed, must return success: false
+      const completeErrBlock = src.match(/completeErr[\s\S]*?return\s*\{[^}]*success:\s*false/);
+      assert.ok(
+        completeErrBlock,
+        'completion failure must return success: false to trigger HTTP 500'
       );
     });
   });
