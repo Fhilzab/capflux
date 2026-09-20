@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../../stores/authStore';
 import CmButton from '../../../components/ui/CmButton.vue';
 import CmInput from '../../../components/ui/CmInput.vue';
-import CmAlert from '../../../components/ui/CmAlert.vue';
 import GoogleIcon from '../../../components/ui/GoogleIcon.vue';
 import { Eye, EyeOff, ChevronRight } from '@lucide/vue';
 import type { AuthState } from '../useAuthState';
@@ -62,15 +61,6 @@ const switchToForgotPassword = () => {
       <h2 class="text-headline mb-1">Welcome back</h2>
       <p class="text-subheadline text-text-secondary">Sign in to your CAPFLUX account</p>
     </div>
-
-    <!-- Error Alert -->
-    <CmAlert
-      v-if="authStore.error"
-      variant="danger"
-      title="Sign-in error"
-      :description="authStore.error"
-      class="mb-4"
-    />
 
     <form @submit.prevent="handleSignIn" data-testid="login-form" class="space-y-5">
       <!-- Email Field -->

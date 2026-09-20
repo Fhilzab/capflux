@@ -182,4 +182,29 @@ describe('AuthView', () => {
       __resolveRuntimeEnvironmentForTests('production');
     }
   });
+
+  it('shows exactly one error alert when authStore.error is set', async () => {
+    authStore.error = 'Invalid email or password. Please try again.';
+    mockRouteQuery.mode = 'login';
+    const wrapper = mount(AuthView);
+    await nextTick();
+
+    const alerts = wrapper.findAll('.alert, [class*="rounded-card"]');
+    // The parent CmAlert renders exactly once; LoginForm no longer renders its own.
+    const errorAlerts = alerts.filter((a) => a.text().includes('Invalid email or password'));
+    expect(errorAlerts).toHaveLength(1);
+    expect(errorAlerts[0].text()).toContain('Authentication error');
+    expect(errorAlerts[0].text()).toContain('Invalid email or password');
+  });
+
+  it('shows no error alert when authStore.error is null', async () => {
+    authStore.error = null;
+    mockRouteQuery.mode = 'login';
+    const wrapper = mount(AuthView);
+    await nextTick();
+
+    const alerts = wrapper.findAll('.alert, [class*="rounded-card"]');
+    const errorAlerts = alerts.filter((a) => a.text().includes('error'));
+    expect(errorAlerts).toHaveLength(0);
+  });
 });

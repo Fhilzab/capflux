@@ -122,20 +122,10 @@ describe('LoginForm', () => {
     expect(pushMock).toHaveBeenCalledWith({ name: 'Home' });
   });
 
-  it('shows INVALID_CREDENTIALS error from authStore', () => {
+  it('does not render its own error alert (parent AuthView handles errors)', () => {
     authStore.error = 'Invalid email or password. Please try again.';
     const wrapper = mount(LoginForm);
-    const alert = wrapper.find('.alert');
-    expect(alert.exists()).toBe(true);
-    expect(alert.text()).toContain('Invalid email or password');
-  });
-
-  it('shows NETWORK_ERROR for actual network failure', () => {
-    authStore.error = 'Unable to connect. Please check your internet connection.';
-    const wrapper = mount(LoginForm);
-    const alert = wrapper.find('.alert');
-    expect(alert.exists()).toBe(true);
-    expect(alert.text()).toContain('Unable to connect');
+    expect(wrapper.find('.alert').exists()).toBe(false);
   });
 
   it('does not show error alert when no error', () => {
