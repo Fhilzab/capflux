@@ -479,6 +479,14 @@ router.post('/resubmit', async (req: Request, res: Response) => {
 // ==========================================================
 router.get('/documents', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: no KYC records exist for demo schools — return the same
+    // absent shape the real handler returns when no record is found, so the
+    // shared store error field is not poisoned (which would trip the
+    // centralized settlement gate via its fail-closed unknown handling).
+    if (isDemoRequest(req)) {
+      return res.json({ success: true, data: null });
+    }
+
     const schoolId = await getUserSchoolId(req.user.id);
     if (!schoolId) {
       return res.status(400).json({ error: 'No school found. Complete onboarding first.' });
@@ -908,6 +916,34 @@ router.post('/settlement', async (req: Request, res: Response) => {
 // ==========================================================
 router.get('/settlement', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: assert the gate-resolution state for the synthetic demo school.
+    // A null settlement would normalize into a phantom unverified record and lock
+    // every demo financial page, so the demo contract carries an explicitly synthetic
+    // VERIFIED marker with no bank details (no real account exists or is implied).
+    // Live accounts are unaffected: they use the database path below.
+    if (isDemoRequest(req)) {
+      return res.json({
+        success: true,
+        data: {
+          settlement: {
+            id: 'demo-settlement',
+            status: 'VERIFIED',
+            bank_code: null,
+            bank_name: null,
+            account_number_last4: null,
+            bvn_last4: null,
+            account_name: null,
+            ownership_match_status: null,
+            account_verification_reference: null,
+            rejection_reason: null,
+            submitted_at: null,
+            verified_at: null,
+          },
+          gateway: null,
+        },
+      });
+    }
+
     const schoolId = await getUserSchoolId(req.user.id);
     if (!schoolId) {
       return res.status(400).json({ error: 'No school found. Complete onboarding first.' });
@@ -1101,6 +1137,13 @@ router.post('/shareholders', async (req: Request, res: Response) => {
 // ==========================================================
 router.get('/shareholders', async (req: Request, res: Response) => {
   try {
+    // Sandbox demo: no shareholder records exist for demo schools — return the
+    // same empty shape the real handler returns when none are found, so the
+    // shared store error field is not poisoned (see /documents bypass above).
+    if (isDemoRequest(req)) {
+      return res.json({ success: true, data: [] });
+    }
+
     const schoolId = await getUserSchoolId(req.user.id);
     if (!schoolId) {
       return res.status(400).json({ error: 'No school found. Complete onboarding first.' });

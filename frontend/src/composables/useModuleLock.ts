@@ -31,6 +31,18 @@ import { useAuthStore } from '@/stores/authStore';
  */
 export type FinancialLockReason = 'setup' | 'kyc' | 'settlement' | 'payment' | null;
 
+/**
+ * Identity the cached verification state was loaded for. Module-scoped so the
+ * watermark survives component unmount/remount across navigation within one
+ * browser session.
+ */
+let lastGateIdentity: string | null | undefined;
+
+/** Reset the gate identity watermark (test support only). */
+export function resetGateIdentityForTests(): void {
+  lastGateIdentity = undefined;
+}
+
 export function useModuleLock() {
   const onboardingStore = useOnboardingStore();
   const financialStore = useFinancialActivationStore();
@@ -144,29 +156,41 @@ export function useModuleLock() {
   const canAccessFinancials = computed(() => !isLoading.value && !locked.value);
 
   // ── Session guard ──────────────────────────────────────────────
-  // Verification state belongs to one account. When the authenticated identity
-  // changes, drop cached verification and reload so a previous account's result
-  // can never unlock another account's pages. Skipped when no Pinia is active
-  // (e.g. isolated unit tests) so the gate stays usable without a store.
+  // Verification state belongs to one account. Cached verification is stamped
+  // with the identity it was loaded for (module-scoped watermark, so it
+  // survives component unmount/remount across navigation). Any mount or
+  // identity change that observes a different identity drops the cached state
+  // and reloads — a previous account's result can never unlock another
+  // account's pages, including when navigation remounts onto stale state.
+  // Skipped when no Pinia is active (e.g. isolated unit tests).
   // Note: demo-persona switches that bypass authStore are not observable here;
   // demo auth-layer changes are out of scope for this gate.
+  const refreshForIdentity = () => {
+    onboardingStore.reset();
+    financialStore.reset();
+    onboardingStore.loadStatus().catch(() => {
+      // Non-fatal: gate resolves fail-closed on the reset (unknown) state.
+    });
+    financialStore.loadAll().catch(() => {
+      // Non-fatal: gate resolves fail-closed on the reset (unknown) state.
+    });
+  };
   const installSessionGuard = () => {
     if (!getActivePinia()) return;
     const authStore = useAuthStore();
-    let lastIdentity: string | null = authStore.user?.id ?? null;
+    const currentIdentity = () => authStore.user?.id ?? null;
+    if (lastGateIdentity !== undefined && currentIdentity() !== lastGateIdentity) {
+      refreshForIdentity();
+    }
+    lastGateIdentity = currentIdentity();
+    let lastWatched: string | null = lastGateIdentity;
     watch(
-      () => authStore.user?.id ?? null,
+      () => currentIdentity(),
       (current) => {
-        if (current === lastIdentity) return;
-        lastIdentity = current;
-        onboardingStore.reset();
-        financialStore.reset();
-        onboardingStore.loadStatus().catch(() => {
-          // Non-fatal: gate resolves fail-closed on the reset (unknown) state.
-        });
-        financialStore.loadAll().catch(() => {
-          // Non-fatal: gate resolves fail-closed on the reset (unknown) state.
-        });
+        if (current === lastWatched) return;
+        lastWatched = current;
+        lastGateIdentity = current;
+        refreshForIdentity();
       },
     );
   };

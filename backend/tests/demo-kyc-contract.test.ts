@@ -157,3 +157,55 @@ describe('demo KYC — mode gating and write rejection intact', () => {
     });
   });
 });
+
+describe('demo auxiliary endpoints — honest-empty shapes (no store-error poisoning)', () => {
+  it('GET /api/kyc/documents returns the absent shape (null, like no-record)', async () => {
+    const token = await createDemoToken('bursar');
+    const { status, body } = await call('GET', '/api/kyc/documents', token);
+    assert.equal(status, 200);
+    assert.equal(body?.success, true);
+    assert.equal(body?.data, null);
+  });
+
+  it('GET /api/kyc/shareholders returns the empty shape ([] , like none found)', async () => {
+    const token = await createDemoToken('bursar');
+    const { status, body } = await call('GET', '/api/kyc/shareholders', token);
+    assert.equal(status, 200);
+    assert.equal(body?.success, true);
+    assert.deepEqual(body?.data, []);
+  });
+
+  it('auxiliary demo endpoints stay mode-gated', async () => {
+    const token = await createDemoToken('bursar');
+    process.env.CAPFLUX_MODE = 'production';
+    const docs = await call('GET', '/api/kyc/documents', token);
+    assert.equal(docs.status, 401);
+  });
+});
+
+describe('demo settlement contract — synthetic verified marker (no phantom lock)', () => {
+  it('GET /api/kyc/settlement returns a VERIFIED demo settlement with no bank details', async () => {
+    const token = await createDemoToken('bursar');
+    const { status, body } = await call('GET', '/api/kyc/settlement', token);
+    assert.equal(status, 200);
+    assert.equal(body?.success, true);
+    const settlement = body?.data?.settlement;
+    assert.equal(settlement?.status, 'VERIFIED');
+    assert.equal(settlement?.id, 'demo-settlement');
+    // No real account is implied: all identifying/evidence fields are absent.
+    assert.equal(settlement?.bank_code, null);
+    assert.equal(settlement?.bank_name, null);
+    assert.equal(settlement?.account_number_last4, null);
+    assert.equal(settlement?.bvn_last4, null);
+    assert.equal(settlement?.submitted_at, null);
+    assert.equal(settlement?.verified_at, null);
+    assert.equal(body?.data?.gateway, null);
+  });
+
+  it('demo settlement bypass stays mode-gated', async () => {
+    const token = await createDemoToken('bursar');
+    process.env.CAPFLUX_MODE = 'production';
+    const { status } = await call('GET', '/api/kyc/settlement', token);
+    assert.equal(status, 401);
+  });
+});
