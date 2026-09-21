@@ -91,23 +91,26 @@ async function logKycAccess(schoolId: string, userId: string, action: string, me
 router.get('/status', async (req: Request, res: Response) => {
   try {
     // Sandbox demo: return a verified KYC status so module locks don't block demo users.
+    // Shape mirrors the real handler below ({ kyc, schoolStatus, paymentStatus, businessType }).
+    // No identity evidence is fabricated: verification fields use the contract's absent (null)
+    // representation and only the gate-relevant school state is asserted.
     if (isDemoRequest(req)) {
       return res.json({
         success: true,
         data: {
           kyc: {
             id: 'demo-kyc',
-            status: 'APPROVED',
-            submitted_at: new Date().toISOString(),
-            reviewed_at: new Date().toISOString(),
+            status: 'VERIFIED',
+            submitted_at: null,
+            reviewed_at: null,
             reviewed_by: null,
             rejection_reason: null,
-            bvn_last4: '0000',
-            bvn_masked: '***0000',
-            bvn_verification_status: 'MATCH',
-            nin_last4: '0000',
-            nin_verification_status: 'MATCH',
-            verification_provider: 'sandbox',
+            bvn_last4: null,
+            bvn_masked: null,
+            bvn_verification_status: null,
+            nin_last4: null,
+            nin_verification_status: null,
+            verification_provider: null,
             official_email: null,
             official_phone: null,
             cac_registration_number: null,
@@ -118,11 +121,9 @@ router.get('/status', async (req: Request, res: Response) => {
             identity_match_states: null,
             verification_reference: null,
           },
-          school: {
-            status: 'ACTIVE',
-            payment_status: 'READY',
-            business_type: 'PRIVATE_SCHOOL',
-          },
+          schoolStatus: 'ACTIVE',
+          paymentStatus: 'READY',
+          businessType: null,
         },
       });
     }
