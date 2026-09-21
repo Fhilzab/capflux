@@ -26,6 +26,10 @@ router.use(requireAuthProvider);
 router.get('/status', async (req: Request, res: Response) => {
   try {
     // Sandbox demo: return a complete onboarding status so module locks don't block demo users.
+    // Field names mirror the flat RPC shape consumed by the frontend normalizeStatus():
+    // school_status (not status) drives the school operational state, and the
+    // *_completed flags drive the setup checklist. Previously missing keys silently
+    // defaulted the demo school to PENDING_SETUP, showing the Setup lock everywhere.
     if (isDemoRequest(req)) {
       return res.json({
         success: true,
@@ -36,7 +40,14 @@ router.get('/status', async (req: Request, res: Response) => {
           school_id: 'demo-school',
           organization_id: 'demo-org',
           status: 'ACTIVE',
+          school_status: 'ACTIVE',
+          school_name: 'Demo School',
+          school_slug: 'demo-school',
           payment_status: 'READY',
+          profile_completed: true,
+          organization_completed: true,
+          school_completed: true,
+          owner_completed: true,
           requires_setup: false,
           requires_kyc: false,
           requires_settlement: false,
