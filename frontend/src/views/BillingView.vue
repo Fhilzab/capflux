@@ -35,7 +35,7 @@ const loading = ref(false);
 const billingStore = useBillingStore();
 const studentStore = useStudentStore();
 const route = useRoute();
-const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
+const { showLock, lockReason, canAccessFinancials } = useModuleLock();
 
 /** Student context preserved from Student Detail (?student=<id>). */
 const scopedStudentId = computed(() =>
@@ -132,11 +132,8 @@ watch(scopedStudentId, async (id) => {
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
-    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
-    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
-    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
-    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
-    <div v-else class="max-w-6xl mx-auto space-y-6">
+    <ModuleLockOverlay v-if="showLock" :variant="lockReason ?? 'setup'" />
+    <div v-else-if="canAccessFinancials" class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card">
         <h1 class="text-headline mb-2">Billing</h1>
         <p class="text-text-secondary">Local billing summary, payment history, and ledger reconciliation.</p>
@@ -277,6 +274,10 @@ watch(scopedStudentId, async (id) => {
           />
         </template>
       </section>
+    </div>
+    <div v-else class="max-w-6xl mx-auto space-y-4" aria-label="Checking financial access">
+      <SkeletonLoader type="row" :count="3" />
+      <SkeletonLoader type="metric" :count="1" />
     </div>
   </main>
 </template>

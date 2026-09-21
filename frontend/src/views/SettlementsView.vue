@@ -8,7 +8,7 @@ import CmStatusChip from '@/components/ui/CmStatusChip.vue';
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue';
 
 const store = usePaymentsStore();
-const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
+const { showLock, lockReason, canAccessFinancials } = useModuleLock();
 
 const settlements = computed(() => store.settlements);
 const reconciliation = computed(() => store.reconciliation);
@@ -74,11 +74,8 @@ onMounted(() => {
 
 <template>
   <div class="p-6">
-    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
-    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
-    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
-    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
-    <template v-else>
+    <ModuleLockOverlay v-if="showLock" :variant="lockReason ?? 'setup'" />
+    <template v-else-if="canAccessFinancials">
       <div class="mb-6">
         <h1 class="text-headline">Settlements &amp; Reconciliation</h1>
         <p class="text-slate-500">Settlement and reconciliation status, tracked by CAPFLUX.</p>
@@ -165,5 +162,9 @@ onMounted(() => {
         </div>
       </template>
     </template>
+    <div v-else class="space-y-6" aria-label="Checking financial access">
+      <SkeletonLoader type="metric" :count="3" />
+      <SkeletonLoader type="table" :count="5" />
+    </div>
   </div>
 </template>

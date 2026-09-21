@@ -3,10 +3,11 @@ import { ref, onMounted, computed } from 'vue';
 import { useReportingStore } from '../stores/reportingStore';
 import { useModuleLock } from '../composables/useModuleLock';
 import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
+import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 
 const DEFAULT_SCHOOL_ID = 'demo-school';
 const reportingStore = useReportingStore();
-const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
+const { showLock, lockReason, canAccessFinancials } = useModuleLock();
 const loading = ref(false);
 const report = ref({
   totalCharges: 0,
@@ -65,11 +66,8 @@ onMounted(loadReport);
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
-    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
-    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
-    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
-    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
-    <template v-else>
+    <ModuleLockOverlay v-if="showLock" :variant="lockReason ?? 'setup'" />
+    <template v-else-if="canAccessFinancials">
     <div class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card">
         <h1 class="text-headline mb-2">Revenue Dashboard</h1>
@@ -177,5 +175,8 @@ onMounted(loadReport);
       </section>
     </div>
     </template>
+    <div v-else class="max-w-6xl mx-auto space-y-6" aria-label="Checking financial access">
+      <SkeletonLoader type="metric" :count="4" />
+    </div>
   </main>
 </template>

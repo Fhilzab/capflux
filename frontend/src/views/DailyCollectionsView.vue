@@ -10,7 +10,7 @@ import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 import { formatNairaKobo } from '../lib/ledgerSemantics';
 import { buildDailyCollections, type DailyCollectionRow } from '../lib/ledgerReportBuilder';
 
-const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
+const { showLock, lockReason, canAccessFinancials } = useModuleLock();
 const loading = ref(false);
 const error = ref('');
 const startDate = ref('');
@@ -77,11 +77,8 @@ onMounted(loadCollections);
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8 transition-colors duration-200">
-    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
-    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
-    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
-    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
-    <template v-else>
+    <ModuleLockOverlay v-if="showLock" :variant="lockReason ?? 'setup'" />
+    <template v-else-if="canAccessFinancials">
       <div class="max-w-6xl mx-auto space-y-6">
         <section class="rounded-card bg-card p-8 shadow-card transition-colors duration-200">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -181,5 +178,9 @@ onMounted(loadCollections);
         </template>
       </div>
     </template>
+    <div v-else class="max-w-6xl mx-auto space-y-6" aria-label="Checking financial access">
+      <SkeletonLoader type="metric" :count="1" />
+      <SkeletonLoader type="table" :count="5" />
+    </div>
   </main>
 </template>

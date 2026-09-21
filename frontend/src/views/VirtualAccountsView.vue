@@ -15,7 +15,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue';
 const store = usePaymentsStore();
 const studentStore = useStudentStore();
 const route = useRoute();
-const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
+const { showLock, lockReason, canAccessFinancials } = useModuleLock();
 
 /** Student context preserved from Student Detail (?student=<id>). */
 const scopedStudentId = computed(() =>
@@ -79,11 +79,8 @@ watch(scopedStudentId, (id) => {
 
 <template>
   <div class="p-6">
-    <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
-    <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
-    <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
-    <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
-    <template v-else>
+    <ModuleLockOverlay v-if="showLock" :variant="lockReason ?? 'setup'" />
+    <template v-else-if="canAccessFinancials">
       <div class="mb-6">
         <h1 class="text-headline">Virtual Accounts</h1>
         <p class="text-slate-500">Student dedicated virtual accounts (DVA), provisioned by CAPFLUX.</p>
@@ -171,5 +168,8 @@ watch(scopedStudentId, (id) => {
         </div>
       </template>
     </template>
+    <div v-else class="space-y-6" aria-label="Checking financial access">
+      <SkeletonLoader type="table" :count="5" />
+    </div>
   </div>
 </template>

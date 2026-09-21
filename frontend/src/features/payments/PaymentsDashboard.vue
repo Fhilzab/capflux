@@ -13,7 +13,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue';
 
 const store = usePaymentsStore();
 const route = useRoute();
-const { paymentsLocked, requiresSetup, requiresKyc, requiresSettlement, loading: lockLoading } = useModuleLock();
+const { showLock, lockReason, canAccessFinancials } = useModuleLock();
 
 /** Student context preserved from Student Detail (?student=<id>). */
 const scopedStudentId = computed(() =>
@@ -77,11 +77,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ModuleLockOverlay v-if="requiresSetup && !lockLoading" variant="setup" />
-  <ModuleLockOverlay v-else-if="requiresKyc && !lockLoading" variant="kyc" />
-  <ModuleLockOverlay v-else-if="requiresSettlement && !lockLoading" variant="settlement" />
-  <ModuleLockOverlay v-else-if="paymentsLocked && !lockLoading" variant="payment" />
-  <div v-else class="space-y-6">
+  <ModuleLockOverlay v-if="showLock" :variant="lockReason ?? 'setup'" />
+  <div v-else-if="canAccessFinancials" class="space-y-6">
     <div>
       <h1 class="text-headline">Payments</h1>
       <p class="text-slate-500">Real-time payment collections, verified by the payment gateway.</p>
@@ -142,5 +139,11 @@ onMounted(async () => {
         </table>
       </div>
     </template>
+  </div>
+  <div v-else class="space-y-6" aria-label="Checking financial access">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <SkeletonLoader type="metric" :count="4" />
+    </div>
+    <SkeletonLoader type="table" :count="5" />
   </div>
 </template>
