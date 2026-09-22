@@ -1,4 +1,4 @@
-import { ref, computed, reactive, watch } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStudentStore } from '@/stores/studentStore';
 import { useSchoolStore } from '@/stores/schoolStore';
@@ -7,6 +7,7 @@ import { studentService } from '@/shared/students/StudentService';
 import { GuardianService } from '@/shared/services/GuardianService';
 import { EnrollmentService } from '@/shared/enrollment/EnrollmentService';
 import { useAcademicStore } from '@/stores/academicStore';
+import { runtimeEnvironment } from '@/shared/environment/runtimeEnvironment';
 import { db } from '@/offline/localDb';
 import { normalizeStudent, isStudentActive, isStudentArchived, sortStudents } from '../utils/normalizeStudent';
 import {
@@ -258,13 +259,31 @@ export function useStudentManagement() {
   // --- Actions ---
 
   async function load() {
-    if (!schoolId.value) return;
     loading.value = true;
     error.value = null;
     try {
+      let id = schoolId.value;
+      if (!id) {
+        // Cold-boot ordering: the route guard can resolve school context
+        // before the sandbox seed completes, leaving a null school id and a
+        // silently stuck empty state. Ensure seed + school context once here
+        // (bounded single attempt, no retries) instead of returning early.
+        if (runtimeEnvironment.isSandbox) {
+          const { installSandboxMode } = await import('@/sandbox');
+          await installSandboxMode();
+        }
+        if (!schoolStore.initialized || !schoolStore.currentSchoolId) {
+          await schoolStore.loadSchool();
+        }
+        id = schoolStore.currentSchoolId;
+        if (!id) {
+          if (schoolStore.error) error.value = schoolStore.error;
+          return;
+        }
+      }
       await divisionStore.loadDivisions();
       void academicStore.initialize();
-      const result = await studentStore.getStudentsWithGuardians(schoolId.value, true);
+      const result = await studentStore.getStudentsWithGuardians(id, true);
       const rawList = Array.isArray(result) ? result : [];
       const normalized = rawList.map((s) => normalizeStudent(s, divisions.value));
 

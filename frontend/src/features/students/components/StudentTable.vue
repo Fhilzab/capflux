@@ -1,17 +1,22 @@
 <template>
   <div class="space-y-3">
     <!-- Table -->
-    <div class="overflow-x-auto rounded-card border border-border bg-card">
-      <table class="student-responsive-table min-w-full divide-y divide-divider">
+    <div
+      class="student-table-scroll rounded-card border border-border bg-card"
+      data-testid="students-table-container"
+    >
+      <table class="student-table min-w-full divide-y divide-divider">
         <!-- Header -->
         <thead class="bg-surface/50">
           <tr>
-            <th class="w-12 px-4 py-3 text-left">
+            <th class="student-col-check w-12 px-4 py-3 text-left">
               <input
                 type="checkbox"
                 class="rounded border-border text-success focus:ring-success"
                 :checked="isAllSelected()"
                 :indeterminate="isSomeSelected() && !isAllSelected()"
+                aria-label="Select all students"
+                data-testid="select-all-students"
                 @change="toggleSelectAll($event)"
               />
             </th>
@@ -20,6 +25,7 @@
               :key="col.key"
               class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
               :class="[
+                `student-col-${col.key}`,
                 col.sortable ? 'cursor-pointer hover:text-text-primary' : '',
               ]"
               @click="col.sortable && sortBy(col.key)"
@@ -33,6 +39,7 @@
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
                   stroke="currentColor"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"
@@ -46,7 +53,7 @@
                 </svg>
               </div>
             </th>
-            <th class="w-16 px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-text-secondary">
+            <th class="student-col-actions w-16 px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-text-secondary">
               Actions
             </th>
           </tr>
@@ -68,29 +75,39 @@
             @click="$emit('row-click', student)"
           >
             <!-- Checkbox -->
-            <td class="px-4 py-3" data-label="Select">
+            <td class="student-col-check px-4 py-3">
               <input
                 type="checkbox"
                 class="rounded border-border text-success focus:ring-success"
                 :checked="selectedIds.has(student.id)"
+                :aria-label="`Select ${student.firstName} ${student.lastName}`"
+                data-testid="select-student"
                 @click.stop
                 @change="$emit('toggle-select', student.id, $event)"
               />
             </td>
 
             <!-- Student -->
-            <td class="px-4 py-3" data-label="Student">
+            <td class="student-col-student px-4 py-3">
               <div class="flex items-center gap-3">
                 <div
                   class="flex h-8 w-8 items-center justify-center rounded-full bg-surface text-sm font-medium text-text-primary"
+                  aria-hidden="true"
                 >
                   {{ studentInitials(student) }}
                 </div>
-                <div>
-                  <div class="font-medium text-text-primary">
+                <div class="min-w-0">
+                  <div
+                    class="font-medium text-text-primary"
+                    data-testid="student-name"
+                  >
                     {{ student.firstName }} {{ student.lastName }}
                   </div>
-                  <div v-if="student.admissionNumber || student.studentId" class="text-xs text-text-muted">
+                  <div
+                    v-if="student.admissionNumber || student.studentId"
+                    class="truncate text-xs text-text-muted"
+                    data-testid="student-id"
+                  >
                     {{ student.admissionNumber || student.studentId }}
                   </div>
                 </div>
@@ -98,7 +115,7 @@
             </td>
 
             <!-- Academic placement: level with section subtext -->
-            <td class="hidden px-4 py-3 md:table-cell" data-label="Class">
+            <td class="student-col-class px-4 py-3" data-job-label="Class">
               <template v-if="student.levelName || student.class">
                 <div class="text-sm text-text-primary">{{ student.levelName || student.class }}</div>
                 <div v-if="student.sectionName" class="text-xs text-text-muted">{{ student.sectionName }}</div>
@@ -107,7 +124,7 @@
             </td>
 
             <!-- Guardian -->
-            <td class="hidden px-4 py-3 md:table-cell" data-label="Guardian">
+            <td class="student-col-guardian px-4 py-3" data-job-label="Guardian">
               <div v-if="student.guardian">
                 <div class="text-sm text-text-primary">{{ student.guardian.fullName }}</div>
                 <div v-if="student.guardian.relationship" class="text-xs text-text-muted">
@@ -118,7 +135,7 @@
             </td>
 
             <!-- Phone -->
-            <td class="hidden px-4 py-3 lg:table-cell" data-label="Phone">
+            <td class="student-col-phone px-4 py-3" data-job-label="Phone">
               <span v-if="student.guardian?.phone" class="text-sm text-text-primary">
                 {{ student.guardian.phone }}
               </span>
@@ -126,7 +143,7 @@
             </td>
 
             <!-- Status -->
-            <td class="px-4 py-3" data-label="Status">
+            <td class="student-col-status px-4 py-3">
               <CmStatusChip
                 :variant="statusChipVariant(student.status)"
                 :label="statusLabel(student.status)"
@@ -135,21 +152,25 @@
             </td>
 
             <!-- Date -->
-            <td class="hidden px-4 py-3 md:table-cell" data-label="Date Registered">
+            <td class="student-col-date px-4 py-3" data-job-label="Registered">
               <span class="text-sm text-text-muted">{{ formatDate(student.registeredAt || student.createdAt) }}</span>
             </td>
 
             <!-- Actions -->
             <td
-              class="px-4 py-3"
-              data-label="Actions"
+              class="student-col-actions px-4 py-3"
               @click.stop
             >
-              <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity sm:opacity-100">
+              <div
+                class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 sm:opacity-100"
+                data-testid="student-row-actions"
+              >
                 <button
                   @click.stop="$emit('view', student)"
                   class="rounded p-1 text-text-secondary hover:text-text-primary hover:bg-surface focus-ring"
                   title="View student"
+                  aria-label="View student"
+                  data-testid="view-student"
                 >
                   <Eye class="h-4 w-4" />
                 </button>
@@ -157,6 +178,8 @@
                   @click.stop="$emit('edit', student)"
                   class="rounded p-1 text-text-secondary hover:text-text-primary hover:bg-surface focus-ring"
                   title="Edit student"
+                  aria-label="Edit student"
+                  data-testid="edit-student"
                 >
                   <Pencil class="h-4 w-4" />
                 </button>
@@ -165,6 +188,10 @@
                     @click.stop="openMenu(student.id)"
                     class="rounded p-1 text-text-secondary hover:text-text-primary hover:bg-surface focus-ring"
                     title="More actions"
+                    aria-label="More actions"
+                    aria-haspopup="menu"
+                    :aria-expanded="openMenuId === student.id"
+                    data-testid="student-more-actions"
                   >
                     <Ellipsis class="h-4 w-4" />
                   </button>
@@ -181,16 +208,16 @@
                     >
                       <button
                         @click.stop="$emit('financial-record', student); closeMenu()"
-                        class="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
+                        class="w-full px-3 py-2 text-left text-sm text-text-primary hover:bg-surface transition-colors"
                       >
-                        <ReceiptText class="mr-2 h-4 w-4 inline" />
+                        <ReceiptText class="mr-2 inline h-4 w-4" />
                         Financial record
                       </button>
                       <button
                         @click.stop="$emit('archive', student); closeMenu()"
-                        class="w-full text-left px-3 py-2 text-sm text-danger hover:bg-danger/10 transition-colors"
+                        class="w-full px-3 py-2 text-left text-sm text-danger hover:bg-danger/10 transition-colors"
                       >
-                        <Archive class="mr-2 h-4 w-4 inline" />
+                        <Archive class="mr-2 inline h-4 w-4" />
                         Archive student
                       </button>
                     </div>
@@ -230,7 +257,8 @@
     <!-- Pagination -->
     <div
       v-if="totalPages > 1"
-      class="flex items-center justify-between rounded-card border border-border bg-card px-4 py-3"
+      class="flex flex-col gap-2 rounded-card border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+      data-testid="students-pagination"
     >
       <div class="text-sm text-text-secondary">
         Page {{ currentPage }} of {{ totalPages }}
@@ -240,6 +268,7 @@
         <button
           @click="$emit('page-change', 1)"
           :disabled="currentPage === 1"
+          aria-label="First page"
           class="rounded-button border border-border bg-surface px-2 py-1 text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
         >
           <ChevronLeft class="h-4 w-4" />
@@ -247,6 +276,7 @@
         <button
           @click="$emit('page-change', currentPage - 1)"
           :disabled="currentPage === 1"
+          aria-label="Previous page"
           class="rounded-button border border-border bg-surface px-2 py-1 text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
         >
           Prev
@@ -257,6 +287,7 @@
         <button
           @click="$emit('page-change', currentPage + 1)"
           :disabled="currentPage >= totalPages"
+          aria-label="Next page"
           class="rounded-button border border-border bg-surface px-2 py-1 text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
         >
           Next
@@ -264,6 +295,7 @@
         <button
           @click="$emit('page-change', totalPages)"
           :disabled="currentPage >= totalPages"
+          aria-label="Last page"
           class="rounded-button border border-border bg-surface px-2 py-1 text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
         >
           <ChevronRight class="h-4 w-4" />
@@ -405,80 +437,144 @@ onUnmounted(() => {
 </script>
 
 <style>
-/* Responsive table-to-cards on mobile (max-width: 768px / md breakpoint) */
-.student-responsive-table,
-.student-responsive-table thead,
-.student-responsive-table tbody,
-.student-responsive-table th,
-.student-responsive-table td,
-.student-responsive-table tr {
-  display: block;
+.student-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
-.student-responsive-table thead {
-  position: absolute;
-  top: -9999px;
-  left: -9999px;
-}
-.student-responsive-table tr {
-  margin-bottom: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-  background: #fff;
-}
-.student-responsive-table td {
-  text-align: right;
-  padding: 0.5rem 0.75rem 0.5rem 40%;
-  border-bottom: 1px solid #f3f4f6;
-  position: relative;
-}
-.student-responsive-table td:last-child {
-  border-bottom: 0;
-}
-.student-responsive-table td::before {
-  content: attr(data-label);
-  position: absolute;
-  left: 0.75rem;
-  width: calc(40% - 1.5rem);
-  text-align: left;
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: #9ca3af;
+.student-table {
+  min-width: 860px;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
-/* On desktop (md+), restore normal table layout */
-@media (min-width: 768px) {
-  .student-responsive-table,
-  .student-responsive-table thead,
-  .student-responsive-table tbody,
-  .student-responsive-table th,
-  .student-responsive-table td,
-  .student-responsive-table tr {
-    display: table;
-  }
-  .student-responsive-table thead {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-  .student-responsive-table td {
+/* Column visibility is entirely CSS-driven so the mobile card layout
+   never competes with responsive utility visibility. */
+@media (min-width: 640px) {
+  .student-col-admissionNumber,
+  .student-col-dateRegistered,
+  .student-col-actions {
     display: table-cell;
-    text-align: left;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #f3f4f6;
-    position: static;
-    width: auto;
   }
-  .student-responsive-table td::before {
+}
+@media (min-width: 768px) {
+  .student-col-class,
+  .student-col-guardian {
+    display: table-cell;
+  }
+}
+@media (min-width: 1024px) {
+  .student-col-phone {
+    display: table-cell;
+  }
+}
+
+@media (min-width: 768px) {
+  /* Prevent headers from wrapping word-by-word on reduced widths. */
+  .student-table th:not(.student-col-check) {
+    white-space: nowrap;
+  }
+}
+
+/* ── Mobile (below md): record cards instead of a compressed table ── */
+@media (max-width: 767px) {
+  .student-table-scroll {
+    overflow-x: visible;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+  .student-table,
+  .student-table thead,
+  .student-table tbody,
+  .student-table th,
+  .student-table td,
+  .student-table tr {
+    display: block;
+  }
+  .student-table {
+    min-width: 0;
+  }
+  .student-table > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .student-table > tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .student-table > tbody > tr {
+    margin: 0;
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    background: var(--color-card, #fff);
+    box-shadow: var(--shadow-card, 0 4px 24px rgba(0, 0, 0, 0.08));
+    cursor: pointer;
+  }
+  .student-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--color-divider, #f3f4f6);
+    text-align: left;
+  }
+  .student-table > tbody > tr > td:last-child {
+    border-bottom: 0;
+  }
+  .student-table td.student-col-check,
+  .student-table td.student-col-status {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  .student-table td.student-col-status {
+    justify-content: flex-end;
+  }
+
+  /* Mobile label rail — duplicates the column label to keep the
+     card self-describing. Root cells stay accessible. */
+  .student-table td[data-job-label]::before {
+    content: attr(data-job-label);
+    flex: 0 0 auto;
+    min-width: 5.5rem;
+    margin-right: 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted, #9ca3af);
+  }
+
+  .student-table td.student-col-student {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .student-table td.student-col-student::before,
+  .student-table td.student-col-check::before,
+  .student-table td.student-col-status::before,
+  .student-table td.student-col-actions::before {
     display: none;
   }
-  .student-responsive-table tr {
-    display: table-row;
-    margin-bottom: 0;
-    border: none;
-    padding: 0;
-    background: transparent;
+  .student-table td.student-col-actions {
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+  }
+  .student-table td.student-col-actions > div {
+    opacity: 1 !important;
+  }
+  /* 44px touch targets for the primary row actions on mobile. */
+  .student-table td.student-col-actions button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 </style>

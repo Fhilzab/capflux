@@ -2,6 +2,7 @@
   <div class="flex min-h-[calc(100vh-56px)] flex-col bg-background">
     <StudentPageHeader
       :hide-actions="management.students.length === 0 && !management.loading && !management.error"
+      :student-count="management.students.length"
       @import="openImportDialog"
       @add="management.addStudent"
     />
@@ -129,7 +130,7 @@
       mode="MOVEMENT"
       :from-level-id="bulkMoveLevelId"
       :sections="divisionRows"
-      :selected-student-ids="Array.from(management.selectedIds.value ?? [])"
+      :selected-student-ids="Array.from(management.selectedIds ?? [])"
       @applied="onBulkApplied"
     />
 
@@ -226,42 +227,42 @@ function showToast(
 }
 
 function setShowForm(value: boolean) {
-  management.showForm.value = value;
+  management.showForm = value;
 }
 function setShowImportDialog(value: boolean) {
-  management.showImportDialog.value = value;
+  management.showImportDialog = value;
 }
 function setShowExportDialog(value: boolean) {
-  management.showExportDialog.value = value;
+  management.showExportDialog = value;
 }
 
 function openImportDialog() {
-  management.showImportDialog.value = true;
+  management.showImportDialog = true;
 }
 function openExportDialog() {
-  management.showExportDialog.value = true;
+  management.showExportDialog = true;
 }
 
 function setSearchQuery(query: string) {
-  management.searchQuery.value = query;
+  management.searchQuery = query;
 }
 
 function setPage(page: number) {
-  management.currentPage.value = page;
+  management.currentPage = page;
 }
 
 function handleSortChange(field: string, order: 'asc' | 'desc') {
-  management.sortField.value = field as StudentSortField;
-  management.sortOrder.value = order;
+  management.sortField = field as StudentSortField;
+  management.sortOrder = order;
 }
 
 function updateFilters(partial: Partial<FilterState>) {
   Object.assign(management.filters, partial);
-  management.currentPage.value = 1;
+  management.currentPage = 1;
 }
 
 function clearError() {
-  management.error.value = null;
+  management.error = null;
 }
 
 function handleArchive(student: NormalizedStudent) {
@@ -275,7 +276,7 @@ const bulkMoveMode = ref<'MOVEMENT' | 'PROMOTION'>('MOVEMENT');
 
 async function openBulkMove(mode: 'MOVEMENT' | 'PROMOTION') {
   // Derive the source level from the selection's current placements.
-  const ids = Array.from(management.selectedIds.value ?? []);
+  const ids = Array.from(management.selectedIds ?? []);
   if (ids.length === 0) return;
   try {
     const enrollments = await db.student_enrollments
@@ -326,7 +327,7 @@ async function handleFormSubmit(data: Record<string, any>) {
     showToast(
       'success',
       'Success',
-      management.editingStudent.value
+      management.editingStudent
         ? 'Student updated successfully'
         : 'Student registered successfully',
     );

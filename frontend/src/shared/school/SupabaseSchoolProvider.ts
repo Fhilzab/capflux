@@ -52,7 +52,11 @@ export class SupabaseSchoolProvider extends SchoolProvider {
     try {
       const response = await apiClient.http.get('/context/school');
       const data = response.data?.data;
-      if (data?.school) {
+      // A school row without an id is not a resolvable context (e.g. the
+      // sandbox seed has not completed yet and the simulator returned an
+      // empty row). Treat it as "no school" rather than mapping an id-less
+      // object that leaves every consumer stuck with a null school id.
+      if (data?.school?.id) {
         return { data: mapRowToSchool(data.school), error: null };
       }
       return { data: null, error: null };

@@ -1,152 +1,224 @@
 <template>
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <!-- Search -->
-    <div class="relative flex-1">
-      <input
-        :value="searchQuery"
-        @input="$emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
-        type="text"
-        placeholder="Search by name, ID, admission no, guardian, phone..."
-        class="w-full rounded-input border border-border bg-surface px-10 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand"
-      />
-      <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+  <div class="space-y-3">
+    <!-- Search + sort + record actions -->
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <!-- Search -->
+      <div class="relative w-full sm:max-w-md" data-testid="student-search">
+        <input
+          :value="searchQuery"
+          @input="$emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
+          type="search"
+          placeholder="Search name, ID, admission no, guardian, phone..."
+          aria-label="Search students"
+          class="w-full rounded-input border border-border bg-surface py-2.5 pl-10 pr-10 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand"
+          data-testid="student-search-input"
+        />
+        <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+        <button
+          v-if="searchQuery"
+          @click="$emit('update:searchQuery', '')"
+          class="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-text-muted hover:text-text-primary focus-ring"
+          aria-label="Clear search"
+          data-testid="student-search-clear"
+          type="button"
+        >
+          <X class="h-4 w-4" />
+        </button>
+      </div>
+
+      <!-- Sort + export / add -->
+      <div class="flex flex-wrap items-center gap-2">
+        <CmSelect
+          :model-value="internalSortField"
+          :options="sortFieldOptions"
+          label=""
+          @update:model-value="emitSortField($event)"
+          class="w-[170px]"
+          data-testid="student-sort-field"
+        />
+        <button
+          @click="toggleSortOrder"
+          :aria-label="`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`"
+          class="rounded-button border border-border bg-surface px-3 py-2 text-sm text-text-secondary hover:bg-surface/80 focus-ring"
+          data-testid="student-sort-order"
+        >
+          {{ sortOrderLabel }}
+          <ChevronDown v-if="sortOrder === 'asc'" class="ml-1 h-3 w-3" />
+          <ChevronUp v-else class="ml-1 h-3 w-3" />
+        </button>
+
+        <div class="h-6 w-px bg-divider" />
+
+        <!-- Export -->
+        <CmButton variant="secondary" size="md" @click="$emit('export')" data-testid="export-students">
+          <FileSpreadsheet class="mr-2 h-4 w-4" />
+          Export
+        </CmButton>
+      </div>
     </div>
 
-    <!-- Desktop: Filters + Sort + Actions -->
-    <div class="flex flex-wrap items-center gap-2">
+    <!-- Primary filters row -->
+    <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2" data-testid="student-filters">
       <CmSelect
-        v-model="internalFilters.class"
+        :model-value="internalFilters.class"
         :options="classOptions"
         placeholder="Class"
-        :class="filterSelectClass"
+        data-testid="filter-class"
+        class="sm:w-[150px]"
         @update:model-value="emitFilterChange('class', $event)"
       />
       <CmSelect
-        v-model="internalFilters.gender"
+        :model-value="internalFilters.gender"
         :options="genderOptions"
         placeholder="Gender"
-        :class="filterSelectClass"
+        data-testid="filter-gender"
+        class="sm:w-[130px]"
         @update:model-value="emitFilterChange('gender', $event)"
       />
       <CmSelect
-        v-model="internalFilters.status"
+        :model-value="internalFilters.status"
         :options="statusOptions"
-        placeholder="Status"
-        :class="filterSelectClass"
+        data-testid="filter-status"
+        class="sm:w-[150px]"
         @update:model-value="emitFilterChange('status', $event)"
       />
-      <CmSelect
-        v-model="internalFilters.academicSession"
-        :options="sessionOptions"
-        placeholder="Academic session"
-        :class="filterSelectClass"
-        @update:model-value="emitFilterChange('academicSession', $event)"
-      />
-      <CmSelect
-        v-model="internalFilters.relationship"
-        :options="relationshipOptions"
-        placeholder="Relationship"
-        :class="filterSelectClass"
-        @update:model-value="emitFilterChange('relationship', $event)"
-      />
 
-      <div class="h-6 w-px bg-divider" />
-
-      <CmSelect
-        v-model="internalSortField"
-        :options="sortFieldOptions"
-        placeholder="Sort by"
-        :class="filterSelectClass"
-        @update:model-value="emitSortField($event)"
-      />
-      <button
-        @click="toggleSortOrder"
-        class="rounded-button border border-border bg-surface px-3 py-2 text-sm text-text-secondary hover:bg-surface/80 focus-ring"
+      <!-- More Filters -->
+      <CmButton
+        variant="secondary"
+        size="md"
+        :class="{ 'border-brand text-brand': hasSecondaryActive }"
+        aria-haspopup="dialog"
+        :aria-expanded="showMoreFilters"
+        data-testid="more-filters-toggle"
+        @click="showMoreFilters = !showMoreFilters"
       >
-        {{ sortOrderLabel }}
-        <ChevronDown v-if="sortOrder === 'asc'" class="ml-1 h-3 w-3" />
-        <ChevronUp v-else class="ml-1 h-3 w-3" />
-      </button>
+        <SlidersHorizontal class="mr-2 h-4 w-4" />
+        More
+        <span
+          v-if="secondaryFilterCount > 0"
+          class="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-background"
+          data-testid="more-filters-count"
+        >
+          {{ secondaryFilterCount }}
+        </span>
+      </CmButton>
 
       <!-- Clear filters -->
       <button
         v-if="hasActiveFilters"
         @click="clearAllFilters"
-        class="rounded-button border border-border bg-surface px-2 py-2 text-sm text-text-muted hover:bg-surface/80 focus-ring"
+        class="inline-flex items-center gap-1 rounded-button border border-border bg-surface px-3 py-2 text-sm text-text-secondary hover:bg-surface/80 focus-ring"
         title="Clear all filters"
+        data-testid="clear-filters"
       >
         <X class="h-4 w-4" />
+        Clear
       </button>
 
-      <!-- Bulk actions -->
-      <template v-if="selectedCount > 0">
-        <div class="h-6 w-px bg-divider" />
-        <span class="text-sm text-text-secondary">
-          {{ selectedCount }} selected
-        </span>
-        <CmButton variant="secondary" size="sm" @click="$emit('move-selected')">
-          <ArrowRightLeft class="mr-1 h-4 w-4" />
-          Move
-        </CmButton>
-        <CmButton variant="secondary" size="sm" @click="$emit('export-selected')">
-          <FileSpreadsheet class="mr-1 h-4 w-4" />
-          Export
-        </CmButton>
-        <CmButton variant="danger" size="sm" @click="$emit('archive-selected')">
-          <Archive class="mr-1 h-4 w-4" />
-          Archive
-        </CmButton>
-        <CmButton variant="secondary" size="sm" @click="$emit('clear-selection')">
-          <X class="h-4 w-4" />
-        </CmButton>
-      </template>
+      <div class="ml-auto flex flex-wrap items-center gap-2">
+        <!-- Bulk actions -->
+        <template v-if="selectedCount > 0">
+          <div class="h-6 w-px bg-divider" />
+          <span class="text-sm text-text-secondary">
+            {{ selectedCount }} selected
+          </span>
+          <CmButton variant="secondary" size="sm" @click="$emit('move-selected')" data-testid="move-selected">
+            <ArrowRightLeft class="mr-1 h-4 w-4" />
+            Move
+          </CmButton>
+          <CmButton variant="secondary" size="sm" @click="$emit('export-selected')" data-testid="export-selected">
+            <FileSpreadsheet class="mr-1 h-4 w-4" />
+            Export
+          </CmButton>
+          <CmButton variant="danger" size="sm" @click="$emit('archive-selected')" data-testid="archive-selected">
+            <Archive class="mr-1 h-4 w-4" />
+            Archive
+          </CmButton>
+          <CmButton variant="secondary" size="sm" @click="$emit('clear-selection')" aria-label="Clear selection" data-testid="clear-selection">
+            <X class="h-4 w-4" />
+          </CmButton>
+        </template>
 
-      <!-- Action buttons -->
-      <template v-else>
-        <CmButton variant="secondary" size="sm" @click="$emit('export')">
-          <FileSpreadsheet class="mr-1 h-4 w-4" />
-          Export
-        </CmButton>
-        <!-- Mobile More menu -->
-        <div class="sm:hidden">
-          <CmDropdown
-            :options="[
-              { value: 'import', label: 'Import students' },
-              { value: 'add', label: 'Add student' },
-            ]"
-            @change="handleMoreAction"
-          >
-            <template #default="{ open }">
-              <button
-                @click="open()"
-                class="rounded-button border border-border bg-surface px-2 py-2 text-sm text-text-secondary hover:bg-surface/80 focus-ring"
-              >
-                <MoreHorizontal class="h-4 w-4" />
-              </button>
-            </template>
-          </CmDropdown>
-        </div>
-        <!-- Desktop Import + Add -->
-        <div class="hidden sm:flex sm:gap-2">
-          <CmButton variant="secondary" size="sm" @click="$emit('import')">
-            <Upload class="mr-1 h-4 w-4" />
+        <!-- Import -->
+        <template v-else>
+          <CmButton variant="secondary" size="md" @click="$emit('import')" data-testid="import-students">
+            <Upload class="mr-2 h-4 w-4" />
             Import
           </CmButton>
-          <CmButton variant="primary" size="sm" @click="$emit('add')">
-            <UserPlus class="h-4 w-4" />
-          </CmButton>
-        </div>
-      </template>
+        </template>
+      </div>
     </div>
+
+    <!-- More Filters drawer -->
+    <CmDrawer
+      :model-value="showMoreFilters"
+      title="More filters"
+      placement="right"
+      size="md"
+      data-testid="more-filters-drawer"
+      @update:model-value="showMoreFilters = $event"
+    >
+      <div class="space-y-4">
+        <div>
+          <span
+            class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-text-secondary"
+          >
+            Academic session
+          </span>
+          <CmSelect
+            :model-value="internalFilters.academicSession"
+            :options="sessionOptions"
+            placeholder="All sessions"
+            data-testid="filter-session"
+            class="w-full"
+            @update:model-value="emitFilterChange('academicSession', $event)"
+          />
+        </div>
+        <div>
+          <span
+            class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-text-secondary"
+          >
+            Relationship
+          </span>
+          <CmSelect
+            :model-value="internalFilters.relationship"
+            :options="relationshipOptions"
+            placeholder="All relationships"
+            data-testid="filter-relationship"
+            class="w-full"
+            @update:model-value="emitFilterChange('relationship', $event)"
+          />
+        </div>
+        <button
+          v-if="hasActiveFilters"
+          @click="clearAllFilters"
+          class="mt-2 w-full rounded-button border border-border bg-surface px-3 py-2 text-sm text-text-secondary hover:bg-surface/80 focus-ring"
+          data-testid="clear-filters-drawer"
+        >
+          Clear all filters
+        </button>
+      </div>
+    </CmDrawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Search, X, ChevronDown, ChevronUp, MoreHorizontal, Upload, UserPlus, FileSpreadsheet, Archive, ArrowRightLeft } from '@lucide/vue';
+import {
+  Search,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Upload,
+  FileSpreadsheet,
+  Archive,
+  ArrowRightLeft,
+  SlidersHorizontal,
+} from '@lucide/vue';
 import CmButton from '@/components/ui/CmButton.vue';
 import CmSelect from '@/components/ui/CmSelect.vue';
-import CmDropdown from '@/components/ui/CmDropdown.vue';
+import CmDrawer from '@/components/ui/CmDrawer.vue';
 import type { FilterState } from '../types';
 
 interface Props {
@@ -180,7 +252,7 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-const filterSelectClass = 'min-w-[140px] w-full';
+const showMoreFilters = ref(false);
 
 // Local copies for v-model on CmSelect
 const internalFilters = ref({ ...props.filters });
@@ -198,19 +270,29 @@ const hasActiveFilters = computed(() => {
   return Boolean(
     internalFilters.value.class ||
     internalFilters.value.gender ||
-    internalFilters.value.status ||
+    (internalFilters.value.status !== 'ALL') ||
     internalFilters.value.academicSession ||
     internalFilters.value.relationship,
   );
 });
 
+const secondaryFilterCount = computed(() => {
+  let n = 0;
+  if (internalFilters.value.academicSession) n += 1;
+  if (internalFilters.value.relationship) n += 1;
+  return n;
+});
+
+const hasSecondaryActive = computed(() => secondaryFilterCount.value > 0);
+
 const sortOrderLabel = computed(() => {
-  return props.sortOrder === 'asc' ? 'Ascending' : 'Descending';
+  return props.sortOrder === 'asc' ? 'Asc' : 'Desc';
 });
 
 function emitFilterChange(key: string, value: string): void {
-  internalFilters.value[key as keyof FilterState] = value || (key === 'status' ? 'ALL' : '');
-  emit('filter-change', { [key]: value || (key === 'status' ? 'ALL' : '') });
+  const normalized = value || (key === 'status' ? 'ALL' : '');
+  internalFilters.value[key as keyof FilterState] = normalized;
+  emit('filter-change', { [key]: normalized });
 }
 
 function emitSortField(field: string): void {
@@ -230,18 +312,11 @@ function clearAllFilters(): void {
     academicSession: '',
     relationship: '',
   };
+  showMoreFilters.value = false;
   emit('clear-filters');
-}
-
-function handleMoreAction(value: string | number): void {
-  if (value === 'import') emit('import');
-  if (value === 'add') emit('add');
 }
 </script>
 
 <style scoped>
-/* CmSelect renders a native <select> which needs explicit width */
-.filter-select {
-  min-width: 140px;
-}
+/* Nothing needed here — spacing comes from the CEMDS utility classes. */
 </style>
