@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useReportingStore } from '../stores/reportingStore';
+import { useSchoolStore } from '../stores/schoolStore';
 import { useModuleLock } from '../composables/useModuleLock';
 import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
 import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
+import ErrorState from '../components/ui/ErrorState.vue';
 
-const DEFAULT_SCHOOL_ID = 'demo-school';
 const reportingStore = useReportingStore();
+const schoolStore = useSchoolStore();
+
+/** Authenticated school context — the only tenant scope for the report. */
+const schoolId = computed(() => schoolStore.currentSchoolId);
 const { showLock, lockReason, canAccessFinancials } = useModuleLock();
 const loading = ref(false);
+const error = ref('');
 const report = ref({
   totalCharges: 0,
   totalPayments: 0,
@@ -28,10 +34,16 @@ const outstandingCount = computed(() => {
 
 const loadReport = async () => {
   loading.value = true;
+  error.value = '';
   try {
+    const id = schoolId.value;
+    if (!id) {
+      error.value = schoolStore.error || 'School context is unavailable. Please retry.';
+      return;
+    }
     const filter = {
-      organizationId: DEFAULT_SCHOOL_ID,
-      schoolId: DEFAULT_SCHOOL_ID,
+      organizationId: id,
+      schoolId: id,
       startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0],
     };
@@ -73,6 +85,8 @@ onMounted(loadReport);
         <h1 class="text-headline mb-2">Revenue Dashboard</h1>
         <p class="text-text-secondary">High-level revenue metrics and financial health indicators.</p>
       </section>
+
+      <ErrorState v-if="error" :description="error" @retry="loadReport()" />
 
       <!-- KPI cards -->
       <section class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

@@ -10,8 +10,13 @@ import EmptyState from '../components/ui/EmptyState.vue';
 import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 import { formatNairaKobo } from '../lib/ledgerSemantics';
 import { buildLedgerSchoolReport, type OutstandingStudentRow } from '../lib/ledgerReportBuilder';
+import { useSchoolStore } from '../stores/schoolStore';
 
 const router = useRouter();
+const schoolStore = useSchoolStore();
+
+/** Authenticated school context — the only tenant scope for the report. */
+const schoolId = computed(() => schoolStore.currentSchoolId);
 const { showLock, lockReason, canAccessFinancials } = useModuleLock();
 const loading = ref(false);
 const error = ref('');
@@ -43,7 +48,13 @@ const loadOutstanding = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const report = await buildLedgerSchoolReport('demo-school');
+    const id = schoolId.value;
+    if (!id) {
+      error.value = schoolStore.error || 'School context is unavailable. Please retry.';
+      outstandingData.value = [];
+      return;
+    }
+    const report = await buildLedgerSchoolReport(id);
     outstandingData.value = report.outstandingByStudent;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load outstanding fees.';

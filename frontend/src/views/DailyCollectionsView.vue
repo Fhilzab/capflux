@@ -9,8 +9,14 @@ import EmptyState from '../components/ui/EmptyState.vue';
 import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 import { formatNairaKobo } from '../lib/ledgerSemantics';
 import { buildDailyCollections, type DailyCollectionRow } from '../lib/ledgerReportBuilder';
+import { useSchoolStore } from '../stores/schoolStore';
+
+const schoolStore = useSchoolStore();
 
 const { showLock, lockReason, canAccessFinancials } = useModuleLock();
+
+/** Authenticated school context — the only tenant scope for the report. */
+const schoolId = computed(() => schoolStore.currentSchoolId);
 const loading = ref(false);
 const error = ref('');
 const startDate = ref('');
@@ -33,7 +39,13 @@ const loadCollections = async () => {
   loading.value = true;
   error.value = '';
   try {
-    collections.value = await buildDailyCollections('demo-school');
+    const id = schoolId.value;
+    if (!id) {
+      error.value = schoolStore.error || 'School context is unavailable. Please retry.';
+      collections.value = [];
+      return;
+    }
+    collections.value = await buildDailyCollections(id);
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load daily collections.';
     collections.value = [];

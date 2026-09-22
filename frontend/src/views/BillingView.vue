@@ -3,6 +3,7 @@ import { computed, ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useBillingStore, type BillingSummaryItem } from '../stores/billingStore';
 import { useStudentStore } from '../stores/studentStore';
+import { useSchoolStore } from '../stores/schoolStore';
 import CmButton from '../components/ui/CmButton.vue';
 import CmInput from '../components/ui/CmInput.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
@@ -14,7 +15,6 @@ import { useModuleLock } from '../composables/useModuleLock';
 import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
 import { formatNairaKobo } from '../lib/ledgerSemantics';
 
-const DEFAULT_SCHOOL_ID = 'demo-school';
 const items = ref<BillingSummaryItem[]>([]);
 const assessedMinor = ref(0);
 const collectedMinor = ref(0);
@@ -34,8 +34,12 @@ const loading = ref(false);
 
 const billingStore = useBillingStore();
 const studentStore = useStudentStore();
+const schoolStore = useSchoolStore();
 const route = useRoute();
 const { showLock, lockReason, canAccessFinancials } = useModuleLock();
+
+/** Authenticated school context — the only tenant scope for queries/writes. */
+const schoolId = computed(() => schoolStore.currentSchoolId);
 
 /** Student context preserved from Student Detail (?student=<id>). */
 const scopedStudentId = computed(() =>
@@ -54,7 +58,16 @@ const loadBilling = async (studentIds: string[] = []) => {
   loading.value = true;
   error.value = '';
   try {
-    const result = await billingStore.getBillingSummary(DEFAULT_SCHOOL_ID, studentIds);
+    const id = schoolId.value;
+    if (!id) {
+      error.value = schoolStore.error || 'School context is unavailable. Please retry.';
+      items.value = [];
+      assessedMinor.value = 0;
+      collectedMinor.value = 0;
+      outstandingMinor.value = 0;
+      return;
+    }
+    const result = await billingStore.getBillingSummary(id, studentIds);
     items.value = result.items;
     assessedMinor.value = result.summary.assessedMinor;
     collectedMinor.value = result.summary.collectedMinor;
@@ -78,7 +91,12 @@ const searchBilling = async () => {
     return;
   }
 
-  const matchingStudents = await studentStore.searchStudents(DEFAULT_SCHOOL_ID, query);
+  const id = schoolId.value;
+  if (!id) {
+    error.value = schoolStore.error || 'School context is unavailable. Please retry.';
+    return;
+  }
+  const matchingStudents = await studentStore.searchStudents(id, query);
   const ids = matchingStudents.map((student) => student.id);
   await loadBilling(ids);
 };
@@ -89,11 +107,17 @@ const submitCharge = async () => {
     return;
   }
 
+  const id = schoolId.value;
+  if (!id) {
+    error.value = schoolStore.error || 'School context is unavailable. Please retry.';
+    return;
+  }
+
   saving.value = true;
   message.value = '';
 
   await billingStore.createCharge({
-    school_id: DEFAULT_SCHOOL_ID,
+    school_id: id,
     student_id: form.value.student_id,
     amount: Number(form.value.amount),
     entry_type: form.value.entry_type as 'DEBIT' | 'CREDIT',

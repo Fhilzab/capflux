@@ -2,14 +2,18 @@
 import { ref, onMounted, computed } from 'vue';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useStudentStore } from '../stores/studentStore';
+import { useSchoolStore } from '../stores/schoolStore';
 import { NotificationService } from '../shared/services/NotificationService';
 import CmButton from '../components/ui/CmButton.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
 import CmInput from '../components/ui/CmInput.vue';
 
-const DEFAULT_SCHOOL_ID = 'demo-school';
 const notificationStore = useNotificationStore();
 const studentStore = useStudentStore();
+const schoolStore = useSchoolStore();
+
+/** Authenticated school context — the only tenant scope for writes. */
+const schoolId = computed(() => schoolStore.currentSchoolId);
 const students = ref([]) as any;
 const notifications = ref([]) as any;
 const form = ref({
@@ -83,12 +87,18 @@ const submitNotification = async () => {
     return;
   }
 
+  const id = schoolId.value;
+  if (!id) {
+    message.value = schoolStore.error || 'School context is unavailable. Please retry.';
+    return;
+  }
+
   sending.value = true;
   message.value = '';
 
   await NotificationService.sendNotification({
     id: `${form.value.student_id}-${Date.now()}`,
-    school_id: DEFAULT_SCHOOL_ID,
+    school_id: id,
     student_id: form.value.student_id,
     recipient_phone: form.value.recipient_phone,
     message_body: form.value.message_body,

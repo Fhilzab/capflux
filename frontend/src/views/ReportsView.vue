@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import CmButton from '../components/ui/CmButton.vue';
 import ErrorState from '../components/ui/ErrorState.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 import { formatNairaKobo } from '../lib/ledgerSemantics';
 import { buildLedgerSchoolReport, type LedgerSchoolReport } from '../lib/ledgerReportBuilder';
+import { useSchoolStore } from '../stores/schoolStore';
 
-const DEFAULT_SCHOOL_ID = 'demo-school';
+const schoolStore = useSchoolStore();
+
+/** Authenticated school context — the only tenant scope for the report. */
+const schoolId = computed(() => schoolStore.currentSchoolId);
 const loading = ref(false);
 const error = ref('');
 const report = ref<LedgerSchoolReport | null>(null);
@@ -82,7 +86,13 @@ const loadReport = async () => {
   loading.value = true;
   error.value = '';
   try {
-    report.value = await buildLedgerSchoolReport(DEFAULT_SCHOOL_ID);
+    const id = schoolId.value;
+    if (!id) {
+      error.value = schoolStore.error || 'School context is unavailable. Please retry.';
+      report.value = null;
+      return;
+    }
+    report.value = await buildLedgerSchoolReport(id);
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to build the fee report.';
     report.value = null;

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useDashboardStore } from '../dashboardStore';
+import { useSchoolStore } from '../../../../stores/schoolStore';
 
 // Mock repositories
 vi.mock('../../../../shared/repositories/StudentRepository', () => ({
@@ -86,6 +87,7 @@ describe('dashboardStore — ledger semantics (V4 regression)', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    (useSchoolStore() as any).school = { id: 'live-school-1' };
     (PaymentAccountRepository.getBySchool as any).mockResolvedValue([]);
     (NotificationRepository.getBySchool as any).mockResolvedValue([]);
     (GuardianRepository.getBySchool as any).mockResolvedValue([]);
@@ -265,6 +267,7 @@ describe('dashboardStore — compound financial series (V4 regression)', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    (useSchoolStore() as any).school = { id: 'live-school-1' };
     (PaymentAccountRepository.getBySchool as any).mockResolvedValue([]);
     (NotificationRepository.getBySchool as any).mockResolvedValue([]);
     (GuardianRepository.getBySchool as any).mockResolvedValue([]);
@@ -372,5 +375,70 @@ describe('dashboardStore — compound financial series (V4 regression)', () => {
     expect(last.collected).toBe(store.totalPayments);
     expect(store.totalPayments).toBe(600); // 1000 - 400
     expect(last.expected - last.collected).toBe(last.outstanding);
+  });
+});
+
+describe('dashboardStore — tenant school context', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    (PaymentAccountRepository.getBySchool as any).mockResolvedValue([]);
+    (NotificationRepository.getBySchool as any).mockResolvedValue([]);
+    (GuardianRepository.getBySchool as any).mockResolvedValue([]);
+    (StudentRepository.getStudentsBySchool as any).mockResolvedValue([]);
+    (LedgerRepository.getEntriesBySchool as any).mockResolvedValue([]);
+  });
+
+  const repoFns = () => [
+    StudentRepository.getStudentsBySchool,
+    GuardianRepository.getBySchool,
+    LedgerRepository.getEntriesBySchool,
+    PaymentAccountRepository.getBySchool,
+    NotificationRepository.getBySchool,
+  ];
+
+  it('queries every repository with the authenticated school id, never demo-school', async () => {
+    (useSchoolStore() as any).school = { id: 'live-school-9' };
+    const store = useDashboardStore();
+    await store.fetchDashboardData();
+    expect(store.error).toBeNull();
+    for (const fn of repoFns()) {
+      expect(fn).toHaveBeenCalledTimes(1);
+      expect(fn).toHaveBeenCalledWith('live-school-9');
+    }
+    for (const fn of repoFns()) {
+      expect((fn as any).mock.calls.flat()).not.toContain('demo-school');
+    }
+  });
+
+  it('blocks loading when school context is missing instead of querying demo-school', async () => {
+    const store = useDashboardStore();
+    await store.fetchDashboardData();
+    for (const fn of repoFns()) {
+      expect(fn).not.toHaveBeenCalled();
+    }
+    expect(store.error).toMatch(/School context is unavailable/);
+    expect(store.loading).toBe(false);
+    expect(store.totalStudents).toBe(0);
+  });
+
+  it('surfaces school-store resolution errors', async () => {
+    (useSchoolStore() as any).error = 'school unreachable';
+    const store = useDashboardStore();
+    await store.fetchDashboardData();
+    expect(store.error).toBe('school unreachable');
+    for (const fn of repoFns()) {
+      expect(fn).not.toHaveBeenCalled();
+    }
+  });
+
+  it('passes the sandbox demo id through unchanged (sandbox behavior intact)', async () => {
+    (useSchoolStore() as any).school = { id: 'demo-school' };
+    const store = useDashboardStore();
+    await store.fetchDashboardData();
+    expect(store.error).toBeNull();
+    for (const fn of repoFns()) {
+      expect(fn).toHaveBeenCalledWith('demo-school');
+    }
   });
 });

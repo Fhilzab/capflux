@@ -2,8 +2,6 @@ import { notificationService } from '../notifications/NotificationService';
 import { NotificationRepository } from '../repositories/NotificationRepository';
 import { supabase, hasSupabaseConfig } from './api/supabase';
 
-const DEFAULT_SCHOOL_ID = 'demo-school';
-
 /**
  * @deprecated
  * Compatibility adapter.

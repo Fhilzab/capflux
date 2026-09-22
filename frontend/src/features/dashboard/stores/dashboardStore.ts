@@ -6,10 +6,9 @@ import { PaymentAccountRepository } from '../../../shared/repositories/PaymentAc
 import { NotificationRepository } from '../../../shared/repositories/NotificationRepository';
 import { ReportService } from '../../../shared/services/ReportService';
 import { useSyncStore } from '../../../stores/syncStore';
+import { useSchoolStore } from '../../../stores/schoolStore';
 import { getEntryAmountMinor, getEntryDate, isChargeEntry, isPaymentCreditEntry, isReversalDebitEntry } from '../../../lib/ledgerSemantics';
 import dayjs from 'dayjs';
-
-const DEFAULT_SCHOOL_ID = 'demo-school';
 
 export type TrendRange = '7D' | '30D' | '3M' | '6M' | '1Y';
 
@@ -199,12 +198,21 @@ export const useDashboardStore = defineStore('dashboard', {
       this.error = null;
 
       try {
+        // Authenticated school context — the only tenant scope for every
+        // repository read below. Never fall back to a hardcoded school:
+        // without context we surface an error instead of zeros.
+        const schoolStore = useSchoolStore();
+        const schoolId = schoolStore.currentSchoolId;
+        if (!schoolId) {
+          this.error = schoolStore.error || 'School context is unavailable. Please retry.';
+          return;
+        }
         const [students, guardians, entries, paymentAccounts, notifications] = await Promise.all([
-          StudentRepository.getStudentsBySchool(DEFAULT_SCHOOL_ID),
-          GuardianRepository.getBySchool(DEFAULT_SCHOOL_ID),
-          LedgerRepository.getEntriesBySchool(DEFAULT_SCHOOL_ID),
-          PaymentAccountRepository.getBySchool(DEFAULT_SCHOOL_ID),
-          NotificationRepository.getBySchool(DEFAULT_SCHOOL_ID),
+          StudentRepository.getStudentsBySchool(schoolId),
+          GuardianRepository.getBySchool(schoolId),
+          LedgerRepository.getEntriesBySchool(schoolId),
+          PaymentAccountRepository.getBySchool(schoolId),
+          NotificationRepository.getBySchool(schoolId),
         ]);
 
         // Basic counts
