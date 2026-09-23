@@ -98,8 +98,9 @@ const sectionOptions = computed(() =>
 );
 
 const levelOptions = computed(() =>
-  academicStore.levelsBySection[targetSectionId.value]?.filter((l) => l.status === 'ACTIVE') ?? []
-).map((l) => ({ value: l.id, label: l.name }));
+  (academicStore.levelsBySection[targetSectionId.value]?.filter((l) => l.status === 'ACTIVE') ?? [])
+    .map((l) => ({ value: l.id, label: l.name })),
+);
 
 watch(targetSectionId, () => {
   if (!levelOptions.value.some((o) => o.value === targetLevelId.value)) {
