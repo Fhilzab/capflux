@@ -3,7 +3,7 @@
     <!-- Search + sort + record actions -->
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
       <!-- Search -->
-      <div class="relative w-full sm:max-w-md" data-testid="student-search">
+      <div class="relative w-full sm:flex-1 sm:max-w-lg" data-testid="student-search">
         <input
           :value="searchQuery"
           @input="$emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
@@ -31,7 +31,7 @@
         <CmSelect
           :model-value="internalSortField"
           :options="sortFieldOptions"
-          label=""
+          label="Sort by"
           @update:model-value="emitSortField($event)"
           class="w-[170px]"
           data-testid="student-sort-field"
@@ -39,10 +39,11 @@
         <button
           @click="toggleSortOrder"
           :aria-label="`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`"
+          :title="`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`"
           class="rounded-button border border-border bg-surface px-3 py-2 text-sm text-text-secondary hover:bg-surface/80 focus-ring"
           data-testid="student-sort-order"
         >
-          {{ sortOrderLabel }}
+          {{ sortOrder === 'asc' ? 'Ascending' : 'Descending' }}
           <ChevronDown v-if="sortOrder === 'asc'" class="ml-1 h-3 w-3" />
           <ChevronUp v-else class="ml-1 h-3 w-3" />
         </button>
@@ -139,14 +140,6 @@
             <X class="h-4 w-4" />
           </CmButton>
         </template>
-
-        <!-- Import -->
-        <template v-else>
-          <CmButton variant="secondary" size="md" @click="$emit('import')" data-testid="import-students">
-            <Upload class="mr-2 h-4 w-4" />
-            Import
-          </CmButton>
-        </template>
       </div>
     </div>
 
@@ -210,7 +203,6 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Upload,
   FileSpreadsheet,
   Archive,
   ArrowRightLeft,
@@ -243,7 +235,6 @@ interface Emits {
   (e: 'export'): void;
   (e: 'export-selected'): void;
   (e: 'move-selected'): void;
-  (e: 'import'): void;
   (e: 'add'): void;
   (e: 'archive-selected'): void;
   (e: 'clear-selection'): void;
@@ -284,10 +275,6 @@ const secondaryFilterCount = computed(() => {
 });
 
 const hasSecondaryActive = computed(() => secondaryFilterCount.value > 0);
-
-const sortOrderLabel = computed(() => {
-  return props.sortOrder === 'asc' ? 'Asc' : 'Desc';
-});
 
 function emitFilterChange(key: string, value: string): void {
   const normalized = value || (key === 'status' ? 'ALL' : '');

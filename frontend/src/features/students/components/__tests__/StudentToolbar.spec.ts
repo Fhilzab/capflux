@@ -139,12 +139,17 @@ describe('StudentToolbar', () => {
     expect(wrapper.emitted('archive-selected')).toBeTruthy();
   });
 
-  it('emits export and import when nothing is selected', async () => {
+  it('offers export without a duplicate import action (import lives in the page header)', async () => {
     const wrapper = mountToolbar();
     await wrapper.find('[data-testid="export-students"]').trigger('click');
-    await wrapper.find('[data-testid="import-students"]').trigger('click');
     expect(wrapper.emitted('export')).toBeTruthy();
-    expect(wrapper.emitted('import')).toBeTruthy();
+    expect(wrapper.find('[data-testid="import-students"]').exists()).toBe(false);
+  });
+
+  it('labels the sort controls understandably', async () => {
+    const wrapper = mountToolbar();
+    expect(wrapper.find('[data-testid="student-sort-field"] label').text()).toBe('Sort by');
+    expect(wrapper.find('[data-testid="student-sort-order"]').text()).toContain('Ascending');
   });
 
   it('emits sort-change when the sort control is used', async () => {

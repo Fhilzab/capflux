@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import MetricCard from '@/components/ui/MetricCard.vue';
-
 interface StatItem {
   key: string;
   label: string;
@@ -14,20 +12,34 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+function formatValue(value: number): string {
+  return typeof value === 'number' ? value.toLocaleString() : String(value);
+}
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-    <MetricCard
+  <!-- Compact stat strip: single-row summary without the MetricCard
+    chrome (padding, icon well, hover elevation) so five metrics fit
+    without pushing the workspace down. Same data contract as before. -->
+  <div
+    class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+    data-testid="student-stats"
+  >
+    <div
       v-for="stat in props.stats ?? []"
       :key="stat.key"
-      :label="stat.label"
-      :value="stat.value"
-      :icon-path="stat.icon"
+      class="rounded-card border border-border bg-card px-4 py-3"
     >
-      <template #description>
-        <span class="text-xs text-text-muted">{{ stat.description }}</span>
-      </template>
-    </MetricCard>
+      <p class="text-xs font-medium uppercase tracking-wider text-text-muted">
+        {{ stat.label }}
+      </p>
+      <p class="mt-1 text-2xl font-bold tabular-nums text-text-primary">
+        {{ formatValue(stat.value) }}
+      </p>
+      <p class="mt-0.5 truncate text-xs text-text-muted" :title="stat.description">
+        {{ stat.description }}
+      </p>
+    </div>
   </div>
 </template>

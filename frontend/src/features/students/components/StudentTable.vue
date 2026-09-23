@@ -269,7 +269,7 @@
           @click="$emit('page-change', 1)"
           :disabled="currentPage === 1"
           aria-label="First page"
-          class="rounded-button border border-border bg-surface px-2 py-1 text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
+          class="rounded-button border border-border bg-surface px-2 py-1 min-h-[2.25rem] text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
         >
           <ChevronLeft class="h-4 w-4" />
         </button>
@@ -277,7 +277,7 @@
           @click="$emit('page-change', currentPage - 1)"
           :disabled="currentPage === 1"
           aria-label="Previous page"
-          class="rounded-button border border-border bg-surface px-2 py-1 text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
+          class="rounded-button border border-border bg-surface px-2 py-1 min-h-[2.25rem] text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
         >
           Prev
         </button>
@@ -288,7 +288,7 @@
           @click="$emit('page-change', currentPage + 1)"
           :disabled="currentPage >= totalPages"
           aria-label="Next page"
-          class="rounded-button border border-border bg-surface px-2 py-1 text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
+          class="rounded-button border border-border bg-surface px-2 py-1 min-h-[2.25rem] text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
         >
           Next
         </button>
@@ -296,7 +296,7 @@
           @click="$emit('page-change', totalPages)"
           :disabled="currentPage >= totalPages"
           aria-label="Last page"
-          class="rounded-button border border-border bg-surface px-2 py-1 text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
+          class="rounded-button border border-border bg-surface px-2 py-1 min-h-[2.25rem] text-sm text-text-secondary hover:bg-surface/80 disabled:opacity-50 focus-ring"
         >
           <ChevronRight class="h-4 w-4" />
         </button>
@@ -361,7 +361,6 @@ const openMenuId = ref<string | null>(null);
 
 const visibleColumns: Column[] = [
   { key: 'student', label: 'Student', sortable: false },
-  { key: 'admissionNumber', label: 'ID / Admission #', sortable: true },
   { key: 'class', label: 'Class', sortable: true },
   { key: 'guardian', label: 'Guardian', sortable: false },
   { key: 'phone', label: 'Phone', sortable: false },
@@ -442,28 +441,53 @@ onUnmounted(() => {
   -webkit-overflow-scrolling: touch;
 }
 .student-table {
-  min-width: 860px;
+  min-width: 880px;
   border-collapse: separate;
   border-spacing: 0;
 }
 
+/* Identity and guardian cells get breathing room; single-value cells never
+   wrap word-by-word. Column visibility below is intentionally progressive:
+   the table keeps every column on desktop, while compact widths show a
+   focused subset inside the scroll container. */
+.student-table td.student-col-student,
+.student-table th.student-col-student {
+  min-width: 13.5rem;
+}
+.student-table td.student-col-guardian,
+.student-table th.student-col-guardian {
+  min-width: 10rem;
+}
+.student-table td.student-col-phone,
+.student-table td.student-col-dateRegistered,
+.student-table td.student-col-status {
+  white-space: nowrap;
+}
+
 /* Column visibility is entirely CSS-driven so the mobile card layout
-   never competes with responsive utility visibility. */
+   never competes with responsive utility visibility. Base state hides the
+   lower-priority columns; each breakpoint below restores its set. The card
+   rules later in this file re-declare these cells as flex (higher
+   specificity), so cards always show every field with its label rail. */
+.student-table .student-col-class,
+.student-table .student-col-guardian,
+.student-table .student-col-phone {
+  display: none;
+}
 @media (min-width: 640px) {
-  .student-col-admissionNumber,
-  .student-col-dateRegistered,
-  .student-col-actions {
+  .student-table .student-col-dateRegistered,
+  .student-table .student-col-actions {
     display: table-cell;
   }
 }
 @media (min-width: 768px) {
-  .student-col-class,
-  .student-col-guardian {
+  .student-table .student-col-class,
+  .student-table .student-col-guardian {
     display: table-cell;
   }
 }
 @media (min-width: 1024px) {
-  .student-col-phone {
+  .student-table .student-col-phone {
     display: table-cell;
   }
 }
@@ -525,6 +549,13 @@ onUnmounted(() => {
   }
   .student-table > tbody > tr > td:last-child {
     border-bottom: 0;
+  }
+  /* The progressive table-column hiding above must not leak into cards:
+     every field stays visible with its label rail. */
+  .student-table td.student-col-class,
+  .student-table td.student-col-guardian,
+  .student-table td.student-col-phone {
+    display: flex;
   }
   .student-table td.student-col-check,
   .student-table td.student-col-status {

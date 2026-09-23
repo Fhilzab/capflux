@@ -156,4 +156,23 @@ describe('StudentTable', () => {
     });
     expect(wrapper.find('[data-testid="table-empty"]').exists()).toBe(true);
   });
+
+  it('keeps header and body columns aligned (no phantom ID column)', () => {
+    const wrapper = mountTable();
+    const headerCells = wrapper.findAll('thead th');
+    const firstRowCells = wrapper.findAll('tbody tr')[0]!.findAll('td');
+    expect(headerCells.length).toBe(firstRowCells.length);
+    expect(headerCells.length).toBe(8);
+    expect(
+      headerCells.map((th) => th.text()),
+    ).not.toEqual(expect.arrayContaining([expect.stringMatching(/ID \/ Admission/) ]));
+  });
+
+  it('renders the admission number as secondary subtext in the student cell', () => {
+    const wrapper = mountTable();
+    const idSlot = wrapper.find('[data-testid="student-id"]');
+    expect(idSlot.exists()).toBe(true);
+    expect(idSlot.text()).toBe('ADM-001');
+    expect(wrapper.find('[data-testid="student-name"]').text()).toBe('Ada Obi');
+  });
 });

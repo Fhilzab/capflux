@@ -8,7 +8,7 @@
     />
 
     <div class="flex-1 overflow-y-auto">
-      <div class="p-6">
+      <div class="p-4 sm:p-6">
         <!-- Loading -->
         <div v-if="management.loading" class="flex justify-center py-12">
           <CmLoading :text="'Loading students...'" />
@@ -54,8 +54,6 @@
             @export="openExportDialog"
             @export-selected="openExportDialog"
             @move-selected="openBulkMove('MOVEMENT')"
-            @import="openImportDialog"
-            @add="management.addStudent"
             @archive-selected="management.archiveSelected"
             @clear-selection="management.clearSelection"
           />
