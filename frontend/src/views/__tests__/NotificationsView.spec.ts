@@ -13,6 +13,7 @@ const hoisted = vi.hoisted(() => {
   const loadNotificationsMock = vi.fn(async () => undefined);
   const loadStudentsMock = vi.fn(async () => undefined);
   const sendNotificationMock = vi.fn(async (n: Record<string, unknown>) => n);
+  const ensureSeedReadyMock = vi.fn(async () => undefined);
   const schoolMock = {
     currentSchoolId: 'live-school-9' as string | null,
     error: null as string | null,
@@ -22,6 +23,7 @@ const hoisted = vi.hoisted(() => {
     loadNotificationsMock,
     loadStudentsMock,
     sendNotificationMock,
+    ensureSeedReadyMock,
     schoolMock,
     notificationMock: { loadNotifications: loadNotificationsMock, notifications: [] as unknown[] },
     studentMock: {
@@ -31,7 +33,7 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
-const { sendNotificationMock, schoolMock } = hoisted;
+const { sendNotificationMock, ensureSeedReadyMock, schoolMock } = hoisted;
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {}, path: '/notifications' }),
@@ -48,6 +50,10 @@ vi.mock('@/stores/studentStore', () => ({
 
 vi.mock('@/stores/schoolStore', () => ({
   useSchoolStore: () => hoisted.schoolMock,
+}));
+
+vi.mock('@/sandbox/seedReady', () => ({
+  ensureSeedReady: hoisted.ensureSeedReadyMock,
 }));
 
 vi.mock('@/shared/services/NotificationService', () => ({
@@ -82,6 +88,10 @@ describe('NotificationsView tenant school context', () => {
     const wrapper = mount(NotificationsView);
     await flushPromises();
     await fillAndSubmit(wrapper);
+    expect(ensureSeedReadyMock).toHaveBeenCalled();
+    expect(ensureSeedReadyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      sendNotificationMock.mock.invocationCallOrder[0],
+    );
     expect(sendNotificationMock).toHaveBeenCalledTimes(1);
     expect(sendNotificationMock.mock.calls[0]![0]).toMatchObject({
       school_id: 'live-school-9',
@@ -107,5 +117,14 @@ describe('NotificationsView tenant school context', () => {
     expect(sendNotificationMock.mock.calls[0]![0]).toMatchObject({
       school_id: 'demo-school',
     });
+  });
+
+  it('surfaces seed failures on submit instead of recording', async () => {
+    ensureSeedReadyMock.mockRejectedValueOnce(new Error('seed unavailable'));
+    const wrapper = mount(NotificationsView);
+    await flushPromises();
+    await fillAndSubmit(wrapper);
+    expect(sendNotificationMock).not.toHaveBeenCalled();
+    expect(wrapper.text()).toMatch(/seed unavailable/);
   });
 });

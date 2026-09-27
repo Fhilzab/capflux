@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { divisionService } from '../shared/divisions/DivisionService';
 import type { SchoolDivision } from '../shared/divisions/types';
 import { useSchoolStore } from './schoolStore';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 
 export const useDivisionStore = defineStore('division', {
   state: () => ({
@@ -21,6 +22,7 @@ export const useDivisionStore = defineStore('division', {
       this.error = null;
 
       try {
+        await ensureSeedReady();
         const schoolStore = useSchoolStore();
         const schoolId = schoolStore.currentSchoolId;
         if (!schoolId) {
@@ -50,6 +52,7 @@ export const useDivisionStore = defineStore('division', {
       this.error = null;
 
       try {
+        await ensureSeedReady();
         const schoolStore = useSchoolStore();
         const schoolId = schoolStore.currentSchoolId;
         if (!schoolId) {

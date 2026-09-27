@@ -48,6 +48,10 @@ const loadReport = async () => {
       endDate: new Date().toISOString().split('T')[0],
     };
     await reportingStore.loadStudentStatement('', filter);
+    if (reportingStore.error) {
+      error.value = reportingStore.error;
+      return;
+    }
     const statement = reportingStore.studentStatements[''];
     if (statement) {
       const lines = (statement as any).lines || [];

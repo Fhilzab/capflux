@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useStudentStore } from '../stores/studentStore';
 import { useSchoolStore } from '../stores/schoolStore';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 import { NotificationService } from '../shared/services/NotificationService';
 import CmButton from '../components/ui/CmButton.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
@@ -95,21 +96,33 @@ const submitNotification = async () => {
 
   sending.value = true;
   message.value = '';
+  try {
+    await ensureSeedReady();
+  } catch (e: any) {
+    message.value = e?.message || 'Sandbox data is unavailable. Please retry.';
+    sending.value = false;
+    return;
+  }
 
-  await NotificationService.sendNotification({
-    id: `${form.value.student_id}-${Date.now()}`,
-    school_id: id,
-    student_id: form.value.student_id,
-    recipient_phone: form.value.recipient_phone,
-    message_body: form.value.message_body,
-    delivery_method: form.value.delivery_method,
-    delivery_status: 'PENDING',
-    created_at: new Date().toISOString(),
-  });
+  try {
+    await NotificationService.sendNotification({
+      id: `${form.value.student_id}-${Date.now()}`,
+      school_id: id,
+      student_id: form.value.student_id,
+      recipient_phone: form.value.recipient_phone,
+      message_body: form.value.message_body,
+      delivery_method: form.value.delivery_method,
+      delivery_status: 'PENDING',
+      created_at: new Date().toISOString(),
+    });
 
-  await loadNotifications();
-  sending.value = false;
-  message.value = 'Notification recorded locally.';
+    await loadNotifications();
+    message.value = 'Notification recorded locally.';
+  } catch (e: any) {
+    message.value = e?.message || 'Failed to record notification. Please retry.';
+  } finally {
+    sending.value = false;
+  }
   form.value = {
     student_id: '',
     recipient_phone: '',

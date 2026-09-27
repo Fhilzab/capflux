@@ -6,6 +6,7 @@ import type { BillingProfile, StudentCharge } from '../shared/billing/types';
 import type { LedgerEntry } from '../shared/ledger/types';
 import { getEntryAmountMinor, getEntryDate, isChargeEntry, isPaymentCreditEntry, summarizeLedger, type LedgerRowLike, type LedgerSummaryMinor } from '../lib/ledgerSemantics';
 import { useSchoolStore } from './schoolStore';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 
 export interface BillingSummaryItem {
   id: string;
@@ -127,6 +128,7 @@ export const useBillingStore = defineStore('billing', {
       this.error = null;
 
       try {
+        await ensureSeedReady();
         const students = studentIds.length
           ? await StudentRepository.getStudentsByIds(studentIds)
           : await StudentRepository.getStudentsBySchool(schoolId);
@@ -184,6 +186,7 @@ export const useBillingStore = defineStore('billing', {
       this.error = null;
 
       try {
+        await ensureSeedReady();
         await LedgerRepository.createLedgerEntry({
           ...payload,
           entry_category: payload.entry_category || (payload.entry_type === 'DEBIT' ? 'TUITION' : 'PAYMENT'),

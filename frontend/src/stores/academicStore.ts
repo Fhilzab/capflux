@@ -8,6 +8,7 @@ import type {
 } from '../offline/localDb';
 import type { SchoolDivision } from '../shared/divisions/types';
 import { useSchoolStore } from './schoolStore';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 
 /**
  * academicStore — sessions, terms, sections (divisions) and academic levels.
@@ -47,6 +48,7 @@ export const useAcademicStore = defineStore('academic', {
       this.loading = true;
       this.error = null;
       try {
+        await ensureSeedReady();
         const schoolId = useSchoolStore().currentSchoolId;
         if (!schoolId) return;
 

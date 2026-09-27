@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { useBillingStore, type BillingSummaryItem } from '../stores/billingStore';
 import { useStudentStore } from '../stores/studentStore';
 import { useSchoolStore } from '../stores/schoolStore';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 import CmButton from '../components/ui/CmButton.vue';
 import CmInput from '../components/ui/CmInput.vue';
 import CmSelect from '../components/ui/CmSelect.vue';
@@ -110,6 +111,13 @@ const submitCharge = async () => {
   const id = schoolId.value;
   if (!id) {
     error.value = schoolStore.error || 'School context is unavailable. Please retry.';
+    return;
+  }
+
+  try {
+    await ensureSeedReady();
+  } catch (e: any) {
+    error.value = e?.message || 'Sandbox data is unavailable. Please retry.';
     return;
   }
 

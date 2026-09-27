@@ -378,6 +378,12 @@ describe('dashboardStore — compound financial series (V4 regression)', () => {
   });
 });
 
+const ensureSeedReadyMock = vi.hoisted(() => vi.fn(async () => undefined));
+
+vi.mock('@/sandbox/seedReady', () => ({
+  ensureSeedReady: ensureSeedReadyMock,
+}));
+
 describe('dashboardStore — tenant school context', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -402,9 +408,13 @@ describe('dashboardStore — tenant school context', () => {
     const store = useDashboardStore();
     await store.fetchDashboardData();
     expect(store.error).toBeNull();
+    expect(ensureSeedReadyMock).toHaveBeenCalledTimes(1);
     for (const fn of repoFns()) {
       expect(fn).toHaveBeenCalledTimes(1);
       expect(fn).toHaveBeenCalledWith('live-school-9');
+      expect(ensureSeedReadyMock.mock.invocationCallOrder[0]).toBeLessThan(
+        (fn as any).mock.invocationCallOrder[0],
+      );
     }
     for (const fn of repoFns()) {
       expect((fn as any).mock.calls.flat()).not.toContain('demo-school');

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getEntriesBySchool: vi.fn(),
   getStudentsBySchool: vi.fn(),
   loadDivisions: vi.fn(),
+  ensureSeedReady: vi.fn(async () => undefined),
 }));
 
 vi.mock('../../shared/repositories/LedgerRepository', () => ({
@@ -19,11 +20,15 @@ vi.mock('../../shared/divisions/DivisionService', () => ({
     loadDivisions = mocks.loadDivisions;
   },
 }));
+vi.mock('@/sandbox/seedReady', () => ({
+  ensureSeedReady: mocks.ensureSeedReady,
+}));
 
 beforeEach(() => {
   mocks.getEntriesBySchool.mockReset();
   mocks.getStudentsBySchool.mockReset();
   mocks.loadDivisions.mockReset();
+  mocks.ensureSeedReady.mockReset();
 });
 
 const entry = (over: Partial<LedgerRowLike>): LedgerRowLike => ({
@@ -129,6 +134,29 @@ describe('ledgerReportBuilder', () => {
       const rows = await buildDailyCollections('demo-school');
       expect(rows).toHaveLength(1);
       expect(rows[0]?.collectedMinor).toBe(5_000);
+    });
+  });
+
+  describe('seed readiness', () => {
+    it('buildLedgerSchoolReport waits for seed before reading repositories', async () => {
+      await seed();
+      await buildLedgerSchoolReport('live-school-9');
+      expect(mocks.ensureSeedReady).toHaveBeenCalledTimes(1);
+      expect(mocks.ensureSeedReady.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.getEntriesBySchool.mock.invocationCallOrder[0],
+      );
+      expect(mocks.getEntriesBySchool).toHaveBeenCalledWith('live-school-9');
+      expect(mocks.getStudentsBySchool).toHaveBeenCalledWith('live-school-9');
+    });
+
+    it('buildDailyCollections waits for seed before reading the ledger', async () => {
+      await seed();
+      await buildDailyCollections('live-school-9');
+      expect(mocks.ensureSeedReady).toHaveBeenCalledTimes(1);
+      expect(mocks.ensureSeedReady.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.getEntriesBySchool.mock.invocationCallOrder[0],
+      );
+      expect(mocks.getEntriesBySchool).toHaveBeenCalledWith('live-school-9');
     });
   });
 });

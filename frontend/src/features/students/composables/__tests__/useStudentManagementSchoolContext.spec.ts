@@ -15,7 +15,7 @@ const hoisted = vi.hoisted(() => {
   const loadDivisionsMock = vi.fn(async () => undefined);
   const academicInitMock = vi.fn(async () => undefined);
   const getActiveEnrollmentMock = vi.fn(async () => null);
-  const installSandboxModeMock = vi.fn(async () => ({ seeded: null }));
+  const ensureSeedReadyMock = vi.fn(async () => undefined);
   const loadSchoolMock = vi.fn();
   const schoolMock = {
     currentSchoolId: null as string | null,
@@ -33,7 +33,7 @@ const hoisted = vi.hoisted(() => {
     loadDivisionsMock,
     academicInitMock,
     getActiveEnrollmentMock,
-    installSandboxModeMock,
+    ensureSeedReadyMock,
     loadSchoolMock,
     schoolMock,
     studentMock,
@@ -45,7 +45,7 @@ const hoisted = vi.hoisted(() => {
 const {
   routerPushMock,
   getStudentsWithGuardiansMock,
-  installSandboxModeMock,
+  ensureSeedReadyMock,
   loadSchoolMock,
   schoolMock,
 } = hoisted;
@@ -74,8 +74,8 @@ vi.mock('@/shared/enrollment/EnrollmentService', () => ({
   EnrollmentService: { getActiveEnrollment: hoisted.getActiveEnrollmentMock },
 }));
 
-vi.mock('@/sandbox', () => ({
-  installSandboxMode: hoisted.installSandboxModeMock,
+vi.mock('@/sandbox/seedReady', () => ({
+  ensureSeedReady: hoisted.ensureSeedReadyMock,
 }));
 
 import { useStudentManagement } from '../useStudentManagement';
@@ -136,16 +136,37 @@ describe('useStudentManagement school-context lifecycle', () => {
     __resolveRuntimeEnvironmentForTests('sandbox');
     const management = useStudentManagement();
     await management.load();
-    expect(installSandboxModeMock).toHaveBeenCalledTimes(1);
+    expect(ensureSeedReadyMock).toHaveBeenCalledTimes(1);
     expect(loadSchoolMock).toHaveBeenCalledTimes(1);
     expect(management.students).toHaveLength(1);
   });
 
-  it('does not touch the sandbox installer in production mode', async () => {
+  it('waits for seed readiness even when the school id is already resolved', async () => {
+    // Remote-sandbox cold boot: the backend resolves school context while
+    // the local seed is still rewriting tables. Reads must wait for the
+    // seed despite a valid id, or they observe an empty snapshot.
+    __resolveRuntimeEnvironmentForTests('sandbox');
+    schoolMock.currentSchoolId = 'demo-school';
+    schoolMock.initialized = true;
     const management = useStudentManagement();
     await management.load();
-    expect(installSandboxModeMock).not.toHaveBeenCalled();
+    expect(ensureSeedReadyMock).toHaveBeenCalledTimes(1);
+    expect(ensureSeedReadyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      getStudentsWithGuardiansMock.mock.invocationCallOrder[0],
+    );
+    expect(getStudentsWithGuardiansMock).toHaveBeenCalledWith('demo-school', true);
     expect(management.students).toHaveLength(1);
+  });
+
+  it('loads normally in production mode (seed gate defers to runtime mode)', async () => {
+    // The mocked gate stands in for the real helper, which short-circuits
+    // before any sandbox import in production (proven in seedReady.spec).
+    const management = useStudentManagement();
+    await management.load();
+    expect(loadSchoolMock).toHaveBeenCalledTimes(1);
+    expect(getStudentsWithGuardiansMock).toHaveBeenCalledWith('demo-school', true);
+    expect(management.students).toHaveLength(1);
+    expect(management.error).toBeNull();
   });
 
   it('keeps a genuine empty school distinguishable: no students, no error', async () => {

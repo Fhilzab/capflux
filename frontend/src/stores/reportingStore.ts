@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import type { StudentStatement, GeneralLedgerReport, TrialBalance, ReceivablesAging, CashBook, RevenueSummary, ReconciliationResult } from '../shared/reporting/types';
 import { ReportingService } from '../shared/reporting/ReportingService';
 import { SupabaseReportingProvider } from '../shared/reporting/SupabaseReportingProvider';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 
 export interface ReportingState {
   studentStatements: Record<string, StudentStatement>;
@@ -34,6 +35,7 @@ export const useReportingStore = defineStore('reporting', {
       this.error = null;
 
       try {
+        await ensureSeedReady();
         const provider = new SupabaseReportingProvider();
         const result = await ReportingService.generateStudentStatement({
           provider,

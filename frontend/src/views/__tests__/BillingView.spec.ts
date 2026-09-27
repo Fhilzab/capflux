@@ -18,6 +18,7 @@ const hoisted = vi.hoisted(() => {
   const createChargeMock = vi.fn(async (_payload: Record<string, unknown>) => undefined);
   const loadStudentsMock = vi.fn(async () => undefined);
   const searchStudentsMock = vi.fn(async () => []);
+  const ensureSeedReadyMock = vi.fn(async () => undefined);
   const schoolMock = {
     currentSchoolId: 'live-school-9' as string | null,
     error: null as string | null,
@@ -28,6 +29,7 @@ const hoisted = vi.hoisted(() => {
     createChargeMock,
     loadStudentsMock,
     searchStudentsMock,
+    ensureSeedReadyMock,
     schoolMock,
     billingMock: { getBillingSummary: getBillingSummaryMock, createCharge: createChargeMock },
     studentMock: {
@@ -38,7 +40,7 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
-const { getBillingSummaryMock, createChargeMock, searchStudentsMock, schoolMock } = hoisted;
+const { getBillingSummaryMock, createChargeMock, searchStudentsMock, ensureSeedReadyMock, schoolMock } = hoisted;
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
@@ -55,6 +57,10 @@ vi.mock('@/stores/studentStore', () => ({
 
 vi.mock('@/stores/schoolStore', () => ({
   useSchoolStore: () => hoisted.schoolMock,
+}));
+
+vi.mock('@/sandbox/seedReady', () => ({
+  ensureSeedReady: hoisted.ensureSeedReadyMock,
 }));
 
 vi.mock('../../composables/useModuleLock', () => ({
@@ -112,11 +118,26 @@ describe('BillingView tenant school context', () => {
     await studentSelect.setValue('s1');
     await wrapper.find('input[type="number"]').setValue('5000');
     await clickButton(wrapper, 'Save charge');
+    expect(ensureSeedReadyMock).toHaveBeenCalled();
+    expect(ensureSeedReadyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      createChargeMock.mock.invocationCallOrder[0],
+    );
     expect(createChargeMock).toHaveBeenCalledTimes(1);
     expect(createChargeMock.mock.calls[0]![0]).toMatchObject({
       school_id: 'live-school-9',
       student_id: 's1',
     });
+  });
+
+  it('surfaces seed failures on submit instead of recording', async () => {
+    ensureSeedReadyMock.mockRejectedValueOnce(new Error('seed unavailable'));
+    const wrapper = mount(BillingView);
+    await flushPromises();
+    await wrapper.find('select').setValue('s1');
+    await wrapper.find('input[type="number"]').setValue('5000');
+    await clickButton(wrapper, 'Save charge');
+    expect(createChargeMock).not.toHaveBeenCalled();
+    expect(wrapper.text()).toMatch(/seed unavailable/);
   });
 
   it('blocks reads and writes when school context is missing', async () => {

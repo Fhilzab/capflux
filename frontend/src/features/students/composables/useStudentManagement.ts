@@ -7,7 +7,7 @@ import { studentService } from '@/shared/students/StudentService';
 import { GuardianService } from '@/shared/services/GuardianService';
 import { EnrollmentService } from '@/shared/enrollment/EnrollmentService';
 import { useAcademicStore } from '@/stores/academicStore';
-import { runtimeEnvironment } from '@/shared/environment/runtimeEnvironment';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 import { db } from '@/offline/localDb';
 import { normalizeStudent, isStudentActive, isStudentArchived, sortStudents } from '../utils/normalizeStudent';
 import {
@@ -262,16 +262,15 @@ export function useStudentManagement() {
     loading.value = true;
     error.value = null;
     try {
+      // Cold-boot ordering: the sandbox seeder clears tables before
+      // rewriting them, so any local read before seed completion observes
+      // empty or partial data. Gate every load on seed readiness — even
+      // when the school id is already resolved (e.g. from the backend) —
+      // instead of returning a false empty state. No-op outside sandbox;
+      // concurrent callers share one in-flight seeding.
+      await ensureSeedReady();
       let id = schoolId.value;
       if (!id) {
-        // Cold-boot ordering: the route guard can resolve school context
-        // before the sandbox seed completes, leaving a null school id and a
-        // silently stuck empty state. Ensure seed + school context once here
-        // (bounded single attempt, no retries) instead of returning early.
-        if (runtimeEnvironment.isSandbox) {
-          const { installSandboxMode } = await import('@/sandbox');
-          await installSandboxMode();
-        }
         if (!schoolStore.initialized || !schoolStore.currentSchoolId) {
           await schoolStore.loadSchool();
         }

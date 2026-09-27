@@ -8,6 +8,7 @@
 import { LedgerRepository } from '../shared/repositories/LedgerRepository';
 import { StudentRepository } from '../shared/repositories/StudentRepository';
 import { DivisionService } from '../shared/divisions/DivisionService';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 import {
   getEntryAmountMinor,
   getEntryDate,
@@ -60,6 +61,9 @@ export interface LedgerSchoolReport {
 }
 
 export async function buildLedgerSchoolReport(schoolId: string): Promise<LedgerSchoolReport> {
+  // Sandbox cold boot rewrites local tables while views mount; wait for
+  // seed readiness so the report never aggregates an empty snapshot.
+  await ensureSeedReady();
   const [entries, studentRows, divisions] = await Promise.all([
     LedgerRepository.getEntriesBySchool(schoolId) as Promise<LedgerRowLike[]>,
     StudentRepository.getStudentsBySchool(schoolId),
@@ -137,6 +141,8 @@ export interface DailyCollectionRow {
 }
 
 export async function buildDailyCollections(schoolId: string): Promise<DailyCollectionRow[]> {
+  // Same seed-readiness gate as above: never aggregate a mid-seed snapshot.
+  await ensureSeedReady();
   const entries = (await LedgerRepository.getEntriesBySchool(schoolId)) as LedgerRowLike[];
   const byDay = new Map<string, DailyCollectionRow>();
   for (const entry of entries) {

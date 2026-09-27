@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { notificationService } from '../shared/notifications/NotificationService';
 import type { Notification } from '../shared/notifications/types';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 
 export interface NotificationState {
   notifications: Notification[];
@@ -55,6 +56,7 @@ export const useNotificationStore = defineStore('notification', {
       this.error = null;
 
       try {
+        await ensureSeedReady();
         const result = await notificationService.getNotificationsByStudent(studentId);
 
         if (result.error) {

@@ -7,6 +7,7 @@ import { NotificationRepository } from '../../../shared/repositories/Notificatio
 import { ReportService } from '../../../shared/services/ReportService';
 import { useSyncStore } from '../../../stores/syncStore';
 import { useSchoolStore } from '../../../stores/schoolStore';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 import { getEntryAmountMinor, getEntryDate, isChargeEntry, isPaymentCreditEntry, isReversalDebitEntry } from '../../../lib/ledgerSemantics';
 import dayjs from 'dayjs';
 
@@ -198,6 +199,10 @@ export const useDashboardStore = defineStore('dashboard', {
       this.error = null;
 
       try {
+        // Sandbox cold boot rewrites local tables while views mount; wait
+        // for seed readiness before reading so metrics never compute from
+        // an empty snapshot. No-op outside sandbox mode.
+        await ensureSeedReady();
         // Authenticated school context — the only tenant scope for every
         // repository read below. Never fall back to a hardcoded school:
         // without context we surface an error instead of zeros.

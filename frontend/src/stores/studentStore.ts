@@ -8,6 +8,7 @@ import { PaymentGateway } from '../shared/services/PaymentGateway';
 import db from '../offline/localDb';
 import type { Student, Guardian } from '../shared/students/types';
 import { useSchoolStore } from './schoolStore';
+import { ensureSeedReady } from '@/sandbox/seedReady';
 
 export const useStudentStore = defineStore('student', {
   state: () => ({
@@ -311,6 +312,7 @@ export const useStudentStore = defineStore('student', {
       this.error = null;
 
       try {
+        await ensureSeedReady();
         const result = await studentService.searchStudents(schoolId, query);
         if (result.error) {
           this.error = result.error.message;
