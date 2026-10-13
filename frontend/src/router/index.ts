@@ -121,6 +121,7 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, permission: PERMISSIONS.BILLING.VIEW },
   },
   {
+    // Finance IA: canonical "Payments & Reconciliation" destination.
     path: '/payments',
     name: 'Payments',
     component: () => import('../features/payments/PaymentsDashboard.vue'),
@@ -133,34 +134,42 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    // Finance IA compatibility: settlements live inside the
+    // "Payments & Reconciliation" destination (in-page section nav).
+    // The route is preserved so deep links/bookmarks keep working; it is
+    // intentionally NOT a sidebar entry.
     path: '/settlements',
     name: 'Settlements',
     component: () => import('../views/SettlementsView.vue'),
     meta: { requiresAuth: true, permission: PERMISSIONS.PAYMENT.VIEW },
   },
   {
+    // Finance IA: canonical "Reports & Analytics" destination.
     path: '/reports',
     name: 'Reports',
     component: () => import('../views/ReportsView.vue'),
     meta: { requiresAuth: true, permission: PERMISSIONS.REPORT.VIEW },
   },
   {
+    // Finance IA compatibility: report sections inside "Reports & Analytics"
+    // (in-page section nav). Preserved so deep links keep working; NOT
+    // sidebar entries.
     path: '/reports/daily-collections',
     name: 'DailyCollections',
     component: () => import('../views/DailyCollectionsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, permission: PERMISSIONS.REPORT.VIEW },
   },
   {
     path: '/reports/outstanding-fees',
     name: 'OutstandingFees',
     component: () => import('../views/OutstandingFeesView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, permission: PERMISSIONS.REPORT.VIEW },
   },
   {
     path: '/reports/revenue-dashboard',
     name: 'RevenueDashboard',
     component: () => import('../views/RevenueDashboardView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, permission: PERMISSIONS.REPORT.VIEW },
   },
   {
     path: '/sync',
