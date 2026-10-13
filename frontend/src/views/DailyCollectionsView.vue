@@ -10,10 +10,16 @@ import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 import { formatNairaKobo } from '../lib/ledgerSemantics';
 import { buildDailyCollections, type DailyCollectionRow } from '../lib/ledgerReportBuilder';
 import { useSchoolStore } from '../stores/schoolStore';
+import { usePermission } from '../shared/rbac/usePermission';
+import { PERMISSIONS } from '../shared/rbac/permissions';
 
 const schoolStore = useSchoolStore();
 
 const { showLock, lockReason, canAccessFinancials } = useModuleLock();
+const { can } = usePermission();
+
+/** Separate export capability: viewing a report never implies export rights. */
+const canExport = ref(false);
 
 /** Authenticated school context — the only tenant scope for the report. */
 const schoolId = computed(() => schoolStore.currentSchoolId);
@@ -64,6 +70,7 @@ const formatCsvValue = (value: string | number | null | undefined): string => {
 };
 
 const downloadCsv = async () => {
+  if (!canExport.value) return;
   const rows: Array<Array<string | number>> = [
     ['Date', 'Payments Count', 'Total Collected (₦)'],
     ...filteredCollections.value.map((item) => [
@@ -84,7 +91,10 @@ const downloadCsv = async () => {
   URL.revokeObjectURL(url);
 };
 
-onMounted(loadCollections);
+onMounted(async () => {
+  canExport.value = await can(PERMISSIONS.REPORT.EXPORT);
+  await loadCollections();
+});
 </script>
 
 <template>
@@ -117,11 +127,17 @@ onMounted(loadCollections);
                 >
                   Outstanding Fees
                 </RouterLink>
+                <RouterLink
+                  :to="{ name: 'RevenueDashboard' }"
+                  class="rounded-button border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary"
+                >
+                  Revenue
+                </RouterLink>
               </nav>
             </div>
             <CmButton
               @click="downloadCsv"
-              :disabled="filteredCollections.length === 0"
+              :disabled="filteredCollections.length === 0 || !canExport"
               variant="primary"
             >
               Export CSV

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import CmButton from '../components/ui/CmButton.vue';
 import ErrorState from '../components/ui/ErrorState.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
@@ -7,8 +7,17 @@ import SkeletonLoader from '../components/ui/SkeletonLoader.vue';
 import { formatNairaKobo } from '../lib/ledgerSemantics';
 import { buildLedgerSchoolReport, type LedgerSchoolReport } from '../lib/ledgerReportBuilder';
 import { useSchoolStore } from '../stores/schoolStore';
+import { useModuleLock } from '../composables/useModuleLock';
+import ModuleLockOverlay from '../features/onboarding/ModuleLockOverlay.vue';
+import { usePermission } from '../shared/rbac/usePermission';
+import { PERMISSIONS } from '../shared/rbac/permissions';
 
 const schoolStore = useSchoolStore();
+const { showLock, lockReason, canAccessFinancials } = useModuleLock();
+const { can } = usePermission();
+
+/** Separate export capability: viewing a report never implies export rights. */
+const canExport = ref(false);
 
 /** Authenticated school context — the only tenant scope for the report. */
 const schoolId = computed(() => schoolStore.currentSchoolId);
@@ -39,7 +48,7 @@ const downloadCsv = async (filename: string, rows: Array<Array<string | number>>
 };
 
 const exportOutstanding = async () => {
-  if (!report.value) return;
+  if (!report.value || !canExport.value) return;
   const rows: Array<Array<string | number>> = [
     ['Student', 'Admission number', 'Class', 'Charges (₦)', 'Payments (₦)', 'Outstanding (₦)'],
     ...report.value.outstandingByStudent.map((item) => [
@@ -55,7 +64,7 @@ const exportOutstanding = async () => {
 };
 
 const exportPayments = async () => {
-  if (!report.value) return;
+  if (!report.value || !canExport.value) return;
   const rows: Array<Array<string | number>> = [
     ['Date', 'Student', 'Amount (₦)', 'Description'],
     ...report.value.recentPayments.map((payment) => [
@@ -69,7 +78,7 @@ const exportPayments = async () => {
 };
 
 const exportSummary = async () => {
-  if (!report.value) return;
+  if (!report.value || !canExport.value) return;
   const rows: Array<Array<string | number>> = [
     ['Metric', 'Value'],
     ['Total charges (₦)', Number((report.value.assessedMinor / 100).toFixed(2))],
@@ -83,6 +92,12 @@ const exportSummary = async () => {
 };
 
 const loadReport = async () => {
+  // Financial gate: never build the school report while the module is locked
+  // (or while activation is still resolving).
+  if (!canAccessFinancials.value) {
+    loading.value = false;
+    return;
+  }
   loading.value = true;
   error.value = '';
   try {
@@ -101,16 +116,29 @@ const loadReport = async () => {
   }
 };
 
-onMounted(loadReport);
+onMounted(async () => {
+  canExport.value = await can(PERMISSIONS.REPORT.EXPORT);
+  if (canAccessFinancials.value) {
+    void loadReport();
+  }
+});
+
+// Activation may resolve after mount (stores load async): fetch once granted.
+watch(canAccessFinancials, (granted) => {
+  if (granted && !report.value && !loading.value) {
+    void loadReport();
+  }
+});
 </script>
 
 <template>
   <main class="min-h-screen bg-background text-text-primary p-4 sm:p-8">
-    <div class="max-w-6xl mx-auto space-y-6">
+    <ModuleLockOverlay v-if="showLock" :variant="lockReason ?? 'setup'" />
+    <div v-else-if="canAccessFinancials" class="max-w-6xl mx-auto space-y-6">
       <section class="rounded-card bg-card p-8 shadow-card flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 class="text-headline mb-2">Reports</h1>
-          <p class="text-text-secondary">Fee-first financial summaries and collections reporting.</p>
+          <h1 class="text-headline mb-2">Reports &amp; Analytics</h1>
+          <p class="text-text-secondary">What do the school's financial records show? Read-only summaries, collections and exports.</p>
           <nav class="mt-3 flex flex-wrap gap-2" aria-label="Reports sections">
             <RouterLink
               :to="{ name: 'Reports' }"
@@ -131,16 +159,22 @@ onMounted(loadReport);
             >
               Outstanding Fees
             </RouterLink>
+            <RouterLink
+              :to="{ name: 'RevenueDashboard' }"
+              class="rounded-button border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary"
+            >
+              Revenue
+            </RouterLink>
           </nav>
         </div>
         <div class="flex flex-wrap gap-3">
-          <CmButton @click="exportOutstanding" variant="primary" :disabled="!report">
+          <CmButton @click="exportOutstanding" variant="primary" :disabled="!report || !canExport">
             Export outstanding
           </CmButton>
-          <CmButton @click="exportPayments" variant="success" :disabled="!report">
+          <CmButton @click="exportPayments" variant="success" :disabled="!report || !canExport">
             Export payments
           </CmButton>
-          <CmButton @click="exportSummary" variant="warning" :disabled="!report">
+          <CmButton @click="exportSummary" variant="warning" :disabled="!report || !canExport">
             Export summary
           </CmButton>
         </div>
@@ -223,6 +257,10 @@ onMounted(loadReport);
           </div>
         </section>
       </template>
+    </div>
+    <div v-else class="max-w-6xl mx-auto space-y-6" aria-label="Checking financial access">
+      <SkeletonLoader type="metric" :count="3" />
+      <SkeletonLoader type="table" :count="5" />
     </div>
   </main>
 </template>
